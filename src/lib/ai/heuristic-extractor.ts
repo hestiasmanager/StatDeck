@@ -1,6 +1,33 @@
 import type { DeckAST, OutputFormat, KpiCard, ChartBlock, ContentBlock } from "@/lib/schemas/deck-schema";
 
 /**
+ * Truncates text at the nearest word boundary without cutting off mid-word
+ * or leaving unclosed parentheses/brackets.
+ */
+export function truncateAtWordBoundary(text: string, maxLength: number): string {
+  if (!text) return "";
+  const trimmed = text.trim();
+  if (trimmed.length <= maxLength) return trimmed;
+
+  const substr = trimmed.slice(0, maxLength);
+  const lastSpace = substr.lastIndexOf(" ");
+
+  let result = lastSpace > maxLength * 0.6 ? substr.slice(0, lastSpace).trim() : substr.trim();
+
+  // Strip trailing dangling punctuation, hyphens, colons, or unclosed brackets
+  result = result.replace(/[,;:\-—–(\[]+$/, "").trim();
+
+  // If an opening parenthesis was opened without closing, balance or remove it
+  const openCount = (result.match(/\(/g) || []).length;
+  const closeCount = (result.match(/\)/g) || []).length;
+  if (openCount > closeCount) {
+    result = result.replace(/\([^)]*$/, "").trim();
+  }
+
+  return result;
+}
+
+/**
  * Intelligent deterministic heuristic extractor.
  * Converts ANY raw CSV, Excel markdown table, or scraped article text
  * into a rich, accurate, data-backed DeckAST without requiring external LLM API calls.
@@ -155,7 +182,7 @@ function formatNumberCompact(num: number, unit: string = ""): string {
       const label = row[categoryColumn] || `Item ${i + 1}`;
       const num = primaryNumCol.numbers[i] ?? 0;
       return {
-        label: label.slice(0, 18),
+        label: truncateAtWordBoundary(label, 20),
         value: Math.round(num * 10) / 10,
       };
     });
@@ -180,9 +207,9 @@ function formatNumberCompact(num: number, unit: string = ""): string {
     ];
 
     const rows = dataRows.slice(0, 5).map((r) => ({
-      feature: (r[categoryColumn] || "Entry").slice(0, 30),
-      colA: (r[headerCells[1]] || "N/A").slice(0, 30),
-      colB: (r[headerCells[2]] || "N/A").slice(0, 30),
+      feature: truncateAtWordBoundary(r[categoryColumn] || "Entry", 35),
+      colA: truncateAtWordBoundary(r[headerCells[1]] || "N/A", 35),
+      colB: truncateAtWordBoundary(r[headerCells[2]] || "N/A", 35),
     }));
 
     blocks.push({
@@ -196,8 +223,8 @@ function formatNumberCompact(num: number, unit: string = ""): string {
 
   return {
     meta: {
-      title: title.slice(0, 80),
-      subtitle: `Analysis of ${dataRows.length} entries across ${headerCells.length} data dimensions.`,
+      title: truncateAtWordBoundary(title, 80),
+      subtitle: truncateAtWordBoundary(`Analysis of ${dataRows.length} entries across ${headerCells.length} data dimensions.`, 180),
       category: "Dataset Analysis",
       sourceCitations: ["Uploaded File (Client-Side Parsed)"],
       date: new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }),
@@ -228,13 +255,16 @@ function parseArticleTextToAST(content: string, format: OutputFormat, templateId
     } else if (line.toLowerCase().startsWith("source:")) {
       source = line.replace(/^source:/i, "").trim();
     } else if (line.toLowerCase().startsWith("summary:") || line.toLowerCase().startsWith("excerpt:")) {
-      subtitle = line.replace(/^(summary:|excerpt:)/i, "").trim().slice(0, 180);
+      subtitle = line.replace(/^(summary:|excerpt:)/i, "").trim();
     }
   }
 
   if (title === "Executive Overview & Insights" && lines[0] && !lines[0].startsWith("|")) {
-    title = lines[0].replace(/^[#\s]+/, "").slice(0, 80);
+    title = lines[0].replace(/^[#\s]+/, "");
   }
+
+  title = truncateAtWordBoundary(title, 80);
+  subtitle = truncateAtWordBoundary(subtitle, 180);
 
   // 2. Scan for Numbers, Percentages, and Dollar Amounts in Prose
   // Matches "$42.8M", "84.2%", "3.5x", "12,000", "+24%"
@@ -257,53 +287,32 @@ function parseArticleTextToAST(content: string, format: OutputFormat, templateId
     if (numberMatches.length >= 6) break;
   }
 
-  // Build KPIs
+  // Build KPIs from real extracted numbers
   const kpis: KpiCard[] = [];
   if (numberMatches.length > 0) {
     numberMatches.slice(0, 4).forEach((m, idx) => {
       kpis.push({
         id: `kpi-text-${idx + 1}`,
         value: m.value,
-        label: m.label.slice(0, 35),
-        delta: idx % 2 === 0 ? "+12% YoY" : undefined,
-        deltaType: "positive",
+        label: truncateAtWordBoundary(m.label, 35),
+        deltaType: "neutral",
         description: "Extracted from source text",
       });
     });
-  } else {
-    kpis.push(
-      { id: "kpi-1", value: "100%", label: "Key Signal", delta: "High Signal", deltaType: "positive" },
-      { id: "kpi-2", value: "3.2x", label: "Efficiency Multiplier", delta: "+45%", deltaType: "positive" },
-      { id: "kpi-3", value: "85ms", label: "Turnaround Time", delta: "-30%", deltaType: "positive" },
-      { id: "kpi-4", value: "$0.00", label: "Server Compute Cost", delta: "Zero Cloud", deltaType: "neutral" }
-    );
   }
 
-  // Build Chart from extracted numbers or sample distribution
+  // Build Chart from extracted numbers (Never invent mock charts if no numbers exist)
   const charts: ChartBlock[] = [];
-  if (numberMatches.length >= 3) {
+  if (numberMatches.length >= 2) {
     charts.push({
       id: "chart-text-1",
       type: "bar",
       title: "Extracted Quantitative Metrics",
       unit: "",
       data: numberMatches.slice(0, 6).map((m) => ({
-        label: m.label.slice(0, 16),
+        label: truncateAtWordBoundary(m.label, 18),
         value: Math.min(m.num, 1000),
       })),
-    });
-  } else {
-    charts.push({
-      id: "chart-text-1",
-      type: "horizontal_bar",
-      title: "Impact Distribution Across Core Areas",
-      unit: "%",
-      data: [
-        { label: "Core Operations", value: 42 },
-        { label: "Growth Levers", value: 28 },
-        { label: "Cost Reduction", value: 18 },
-        { label: "Risk Mitigation", value: 12 },
-      ],
     });
   }
 
@@ -321,8 +330,8 @@ function parseArticleTextToAST(content: string, format: OutputFormat, templateId
       title: "Core Actionable Takeaways",
       steps: bullets.slice(0, 4).map((b, idx) => {
         const parts = b.split(/[:–—]/);
-        const stepTitle = parts[0] ? parts[0].trim().slice(0, 50) : `Key Step ${idx + 1}`;
-        const stepDesc = parts[1] ? parts[1].trim().slice(0, 140) : b.slice(0, 140);
+        const stepTitle = parts[0] ? truncateAtWordBoundary(parts[0].trim(), 50) : `Key Step ${idx + 1}`;
+        const stepDesc = parts[1] ? truncateAtWordBoundary(parts[1].trim(), 140) : truncateAtWordBoundary(b, 140);
         return {
           step: idx + 1,
           title: stepTitle,
@@ -334,18 +343,21 @@ function parseArticleTextToAST(content: string, format: OutputFormat, templateId
     blocks.push({
       id: "block-quote-1",
       type: "callout_quote",
-      quote: lines.find((l) => l.length > 40 && l.length < 180) || "Data synthesized directly from source narrative.",
-      author: source,
+      quote: truncateAtWordBoundary(
+        lines.find((l) => l.length > 40 && l.length < 180) || "Data synthesized directly from source narrative.",
+        180
+      ),
+      author: truncateAtWordBoundary(source, 60),
       role: "Key Finding",
     });
   }
 
   return {
     meta: {
-      title: title.slice(0, 80),
-      subtitle: subtitle.slice(0, 180),
+      title: truncateAtWordBoundary(title, 80),
+      subtitle: truncateAtWordBoundary(subtitle, 180),
       category: "Intelligence Report",
-      sourceCitations: [source],
+      sourceCitations: [truncateAtWordBoundary(source, 80)],
       date: new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }),
     },
     kpis,

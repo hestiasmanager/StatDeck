@@ -23,9 +23,11 @@ export interface ExtractASTResult {
 /**
  * Single-call structured LLM extraction supporting:
  * 1. OpenRouter (Access any model: Gemini 2.5 Flash, GPT-4o-mini, Claude 3.5 Haiku, DeepSeek)
- * 2. Direct Gemini Flash API
- * 3. Direct OpenAI API
- * 4. Intelligent deterministic local heuristic parser ($0.00 cost)
+ * 2. Direct Gemini 2.5 Flash API (@ai-sdk/google)
+ * 3. Direct OpenAI API (gpt-4o-mini via @ai-sdk/openai)
+ * 4. Deterministic tabular spreadsheet parser for uploaded CSV/Excel files.
+ *
+ * Never silently returns fake mock charts when LLM calls fail.
  */
 export async function extractDeckAST(
   rawContent: string,
@@ -56,7 +58,9 @@ ${rawContent.slice(0, 10000)}`;
   const geminiApiKey = options?.clientGeminiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   const openAiApiKey = options?.clientOpenAiKey || process.env.OPENAI_API_KEY;
 
-  // 2. OpenRouter Execution (Preferred Unified Gateway)
+  let lastError: Error | null = null;
+
+  // 2. OpenRouter Execution (Preferred Unified Gateway if provided)
   if (openRouterKey) {
     try {
       const openrouter = createOpenAI({
@@ -91,20 +95,21 @@ ${rawContent.slice(0, 10000)}`;
       await redis.set(cacheKey, validatedAst, { ex: 604800 });
       return { ast: validatedAst, cached: false, modelUsed: `openrouter/${selectedModel}` };
     } catch (openRouterErr) {
-      console.warn("OpenRouter execution failed, trying direct providers if available:", openRouterErr);
+      console.error("OpenRouter execution error:", openRouterErr);
+      lastError = openRouterErr instanceof Error ? openRouterErr : new Error(String(openRouterErr));
     }
   }
 
-  // 3. Direct Gemini Flash Execution
+  // 3. Direct Google Gemini Execution (Production gemini-2.5-flash)
   if (geminiApiKey) {
     try {
       const google = createGoogleGenerativeAI({ apiKey: geminiApiKey });
       const { object } = await generateObject({
-        model: google("gemini-2.5-flash-lite"),
+        model: google("gemini-2.5-flash"),
         schema: DeckSchema,
         system: STATDECK_SYSTEM_PROMPT,
         prompt: promptText,
-        maxTokens: 850,
+        maxTokens: 900,
         temperature: 0.2,
       });
 
@@ -115,13 +120,14 @@ ${rawContent.slice(0, 10000)}`;
       };
 
       await redis.set(cacheKey, validatedAst, { ex: 604800 });
-      return { ast: validatedAst, cached: false, modelUsed: "gemini-flash-lite" };
-    } catch (primaryErr) {
-      console.warn("Direct Gemini Flash failed, trying OpenAI:", primaryErr);
+      return { ast: validatedAst, cached: false, modelUsed: "google/gemini-2.5-flash" };
+    } catch (geminiErr) {
+      console.error("Direct Google Gemini error:", geminiErr);
+      lastError = geminiErr instanceof Error ? geminiErr : new Error(String(geminiErr));
     }
   }
 
-  // 4. Direct OpenAI Execution
+  // 4. Direct OpenAI Execution (Production gpt-4o-mini)
   if (openAiApiKey) {
     try {
       const openai = createOpenAI({ apiKey: openAiApiKey });
@@ -130,7 +136,7 @@ ${rawContent.slice(0, 10000)}`;
         schema: DeckSchema,
         system: STATDECK_SYSTEM_PROMPT,
         prompt: promptText,
-        maxTokens: 850,
+        maxTokens: 900,
         temperature: 0.2,
       });
 
@@ -141,19 +147,32 @@ ${rawContent.slice(0, 10000)}`;
       };
 
       await redis.set(cacheKey, validatedAst, { ex: 604800 });
-      return { ast: validatedAst, cached: false, modelUsed: "gpt-4o-mini" };
-    } catch (fallbackErr) {
-      console.warn("Direct OpenAI failed:", fallbackErr);
+      return { ast: validatedAst, cached: false, modelUsed: "openai/gpt-4o-mini" };
+    } catch (openAiErr) {
+      console.error("Direct OpenAI error:", openAiErr);
+      lastError = openAiErr instanceof Error ? openAiErr : new Error(String(openAiErr));
     }
   }
 
-  // 5. Intelligent Deterministic Heuristic Extraction ($0.00 zero-token fallback)
-  console.log("No external LLM key active. Running intelligent heuristic extraction engine.");
-  const heuristicAst = extractHeuristicDeckAST(rawContent, format, templateId);
+  // If an AI provider was configured but failed, NEVER fake a chart with hardcoded mock data!
+  if (lastError) {
+    throw new Error(`AI extraction failed: ${lastError.message}`);
+  }
 
-  return {
-    ast: heuristicAst,
-    cached: false,
-    modelUsed: "heuristic-extractor",
-  };
+  // If no AI key is configured:
+  // Allow deterministic mathematical parsing for uploaded CSV/Excel tables (which compute real numbers from actual user rows)
+  const isTable = rawContent.split("\n").some((l) => l.trim().startsWith("|") && l.trim().endsWith("|"));
+  if (isTable) {
+    const tableAst = extractHeuristicDeckAST(rawContent, format, templateId);
+    return {
+      ast: tableAst,
+      cached: false,
+      modelUsed: "client-table-parser",
+    };
+  }
+
+  // For prose/URL/text content without an AI key, throw a clear error instead of silently returning fake mock data
+  throw new Error(
+    "No AI API key found. Please add your Google Gemini or OpenAI API key in the top-bar AI Settings modal (🔑) or configure GOOGLE_GENERATIVE_AI_API_KEY."
+  );
 }

@@ -1,4 +1,5 @@
 import type { ThemeTokens } from "./types";
+import type { BrandKit } from "@/lib/schemas/brand-kit-schema";
 
 export const EDITORIAL_THEMES: Record<string, ThemeTokens> = {
   "clean-bento": {
@@ -208,3 +209,36 @@ export const EDITORIAL_THEMES: Record<string, ThemeTokens> = {
 };
 
 export const DEFAULT_THEME_ID = "clean-bento";
+
+/**
+ * Registers or updates a dynamic 'custom-brand' theme in the runtime registry
+ * directly from an extracted or manually edited BrandKit.
+ */
+export function applyBrandKitToTheme(brandKit: BrandKit): string {
+  const themeId = "custom-brand";
+  const primary = brandKit.colors.primary || "#2563EB";
+  const accent = brandKit.colors.accent || "#10B981";
+  const bg = brandKit.colors.background || "#F8FAFC";
+  const surface = brandKit.colors.surface || "#FFFFFF";
+  const ink = brandKit.colors.text || "#0F172A";
+
+  EDITORIAL_THEMES[themeId] = {
+    id: themeId,
+    name: `${brandKit.name || "Custom"} Brand`,
+    description: `Brand-locked palette from ${brandKit.name || "brand kit"}.`,
+    category: "minimal",
+    bg,
+    surface,
+    surfaceBorder: "#E2E8F0",
+    ink,
+    inkMuted: "#64748B",
+    accent: primary,
+    accentMuted: `${primary}20`,
+    fontDisplay: brandKit.fonts?.display ? `"${brandKit.fonts.display}", system-ui, sans-serif` : "Inter, system-ui, sans-serif",
+    fontBody: brandKit.fonts?.body ? `"${brandKit.fonts.body}", system-ui, sans-serif` : "Inter, system-ui, sans-serif",
+    cardRadius: "16px",
+    chartColors: [primary, accent, "#3B82F6", "#60A5FA", "#93C5FD"],
+  };
+
+  return themeId;
+}

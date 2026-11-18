@@ -62,11 +62,11 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Extraction API error:", error);
+    const message = error instanceof Error ? error.message : "Failed to extract structured deck";
+    const status = message.includes("No AI API key found") ? 400 : 500;
     return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Failed to extract structured deck",
-      },
-      { status: 500 }
+      { error: message },
+      { status }
     );
   }
 }

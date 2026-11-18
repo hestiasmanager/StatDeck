@@ -325,6 +325,11 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
     }
   }
 
-  const exportName = filename || `${ast.meta.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pptx`;
+  const safeTitle = (ast.meta.title || "statdeck-presentation")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 45) || "statdeck-presentation";
+  const exportName = filename || `${safeTitle}.pptx`;
   await pptx.writeFile({ fileName: exportName });
 }

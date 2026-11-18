@@ -44,6 +44,16 @@ export function ExportModal({
   const theme = EDITORIAL_THEMES[ast.templateId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
   const carouselSlides = buildCarouselSlides(ast);
 
+  // Helper to slugify filenames cleanly
+  const slugifyFilename = (title: string, format: string, ext: string): string => {
+    const safe = (title || "statdeck")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 45);
+    return `${safe || "statdeck"}-${format}.${ext}`;
+  };
+
   // Helper to find the active canvas element
   const getActiveCanvasElement = (): HTMLElement | null => {
     if (activeCanvasRef?.current) {
@@ -80,7 +90,8 @@ export function ExportModal({
       if (!activeElement) {
         throw new Error("No active canvas element found to export.");
       }
-      await exportElementToPng(activeElement, `${ast.meta.title}.png`, 2);
+      const filename = slugifyFilename(ast.meta.title, ast.format, "png");
+      await exportElementToPng(activeElement, filename, 2);
     } catch (err) {
       alert(err instanceof Error ? err.message : "PNG export failed");
     } finally {
@@ -98,7 +109,8 @@ export function ExportModal({
       if (!activeElement) {
         throw new Error("No active canvas element found to export.");
       }
-      await exportElementToSvg(activeElement, `${ast.meta.title}.svg`);
+      const filename = slugifyFilename(ast.meta.title, ast.format, "svg");
+      await exportElementToSvg(activeElement, filename);
     } catch (err) {
       alert(err instanceof Error ? err.message : "SVG export failed");
     } finally {

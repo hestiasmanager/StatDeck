@@ -3,6 +3,7 @@
 import React, { useReducer, useEffect, useState, useRef, useCallback } from "react";
 import type { DeckAST, OutputFormat } from "@/lib/schemas/deck-schema";
 import type { BrandKit } from "@/lib/schemas/brand-kit-schema";
+import { applyBrandKitToTheme } from "@/lib/themes/registry";
 import { SAMPLE_PRESETS } from "@/lib/ai/presets";
 import { FormatSwitcher } from "@/components/studio/format-switcher";
 import { ThemePicker } from "@/components/studio/theme-picker";
@@ -88,11 +89,12 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
     }
 
     case "APPLY_BRAND_KIT": {
+      const brandThemeId = applyBrandKitToTheme(action.payload);
       return {
         past: [...state.past, state.present],
         present: {
           ...state.present,
-          templateId: "clean-bento",
+          templateId: brandThemeId,
         },
         future: [],
       };

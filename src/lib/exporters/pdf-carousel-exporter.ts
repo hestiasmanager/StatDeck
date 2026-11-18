@@ -58,6 +58,10 @@ export async function exportCarouselToPdf(
     pdf.addImage(dataUrl, "PNG", 0, 0, width, height, undefined, "FAST");
   }
 
-  const safeTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const safeTitle = (title || "statdeck")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 45) || "statdeck";
   pdf.save(`${safeTitle}-linkedin-carousel.pdf`);
 }
