@@ -66,8 +66,8 @@ export function buildCarouselSlides(
             </p>
           )}
         </div>
-        <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
-          <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
+        <div className="border-t pt-4 flex items-center justify-between gap-3" style={{ borderColor: theme.surfaceBorder }}>
+          <span className="text-xs font-mono opacity-60 whitespace-nowrap flex-shrink-0" style={{ color: theme.ink }}>
             Swipe for deep dive 👉
           </span>
           <WatermarkBadge visible={ast.watermark} />

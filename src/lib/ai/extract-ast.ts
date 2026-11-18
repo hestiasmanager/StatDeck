@@ -1,7 +1,7 @@
 import { generateObject } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
-import { DeckSchema, type DeckAST, type OutputFormat } from "@/lib/schemas/deck-schema";
+import { DeckSchema, ExtractionDeckSchema, normalizeExtractionDeck, type DeckAST, type OutputFormat } from "@/lib/schemas/deck-schema";
 import { STATDECK_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 import { redis } from "@/lib/cache/redis";
 import { computeContentHash } from "@/lib/cache/content-hash";
@@ -79,18 +79,14 @@ ${rawContent.slice(0, 10000)}`;
 
       const { object } = await generateObject({
         model: openrouter(selectedModel),
-        schema: DeckSchema,
+        schema: ExtractionDeckSchema,
         system: STATDECK_SYSTEM_PROMPT,
         prompt: promptText,
         maxTokens: 900,
         temperature: 0.2,
       });
 
-      const validatedAst: DeckAST = {
-        ...object,
-        format,
-        templateId,
-      };
+      const validatedAst = normalizeExtractionDeck(object, format, templateId);
 
       await redis.set(cacheKey, validatedAst, { ex: 604800 });
       return { ast: validatedAst, cached: false, modelUsed: `openrouter/${selectedModel}` };
@@ -106,18 +102,14 @@ ${rawContent.slice(0, 10000)}`;
       const google = createGoogleGenerativeAI({ apiKey: geminiApiKey });
       const { object } = await generateObject({
         model: google("gemini-2.5-flash"),
-        schema: DeckSchema,
+        schema: ExtractionDeckSchema,
         system: STATDECK_SYSTEM_PROMPT,
         prompt: promptText,
         maxTokens: 900,
         temperature: 0.2,
       });
 
-      const validatedAst: DeckAST = {
-        ...object,
-        format,
-        templateId,
-      };
+      const validatedAst = normalizeExtractionDeck(object, format, templateId);
 
       await redis.set(cacheKey, validatedAst, { ex: 604800 });
       return { ast: validatedAst, cached: false, modelUsed: "google/gemini-2.5-flash" };
@@ -133,18 +125,14 @@ ${rawContent.slice(0, 10000)}`;
       const openai = createOpenAI({ apiKey: openAiApiKey });
       const { object } = await generateObject({
         model: openai("gpt-4o-mini"),
-        schema: DeckSchema,
+        schema: ExtractionDeckSchema,
         system: STATDECK_SYSTEM_PROMPT,
         prompt: promptText,
         maxTokens: 900,
         temperature: 0.2,
       });
 
-      const validatedAst: DeckAST = {
-        ...object,
-        format,
-        templateId,
-      };
+      const validatedAst = normalizeExtractionDeck(object, format, templateId);
 
       await redis.set(cacheKey, validatedAst, { ex: 604800 });
       return { ast: validatedAst, cached: false, modelUsed: "openai/gpt-4o-mini" };
