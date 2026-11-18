@@ -2,6 +2,8 @@
 
 > **Brand-Locked Infographics, LinkedIn Carousels & Native PowerPoint Decks from Any URL, CSV, Excel, or PDF.**
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fhestiasmanager%2FStatDeck)
+
 StatDeck is a production-grade SaaS application designed to transform raw documents, live URLs, datasets, and unstructured prose into publication-ready visual assets—engineered for maximum architectural resilience and **near-zero operating costs**.
 
 ---
