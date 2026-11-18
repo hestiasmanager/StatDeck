@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import type { DeckAST } from "@/lib/schemas/deck-schema";
+import { EDITORIAL_THEMES, DEFAULT_THEME_ID } from "@/lib/themes/registry";
 import { exportDeckToPptx } from "@/lib/exporters/pptx-exporter";
-import { exportSvgToPng } from "@/lib/exporters/png-exporter";
-import { exportSvgToFile } from "@/lib/exporters/svg-exporter";
+import { exportElementToPng } from "@/lib/exporters/png-exporter";
+import { exportElementToSvg } from "@/lib/exporters/svg-exporter";
 import { exportCarouselToPdf } from "@/lib/exporters/pdf-carousel-exporter";
+import { buildCarouselSlides } from "@/components/canvas/carousel-slides";
 import {
   Download,
   Presentation,
@@ -22,6 +24,7 @@ interface ExportModalProps {
   onClose: () => void;
   ast: DeckAST;
   userTier?: "free" | "creator" | "agency";
+  activeCanvasRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export function ExportModal({
@@ -29,15 +32,32 @@ export function ExportModal({
   onClose,
   ast,
   userTier = "free",
+  activeCanvasRef,
 }: ExportModalProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
+  const offscreenContainerRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
 
   const isFree = userTier === "free";
+  const theme = EDITORIAL_THEMES[ast.templateId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
+  const carouselSlides = buildCarouselSlides(ast);
 
-  // Native PowerPoint Export
+  // Helper to find the active canvas element
+  const getActiveCanvasElement = (): HTMLElement | null => {
+    if (activeCanvasRef?.current) {
+      return activeCanvasRef.current;
+    }
+    return (
+      document.getElementById("statdeck-infographic-canvas") ||
+      document.getElementById("carousel-active-slide") ||
+      document.getElementById("presentation-active-slide") ||
+      (document.querySelector("[data-statdeck-canvas]") as HTMLElement | null)
+    );
+  };
+
+  // 1. Native PowerPoint Export
   const handlePptxExport = async () => {
     setIsExporting(true);
     setExportMessage("Generating native PowerPoint slides & native charts...");
@@ -51,21 +71,16 @@ export function ExportModal({
     }
   };
 
-  // High-DPI PNG Export
+  // 2. High-DPI PNG Export (Targets active canvas ref via html-to-image)
   const handlePngExport = async () => {
     setIsExporting(true);
     setExportMessage("Rasterizing crisp 2x High-DPI Canvas PNG...");
     try {
-      const activeSlide = document.getElementById("carousel-active-slide") || document.querySelector("svg");
-      if (activeSlide) {
-        // Look for SVG inside or serialize
-        const svg = document.querySelector("svg");
-        if (svg) {
-          await exportSvgToPng(svg, `${ast.meta.title}.png`, 2);
-        } else {
-          alert("Canvas ready for export");
-        }
+      const activeElement = getActiveCanvasElement();
+      if (!activeElement) {
+        throw new Error("No active canvas element found to export.");
       }
+      await exportElementToPng(activeElement, `${ast.meta.title}.png`, 2);
     } catch (err) {
       alert(err instanceof Error ? err.message : "PNG export failed");
     } finally {
@@ -74,27 +89,46 @@ export function ExportModal({
     }
   };
 
-  // Vector SVG Export
-  const handleSvgExport = () => {
-    const svg = document.querySelector("svg");
-    if (svg) {
-      exportSvgToFile(svg, `${ast.meta.title}.svg`);
-    } else {
-      alert("No SVG elements found to export");
+  // 3. Vector SVG Export (Targets active canvas ref via html-to-image)
+  const handleSvgExport = async () => {
+    setIsExporting(true);
+    setExportMessage("Serializing clean vector SVG with embedded fonts...");
+    try {
+      const activeElement = getActiveCanvasElement();
+      if (!activeElement) {
+        throw new Error("No active canvas element found to export.");
+      }
+      await exportElementToSvg(activeElement, `${ast.meta.title}.svg`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "SVG export failed");
+    } finally {
+      setIsExporting(false);
+      setExportMessage("");
     }
   };
 
-  // LinkedIn Carousel PDF Export
+  // 4. LinkedIn Multi-Slide Carousel PDF Export (Iterates all mounted offscreen slides)
   const handleCarouselPdfExport = async () => {
     setIsExporting(true);
-    setExportMessage("Compiling 1080x1350 multi-page LinkedIn PDF carousel...");
+    setExportMessage("Mounting all carousel slides for multi-page PDF compilation...");
     try {
-      const activeSlide = document.getElementById("carousel-active-slide");
-      if (activeSlide) {
-        await exportCarouselToPdf([activeSlide], ast.meta.title);
-      } else {
-        alert("Please select the LinkedIn Carousel view to export carousel PDF");
+      const container = offscreenContainerRef.current;
+      const slideNodes: HTMLElement[] = container
+        ? (Array.from(container.querySelectorAll("[data-carousel-slide]")) as HTMLElement[])
+        : [];
+
+      // Fallback: If offscreen container children couldn't be queried, fallback to active slide
+      if (slideNodes.length === 0) {
+        const activeSlide = document.getElementById("carousel-active-slide");
+        if (activeSlide) slideNodes.push(activeSlide);
       }
+
+      if (slideNodes.length === 0) {
+        throw new Error("Unable to capture carousel slides for PDF generation.");
+      }
+
+      setExportMessage(`Compiling ${slideNodes.length}-slide LinkedIn PDF carousel...`);
+      await exportCarouselToPdf(slideNodes, ast.meta.title);
     } catch (err) {
       alert(err instanceof Error ? err.message : "PDF Carousel export failed");
     } finally {
@@ -105,6 +139,41 @@ export function ExportModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      {/* Hidden Offscreen Container Mounting ALL Carousel Slides for PDF Export */}
+      <div
+        ref={offscreenContainerRef}
+        id="offscreen-carousel-container"
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          left: "-9999px",
+          top: 0,
+          width: "540px",
+          pointerEvents: "none",
+          opacity: 1,
+          zIndex: -9999,
+        }}
+      >
+        {carouselSlides.map((slide) => (
+          <div
+            key={slide.id}
+            data-carousel-slide={slide.id}
+            style={{
+              width: "540px",
+              height: "675px",
+              backgroundColor: theme.bg,
+              borderColor: theme.surfaceBorder,
+              color: theme.ink,
+              position: "relative",
+              overflow: "hidden",
+              marginBottom: "20px",
+            }}
+          >
+            {slide.content}
+          </div>
+        ))}
+      </div>
+
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 flex flex-col gap-5">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
@@ -176,7 +245,7 @@ export function ExportModal({
                   LinkedIn Carousel PDF
                 </span>
                 <span className="text-[11px] text-slate-500">
-                  1080×1350 4:5 swipeable multi-page document
+                  1080×1350 4:5 swipeable multi-page document ({carouselSlides.length} slides)
                 </span>
               </div>
             </div>
@@ -200,7 +269,7 @@ export function ExportModal({
                   High-DPI Image (.png)
                 </span>
                 <span className="text-[11px] text-slate-500">
-                  2x Retina resolution for Twitter / X and social posts
+                  2x Retina resolution capturing full typography & layout
                 </span>
               </div>
             </div>
@@ -224,7 +293,7 @@ export function ExportModal({
                   Vector Scalable Graphic (.svg)
                 </span>
                 <span className="text-[11px] text-slate-500">
-                  Pure vector format with embedded web fonts
+                  Pure vector format with embedded web fonts & inline charts
                 </span>
               </div>
             </div>

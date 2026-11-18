@@ -11,15 +11,32 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get("paddle-signature");
     const rawBody = await req.text();
     const webhookSecret = process.env.PADDLE_WEBHOOK_SECRET_KEY;
+    const isProduction = process.env.NODE_ENV === "production";
 
-    // Verify webhook signature if secret key is configured
-    if (webhookSecret && signature) {
-      try {
-        paddle.webhooks.unmarshal(rawBody, webhookSecret, signature);
-      } catch (sigErr) {
-        console.error("Paddle webhook signature verification failed:", sigErr);
-        return NextResponse.json({ error: "Invalid Paddle signature" }, { status: 401 });
-      }
+    // 1. Strict Validation: Reject if paddle-signature header is omitted
+    if (!signature) {
+      console.error("Paddle webhook rejected: missing paddle-signature header");
+      return NextResponse.json(
+        { error: "Unauthorized: Missing paddle-signature header" },
+        { status: 401 }
+      );
+    }
+
+    // 2. Strict Validation: Reject if PADDLE_WEBHOOK_SECRET_KEY is missing
+    if (!webhookSecret) {
+      console.error("Paddle webhook rejected: PADDLE_WEBHOOK_SECRET_KEY is not configured");
+      return NextResponse.json(
+        { error: "Unauthorized: Webhook secret key not configured" },
+        { status: 401 }
+      );
+    }
+
+    // 3. Verify webhook signature
+    try {
+      paddle.webhooks.unmarshal(rawBody, webhookSecret, signature);
+    } catch (sigErr) {
+      console.error("Paddle webhook signature verification failed:", sigErr);
+      return NextResponse.json({ error: "Invalid Paddle signature" }, { status: 401 });
     }
 
     const payload = JSON.parse(rawBody) as PaddleWebhookEventPayload;

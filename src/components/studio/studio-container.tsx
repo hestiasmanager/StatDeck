@@ -418,6 +418,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
         onClose={() => setIsExportOpen(false)}
         ast={currentAst}
         userTier="free"
+        activeCanvasRef={infographicRef}
       />
 
       <BrandKitModal

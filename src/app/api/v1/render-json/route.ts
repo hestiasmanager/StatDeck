@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DeckSchema } from "@/lib/schemas/deck-schema";
 import { EDITORIAL_THEMES, DEFAULT_THEME_ID } from "@/lib/themes/registry";
+import crypto from "crypto";
+
+/**
+ * Constant-time string comparison to prevent timing attacks on API keys.
+ */
+function secureCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 /**
  * Public REST API for Google Slides Add-on and external automation.
@@ -10,9 +23,31 @@ import { EDITORIAL_THEMES, DEFAULT_THEME_ID } from "@/lib/themes/registry";
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");
-    // API Key validation (optional in dev, required in production)
-    if (process.env.NODE_ENV === "production" && !authHeader) {
-      return NextResponse.json({ error: "Unauthorized. Missing API Key." }, { status: 401 });
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: "Unauthorized: Missing Authorization header." },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : authHeader.trim();
+
+    const expectedKey = process.env.STATDECK_API_KEY;
+    if (!expectedKey) {
+      console.error("STATDECK_API_KEY environment variable is not configured.");
+      return NextResponse.json(
+        { error: "Unauthorized: Server API Key not configured." },
+        { status: 401 }
+      );
+    }
+
+    if (!secureCompare(token, expectedKey)) {
+      return NextResponse.json(
+        { error: "Unauthorized: Invalid API Key." },
+        { status: 401 }
+      );
     }
 
     const json = await req.json();

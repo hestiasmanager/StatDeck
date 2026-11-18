@@ -231,6 +231,8 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
         }}
       >
         <div
+          id="presentation-active-slide"
+          data-statdeck-canvas="presentation"
           className="relative w-[800px] h-[450px] rounded-2xl shadow-2xl overflow-hidden border transition-all duration-200 flex-shrink-0"
           style={{
             backgroundColor: theme.bg,

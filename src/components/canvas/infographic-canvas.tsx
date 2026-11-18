@@ -30,6 +30,8 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
       >
         <div
           ref={ref}
+          id="statdeck-infographic-canvas"
+          data-statdeck-canvas="infographic"
           className="relative shadow-2xl transition-all duration-200 font-sans border rounded-2xl overflow-hidden flex-shrink-0"
           style={{
             width: "800px",
