@@ -1,0 +1,53 @@
+{
+  "name": "statdeck",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^1.1.18",
+    "@ai-sdk/openai": "^1.1.9",
+    "@mozilla/readability": "^0.5.0",
+    "@paddle/paddle-node-sdk": "^3.2.1",
+    "@upstash/ratelimit": "^2.0.5",
+    "@upstash/redis": "^1.34.4",
+    "ai": "^4.1.45",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.38.4",
+    "framer-motion": "^12.4.7",
+    "jspdf": "^2.5.2",
+    "linkedom": "^0.18.6",
+    "lucide-react": "^0.475.0",
+    "next": "15.1.7",
+    "papaparse": "^5.5.2",
+    "pdfjs-dist": "^4.10.38",
+    "pg": "^8.13.1",
+    "pptxgenjs": "^3.12.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.0.1",
+    "xlsx": "^0.18.5",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "@types/papaparse": "^5.3.15",
+    "@types/pg": "^8.11.11",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "autoprefixer": "^10.4.20",
+    "drizzle-kit": "^0.30.4",
+    "postcss": "^8.5.2",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.15",
+    "typescript": "^5.7.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": []
+  }
+}

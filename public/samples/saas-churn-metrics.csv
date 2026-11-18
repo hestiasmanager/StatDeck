@@ -1,0 +1,6 @@
+Segment,ACV_Range,Gross_Retention_Pct,Net_Dollar_Retention_Pct,Logo_Churn_Monthly_Pct,Payback_Months
+SMB,< $5K,78.2%,96.4%,1.42%,18.4
+Mid-Market,$5K-$25K,84.6%,108.2%,0.92%,14.1
+Commercial,$25K-$100K,89.1%,121.5%,0.64%,11.2
+Enterprise,$100K+,94.5%,138.4%,0.38%,7.9
+Strategic,$250K+,97.2%,146.8%,0.21%,5.4
