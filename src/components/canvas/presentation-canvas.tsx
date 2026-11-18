@@ -12,6 +12,7 @@ import { ProcessStepsBlock } from "@/components/blocks/process-steps";
 import { ComparisonTableBlock } from "@/components/blocks/comparison-table";
 import { ProsConsBlock } from "@/components/blocks/pros-cons-block";
 import { CalloutQuoteBlock } from "@/components/blocks/callout-quote";
+import { KeyTakeawaysBlock } from "@/components/blocks/key-takeaways";
 import { WatermarkBadge } from "@/components/studio/watermark-badge";
 
 interface PresentationCanvasProps {
@@ -104,7 +105,16 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
                   {kpi.delta && (
                     <span
                       className={`text-[11px] font-bold mt-1 block ${
-                        kpi.deltaType === "positive" ? "text-emerald-500" : "text-rose-500"
+                        kpi.deltaType === "positive" ||
+                        (!kpi.deltaType &&
+                          (kpi.delta.startsWith("+") ||
+                            kpi.delta.toLowerCase().includes("free") ||
+                            kpi.delta.toLowerCase().includes("saved")))
+                          ? "text-emerald-500"
+                          : kpi.deltaType === "negative" ||
+                            (!kpi.deltaType && kpi.delta.startsWith("-"))
+                          ? "text-rose-500"
+                          : "opacity-60"
                       }`}
                     >
                       {kpi.delta}
@@ -114,7 +124,8 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
               </div>
             ))}
           </div>
-          <div className="border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+          <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+            <span className="text-xs font-mono opacity-60">Executive Summary</span>
             <WatermarkBadge visible={ast.watermark} />
           </div>
         </div>
@@ -160,7 +171,8 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
                     <SvgLineChart chart={ast.charts[0]} accentColor={theme.accent} inkColor={theme.ink} />
                   )}
                 </div>
-                <div className="border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+                <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+                  <span className="text-xs font-mono opacity-60">{ast.charts[0].title}</span>
                   <WatermarkBadge visible={ast.watermark} />
                 </div>
               </div>
@@ -209,8 +221,28 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
                       surfaceBorder={theme.surfaceBorder}
                     />
                   )}
+                  {ast.blocks[0].type === "callout_quote" && (
+                    <CalloutQuoteBlock
+                      quote={ast.blocks[0].quote}
+                      author={ast.blocks[0].author}
+                      role={ast.blocks[0].role}
+                      accentColor={theme.accent}
+                      inkColor={theme.ink}
+                      surfaceBorder={theme.surfaceBorder}
+                    />
+                  )}
+                  {ast.blocks[0].type === "key_takeaways" && (
+                    <KeyTakeawaysBlock
+                      title={ast.blocks[0].title}
+                      bullets={ast.blocks[0].bullets}
+                      accentColor={theme.accent}
+                      inkColor={theme.ink}
+                      surfaceBorder={theme.surfaceBorder}
+                    />
+                  )}
                 </div>
-                <div className="border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+                <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+                  <span className="text-xs font-mono opacity-60">Key Takeaways</span>
                   <WatermarkBadge visible={ast.watermark} />
                 </div>
               </div>

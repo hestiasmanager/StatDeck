@@ -70,6 +70,15 @@ export function SvgDonutChart({
         {data.map((d, i) => {
           const color = d.color || colorPalette[i % colorPalette.length];
           const pct = Math.round((d.value / total) * 100);
+          const hasPercentSign = String(d.value).endsWith("%");
+          const isPercentUnit = chart.unit === "%" || chart.unit?.includes("%") || hasPercentSign;
+          const valueText = isPercentUnit
+            ? hasPercentSign
+              ? d.value
+              : `${d.value}%`
+            : chart.unit === "$"
+            ? `$${d.value} (${pct}%)`
+            : `${d.value}${chart.unit ? ` ${chart.unit}` : ""} (${pct}%)`;
 
           return (
             <div key={i} className="flex items-center gap-2 text-xs">
@@ -81,8 +90,7 @@ export function SvgDonutChart({
                 {d.label}
               </span>
               <span className="ml-auto opacity-70 font-mono" style={{ color: inkColor }}>
-                {d.value}
-                {chart.unit} ({pct}%)
+                {valueText}
               </span>
             </div>
           );

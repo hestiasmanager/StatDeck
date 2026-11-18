@@ -11,6 +11,7 @@ import { ProcessStepsBlock } from "@/components/blocks/process-steps";
 import { ComparisonTableBlock } from "@/components/blocks/comparison-table";
 import { ProsConsBlock } from "@/components/blocks/pros-cons-block";
 import { CalloutQuoteBlock } from "@/components/blocks/callout-quote";
+import { KeyTakeawaysBlock } from "@/components/blocks/key-takeaways";
 import { WatermarkBadge } from "@/components/studio/watermark-badge";
 
 export interface CarouselSlideData {
@@ -110,7 +111,16 @@ export function buildCarouselSlides(
                 {kpi.delta && (
                   <span
                     className={`text-[11px] font-bold mt-1 block ${
-                      kpi.deltaType === "positive" ? "text-emerald-500" : "text-rose-500"
+                      kpi.deltaType === "positive" ||
+                      (!kpi.deltaType &&
+                        (kpi.delta.startsWith("+") ||
+                          kpi.delta.toLowerCase().includes("free") ||
+                          kpi.delta.toLowerCase().includes("saved")))
+                        ? "text-emerald-500"
+                        : kpi.deltaType === "negative" ||
+                          (!kpi.deltaType && kpi.delta.startsWith("-"))
+                        ? "text-rose-500"
+                        : "opacity-60"
                     }`}
                   >
                     {kpi.delta}
@@ -120,7 +130,10 @@ export function buildCarouselSlides(
             </div>
           ))}
         </div>
-        <div className="border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+        <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
+          <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
+            Core Metrics
+          </span>
           <WatermarkBadge visible={ast.watermark} />
         </div>
       </div>
@@ -164,7 +177,10 @@ export function buildCarouselSlides(
               <SvgLineChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
             )}
           </div>
-          <div className="border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+          <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
+            <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
+              Data Breakdown
+            </span>
             <WatermarkBadge visible={ast.watermark} />
           </div>
         </div>
@@ -224,8 +240,20 @@ export function buildCarouselSlides(
                 surfaceBorder={theme.surfaceBorder}
               />
             )}
+            {block.type === "key_takeaways" && (
+              <KeyTakeawaysBlock
+                title={block.title}
+                bullets={block.bullets}
+                accentColor={theme.accent}
+                inkColor={theme.ink}
+                surfaceBorder={theme.surfaceBorder}
+              />
+            )}
           </div>
-          <div className="border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+          <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
+            <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
+              Strategic Insights
+            </span>
             <WatermarkBadge visible={ast.watermark} />
           </div>
         </div>
@@ -258,7 +286,10 @@ export function buildCarouselSlides(
             </div>
           )}
         </div>
-        <div className="border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+        <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
+          <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
+            Summary
+          </span>
           <WatermarkBadge visible={ast.watermark} />
         </div>
       </div>

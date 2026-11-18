@@ -9,6 +9,7 @@ import { ProcessStepsBlock } from "@/components/blocks/process-steps";
 import { ComparisonTableBlock } from "@/components/blocks/comparison-table";
 import { ProsConsBlock } from "@/components/blocks/pros-cons-block";
 import { CalloutQuoteBlock } from "@/components/blocks/callout-quote";
+import { KeyTakeawaysBlock } from "@/components/blocks/key-takeaways";
 import { WatermarkBadge } from "@/components/studio/watermark-badge";
 
 interface InfographicCanvasProps {
@@ -134,96 +135,122 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
           </section>
 
           {/* Primary Chart Section */}
-          {ast.charts.map((chart) => (
-            <section
-              key={chart.id}
-              className="p-6 rounded-2xl border flex flex-col gap-4 shadow-sm"
-              style={{
-                backgroundColor: theme.surface,
-                borderColor: theme.surfaceBorder,
-                borderRadius: theme.cardRadius,
-              }}
-            >
-              <h3
-                className="text-base font-bold tracking-tight"
-                style={{ color: theme.ink, fontFamily: theme.fontDisplay }}
+          {ast.charts.map((chart) => {
+            if (!chart.data || chart.data.length === 0) return null;
+            return (
+              <section
+                key={chart.id}
+                className="p-6 rounded-2xl border flex flex-col gap-4 shadow-sm"
+                style={{
+                  backgroundColor: theme.surface,
+                  borderColor: theme.surfaceBorder,
+                  borderRadius: theme.cardRadius,
+                }}
               >
-                {chart.title}
-              </h3>
+                <h3
+                  className="text-base font-bold tracking-tight"
+                  style={{ color: theme.ink, fontFamily: theme.fontDisplay }}
+                >
+                  {chart.title}
+                </h3>
 
-              {chart.type === "bar" && (
-                <SvgBarChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
-              )}
-              {chart.type === "horizontal_bar" && (
-                <SvgHorizontalBar chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
-              )}
-              {chart.type === "donut" && (
-                <SvgDonutChart chart={chart} colorPalette={theme.chartColors} inkColor={theme.ink} />
-              )}
-              {(chart.type === "line" || chart.type === "area") && (
-                <SvgLineChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
-              )}
-            </section>
-          ))}
+                {chart.type === "bar" && (
+                  <SvgBarChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+                )}
+                {chart.type === "horizontal_bar" && (
+                  <SvgHorizontalBar chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+                )}
+                {chart.type === "donut" && (
+                  <SvgDonutChart chart={chart} colorPalette={theme.chartColors} inkColor={theme.ink} />
+                )}
+                {(chart.type === "line" || chart.type === "area") && (
+                  <SvgLineChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+                )}
+              </section>
+            );
+          })}
 
           {/* Structured Retention Blocks */}
-          {ast.blocks.map((block) => (
-            <section
-              key={block.id}
-              className="p-6 rounded-2xl border shadow-sm"
-              style={{
-                backgroundColor: theme.surface,
-                borderColor: theme.surfaceBorder,
-                borderRadius: theme.cardRadius,
-              }}
-            >
-              {block.type === "numbered_steps" && (
-                <ProcessStepsBlock
-                  title={block.title}
-                  steps={block.steps}
-                  accentColor={theme.accent}
-                  inkColor={theme.ink}
-                  surfaceBorder={theme.surfaceBorder}
-                />
-              )}
-              {block.type === "comparison_table" && (
-                <ComparisonTableBlock
-                  title={block.title}
-                  headers={block.headers}
-                  rows={block.rows}
-                  inkColor={theme.ink}
-                  surfaceBorder={theme.surfaceBorder}
-                  accentColor={theme.accent}
-                />
-              )}
-              {block.type === "pros_cons" && (
-                <ProsConsBlock
-                  title={block.title}
-                  pros={block.pros}
-                  cons={block.cons}
-                  inkColor={theme.ink}
-                  surfaceBorder={theme.surfaceBorder}
-                />
-              )}
-              {block.type === "callout_quote" && (
-                <CalloutQuoteBlock
-                  quote={block.quote}
-                  author={block.author}
-                  role={block.role}
-                  accentColor={theme.accent}
-                  inkColor={theme.ink}
-                  surfaceBorder={theme.surfaceBorder}
-                />
-              )}
-            </section>
-          ))}
+          {ast.blocks.map((block) => {
+            if (
+              block.type !== "numbered_steps" &&
+              block.type !== "comparison_table" &&
+              block.type !== "pros_cons" &&
+              block.type !== "callout_quote" &&
+              block.type !== "key_takeaways"
+            ) {
+              return null;
+            }
+
+            return (
+              <section
+                key={block.id}
+                className="p-6 rounded-2xl border shadow-sm"
+                style={{
+                  backgroundColor: theme.surface,
+                  borderColor: theme.surfaceBorder,
+                  borderRadius: theme.cardRadius,
+                }}
+              >
+                {block.type === "numbered_steps" && (
+                  <ProcessStepsBlock
+                    title={block.title}
+                    steps={block.steps}
+                    accentColor={theme.accent}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+                {block.type === "comparison_table" && (
+                  <ComparisonTableBlock
+                    title={block.title}
+                    headers={block.headers}
+                    rows={block.rows}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                    accentColor={theme.accent}
+                  />
+                )}
+                {block.type === "pros_cons" && (
+                  <ProsConsBlock
+                    title={block.title}
+                    pros={block.pros}
+                    cons={block.cons}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+                {block.type === "callout_quote" && (
+                  <CalloutQuoteBlock
+                    quote={block.quote}
+                    author={block.author}
+                    role={block.role}
+                    accentColor={theme.accent}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+                {block.type === "key_takeaways" && (
+                  <KeyTakeawaysBlock
+                    title={block.title}
+                    bullets={block.bullets}
+                    accentColor={theme.accent}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+              </section>
+            );
+          })}
 
           {/* Footer & Source Citations */}
-          <footer className="mt-auto border-t pt-6" style={{ borderColor: theme.surfaceBorder }}>
-            {ast.meta.sourceCitations.length > 0 && (
+          <footer className="mt-auto border-t pt-6 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
+            {ast.meta.sourceCitations.length > 0 ? (
               <p className="text-xs opacity-60 font-mono">
                 Source: {ast.meta.sourceCitations.join(" • ")}
               </p>
+            ) : (
+              <div />
             )}
             <WatermarkBadge visible={ast.watermark} />
           </footer>
