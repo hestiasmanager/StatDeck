@@ -23,15 +23,56 @@ export interface TableRollupSummary {
   formattedSummary: string;
 }
 
+const SUMMARY_ROW_REGEX = /^(grand\s*)?(sub)?total\b|\bsummary\b/i;
+
 /**
- * Extracts a numeric value from a cell, stripping currency symbols, commas, and percentage signs.
+ * Detects whether a row represents an aggregation or summary row (e.g. Total, Grand Total, Subtotal).
  */
-function parseCleanNumber(val: unknown): { num: number; unit: string } | null {
+export function isSummaryOrTotalRow(
+  row: Record<string, unknown>,
+  headers: string[]
+): boolean {
+  if (!row) return false;
+  // Inspect the first 3 columns (typically identifier/category columns)
+  const colsToCheck = Math.min(headers.length, 3);
+  for (let c = 0; c < colsToCheck; c++) {
+    const val = row[headers[c]];
+    if (val !== null && val !== undefined) {
+      const str = String(val).trim();
+      if (SUMMARY_ROW_REGEX.test(str)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Extracts a numeric value from a cell, handling:
+ * - Parenthesized accounting negatives: ($1,234.50) or (400) -> -1234.5, -400
+ * - Currency symbols ($, €, £, ¥) and percentages (%)
+ * - Trailing k, m, b multipliers: $45.2k -> 45200, 1.5M -> 1500000, 2.3B -> 2300000000
+ * - Thousands separators (commas) and whitespace
+ */
+export function parseCleanNumber(val: unknown): { num: number; unit: string } | null {
   if (val === null || val === undefined) return null;
-  const str = String(val).trim();
+  if (typeof val === "number") {
+    if (isNaN(val) || !isFinite(val)) return null;
+    return { num: val, unit: "" };
+  }
+
+  let str = String(val).trim();
   if (!str) return null;
 
-  // Determine prefix unit ($ / € / £ / ¥)
+  // Check for parenthesized accounting negatives: ($1,234.50), (400), (12.5%)
+  let isNegative = false;
+  const parenMatch = str.match(/^\s*\((.*)\)\s*$/);
+  if (parenMatch) {
+    isNegative = true;
+    str = parenMatch[1].trim();
+  }
+
+  // Determine prefix or suffix unit ($ / € / £ / ¥ / %)
   let unit = "";
   if (str.startsWith("$") || str.includes("($)")) unit = "$";
   else if (str.startsWith("€") || str.includes("(€)")) unit = "€";
@@ -39,15 +80,38 @@ function parseCleanNumber(val: unknown): { num: number; unit: string } | null {
   else if (str.startsWith("¥") || str.includes("(¥)")) unit = "¥";
   else if (str.endsWith("%") || str.includes("(%)")) unit = "%";
 
-  const cleanStr = str.replace(/[$,€£¥%]/g, "").replace(/,/g, "").trim();
-  const num = parseFloat(cleanStr);
-  if (isNaN(num)) return null;
+  // Strip currency symbols, percentages, commas, and internal parentheses
+  let cleanStr = str.replace(/[$,€£¥%()]/g, "").replace(/,/g, "").trim();
 
-  return { num, unit };
+  // Check for leading minus/plus sign
+  if (cleanStr.startsWith("-")) {
+    isNegative = true;
+    cleanStr = cleanStr.slice(1).trim();
+  } else if (cleanStr.startsWith("+")) {
+    cleanStr = cleanStr.slice(1).trim();
+  }
+
+  // Detect trailing k/m/b multiplier
+  let multiplier = 1;
+  const multiplierMatch = cleanStr.match(/([0-9.]+)\s*([kmbKMB])$/);
+  if (multiplierMatch) {
+    cleanStr = multiplierMatch[1];
+    const suffix = multiplierMatch[2].toLowerCase();
+    if (suffix === "k") multiplier = 1_000;
+    else if (suffix === "m") multiplier = 1_000_000;
+    else if (suffix === "b") multiplier = 1_000_000_000;
+  }
+
+  const num = parseFloat(cleanStr);
+  if (isNaN(num) || !isFinite(num)) return null;
+
+  const finalNum = (isNegative ? -1 : 1) * num * multiplier;
+  return { num: finalNum, unit };
 }
 
 /**
  * Computes rollups (sum, avg, min, max, YoY deltas) across all columns.
+ * Excludes summary and total rows before calculating metrics so totals are never double-counted.
  */
 export function computeTableRollups(
   headers: string[],
@@ -57,6 +121,10 @@ export function computeTableRollups(
   const totalRows = rows.length;
   const rollups: ColumnRollup[] = [];
 
+  // Exclude summary and total rows before computing rollups
+  const dataRows = rows.filter((row) => !isSummaryOrTotalRow(row, headers));
+  const activeRows = dataRows.length > 0 ? dataRows : rows;
+
   // Determine label/category column (typically first non-numeric column)
   const categoryColumn = headers[0] || "Item";
 
@@ -65,8 +133,8 @@ export function computeTableRollups(
     const unitsCount: Record<string, number> = {};
     const rowLabels: string[] = [];
 
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
+    for (let i = 0; i < activeRows.length; i++) {
+      const row = activeRows[i];
       const parsed = parseCleanNumber(row[header]);
       if (parsed !== null) {
         numbers.push(parsed.num);
@@ -79,7 +147,7 @@ export function computeTableRollups(
     }
 
     // If >= 40% of non-empty values are valid numbers, treat as numeric column
-    if (numbers.length >= Math.max(1, Math.floor(rows.length * 0.4))) {
+    if (numbers.length >= Math.max(1, Math.floor(activeRows.length * 0.4))) {
       const count = numbers.length;
       const total = numbers.reduce((acc, curr) => acc + curr, 0);
       const average = total / count;
@@ -130,7 +198,7 @@ export function computeTableRollups(
         header,
         isNumeric: false,
         unit: "",
-        count: rows.length,
+        count: activeRows.length,
       });
     }
   }
@@ -138,7 +206,7 @@ export function computeTableRollups(
   // Format pre-computed summaries for the prompt
   const summaryLines: string[] = [
     `DATASET FILE: ${fileName}`,
-    `TOTAL VALID ROWS: ${totalRows}`,
+    `TOTAL VALID ROWS: ${totalRows} (${activeRows.length} data rows, excluding summary/total rows)`,
     `EXACT COLUMN HEADERS: [${headers.map((h) => `"${h}"`).join(", ")}]`,
     "",
     "PRE-COMPUTED JAVASCRIPT ROLLUPS (Use exact column names & computed numbers for KPIs, charts, and table headers):",

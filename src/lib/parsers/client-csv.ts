@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import { computeTableRollups } from "./table-rollups";
+import { detectHeaderAndRows } from "./header-detector";
 
 export interface ParsedCsvSummary {
   headers: string[];
@@ -9,8 +10,10 @@ export interface ParsedCsvSummary {
 }
 
 /**
- * Client-side CSV/TSV parser using native file.text() and synchronous Papa.parse.
- * Preserves exact column headers, pre-computes JavaScript aggregations & rollups,
+ * Client-side CSV/TSV parser using native file.text() and Papa.parse.
+ * Parses raw grid as 2D array first (header: false), scans the first 15 rows
+ * to detect the true header row (skipping leading titles/disclaimers),
+ * trims trailing empty columns, pre-computes JavaScript aggregations & rollups,
  * and formats a rich, structured prompt payload for the visual AST synthesizer.
  */
 export async function parseCsvFileClientSide(file: File): Promise<ParsedCsvSummary> {
@@ -22,35 +25,31 @@ export async function parseCsvFileClientSide(file: File): Promise<ParsedCsvSumma
   // Strip UTF-8 BOM if present
   const cleanText = rawText.replace(/^\uFEFF/, "");
 
-  const results = Papa.parse(cleanText, {
-    header: true,
+  // 1. Parse raw rows as a 2D array first (header: false)
+  const results = Papa.parse<unknown[]>(cleanText, {
+    header: false,
     skipEmptyLines: "greedy",
     dynamicTyping: true,
   });
 
-  // Filter out completely empty rows
-  const rawData = (results.data as Array<Record<string, unknown>>).filter(
-    (row) => row && Object.values(row).some((val) => val !== null && val !== undefined && String(val).trim() !== "")
-  );
+  const rawGrid = results.data as unknown[][];
+  if (!rawGrid || rawGrid.length === 0) {
+    throw new Error("No data found in the CSV file.");
+  }
 
-  if (!rawData || rawData.length === 0) {
+  // 2. Smart Header Row Detection scanning first 15 rows
+  const { headers, rows } = detectHeaderAndRows(rawGrid);
+
+  if (rows.length === 0) {
     throw new Error("No valid data rows found in the CSV file.");
   }
 
-  let headers = (results.meta.fields || []).map((h) => h?.trim()).filter(Boolean);
-  if (headers.length === 0 && rawData.length > 0) {
-    headers = Object.keys(rawData[0] || {}).map((h) => h?.trim()).filter(Boolean);
-  }
-  if (headers.length === 0) {
-    headers = ["Item", "Value", "Metric"];
-  }
+  // 3. Pre-compute JavaScript rollups across all columns
+  const rollupsSummary = computeTableRollups(headers, rows, file.name);
 
-  // Pre-compute JavaScript rollups across all columns
-  const rollupsSummary = computeTableRollups(headers, rawData, file.name);
+  const previewRows = rows.slice(0, 50);
 
-  const previewRows = rawData.slice(0, 50);
-
-  // Build markdown table preserving exact headers and escaped cells
+  // 4. Build markdown table preserving exact headers and escaped cells
   const headerLine = `| ${headers.join(" | ")} |`;
   const separatorLine = `| ${headers.map(() => "---").join(" | ")} |`;
   const rowLines = previewRows.map((row) => {
@@ -73,7 +72,7 @@ export async function parseCsvFileClientSide(file: File): Promise<ParsedCsvSumma
 
   return {
     headers,
-    totalRows: rawData.length,
+    totalRows: rows.length,
     previewRows,
     markdownTable,
   };

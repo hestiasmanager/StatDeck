@@ -29,6 +29,8 @@ interface LoadedFileInfo {
   name: string;
   rowCount?: number;
   type: string;
+  sheetNames?: string[];
+  activeSheet?: string;
 }
 
 function getExtractionHeaders(): Record<string, string> {
@@ -43,19 +45,25 @@ export function InputTray({ onAstLoaded, currentFormat, currentTemplateId }: Inp
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadedFileInfo, setLoadedFileInfo] = useState<LoadedFileInfo | null>(null);
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 1. Unified File Processing (Supports Drag & Drop, File Picker, and Sample Files)
-  const processFile = async (file: File) => {
+  const processFile = async (file: File, sheetOverride?: string) => {
     setIsLoading(true);
     setErrorMessage(null);
-    setStatusMessage(`Parsing ${file.name} client-side...`);
+    setStatusMessage(
+      `Parsing ${file.name}${sheetOverride ? ` [Sheet: "${sheetOverride}"]` : ""} client-side...`
+    );
 
     try {
+      setCurrentFile(file);
       let extractedMarkdown = "";
       let rowCount: number | undefined;
+      let sheetNames: string[] | undefined;
+      let activeSheet: string | undefined;
       const extension = file.name.split(".").pop()?.toLowerCase();
 
       if (extension === "csv") {
@@ -63,9 +71,11 @@ export function InputTray({ onAstLoaded, currentFormat, currentTemplateId }: Inp
         extractedMarkdown = summary.markdownTable;
         rowCount = summary.totalRows;
       } else if (extension === "xlsx" || extension === "xls") {
-        const summary = await parseExcelFileClientSide(file);
+        const summary = await parseExcelFileClientSide(file, sheetOverride);
         extractedMarkdown = summary.markdownTable;
         rowCount = summary.totalRows;
+        sheetNames = summary.sheetNames;
+        activeSheet = summary.activeSheet;
       } else if (extension === "pdf") {
         const summary = await parsePdfFileClientSide(file);
         extractedMarkdown = summary.text;
@@ -81,7 +91,9 @@ export function InputTray({ onAstLoaded, currentFormat, currentTemplateId }: Inp
         throw new Error("No readable text or data rows could be extracted from this file.");
       }
 
-      setStatusMessage(`Synthesizing visual AST for ${file.name}...`);
+      setStatusMessage(
+        `Synthesizing visual AST for ${file.name}${activeSheet ? ` (${activeSheet})` : ""}...`
+      );
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => {
         abortController.abort();
@@ -108,16 +120,23 @@ export function InputTray({ onAstLoaded, currentFormat, currentTemplateId }: Inp
           name: file.name,
           rowCount,
           type: extension ? extension.toUpperCase() : "FILE",
+          sheetNames,
+          activeSheet,
         });
 
-        onAstLoaded(extractData.ast, `Parsed from ${file.name}`);
+        onAstLoaded(
+          extractData.ast,
+          `Parsed from ${file.name}${activeSheet ? ` (${activeSheet})` : ""}`
+        );
       } finally {
         clearTimeout(timeoutId);
       }
     } catch (err: unknown) {
       console.error("File processing error:", err);
       if (err instanceof DOMException && err.name === "AbortError") {
-        setErrorMessage("File extraction timed out after 25 seconds. Please try again with a smaller dataset.");
+        setErrorMessage(
+          "File extraction timed out after 25 seconds. Please try again with a smaller dataset."
+        );
       } else {
         setErrorMessage(err instanceof Error ? err.message : "Error processing file.");
       }
@@ -396,27 +415,62 @@ Q4-2024,225000,25%,96%,9100`;
         <div className="flex flex-col gap-2.5">
           {/* Active File Loaded Banner */}
           {loadedFileInfo && (
-            <div className="flex items-center justify-between p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50">
-              <div className="flex items-center gap-2 min-w-0">
-                <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                    {loadedFileInfo.name}
-                  </span>
-                  <span className="text-[10px] text-blue-600 dark:text-blue-400">
-                    {loadedFileInfo.rowCount ? `${loadedFileInfo.rowCount} rows • ` : ""}
-                    Parsed client-side
-                  </span>
+            <div className="flex flex-col gap-2 p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                      {loadedFileInfo.name}
+                    </span>
+                    <span className="text-[10px] text-blue-600 dark:text-blue-400">
+                      {loadedFileInfo.rowCount ? `${loadedFileInfo.rowCount} data rows • ` : ""}
+                      {loadedFileInfo.activeSheet ? `Sheet: "${loadedFileInfo.activeSheet}" • ` : ""}
+                      Parsed client-side
+                    </span>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 flex-shrink-0 ml-2"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Change
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 flex-shrink-0 ml-2"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Change
-              </button>
+
+              {/* Multi-Sheet Excel Switcher */}
+              {loadedFileInfo.sheetNames && loadedFileInfo.sheetNames.length > 1 && currentFile && (
+                <div className="pt-2 border-t border-blue-200/60 dark:border-blue-900/60 flex flex-col gap-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Workbook Sheets ({loadedFileInfo.sheetNames.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {loadedFileInfo.sheetNames.map((sheet) => {
+                      const isSelected = sheet === loadedFileInfo.activeSheet;
+                      return (
+                        <button
+                          key={sheet}
+                          type="button"
+                          onClick={() => {
+                            if (!isSelected && !isLoading) {
+                              processFile(currentFile, sheet);
+                            }
+                          }}
+                          className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                            isSelected
+                              ? "bg-blue-600 text-white shadow-xs font-semibold"
+                              : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700"
+                          }`}
+                        >
+                          {sheet}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
