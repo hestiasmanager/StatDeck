@@ -98,7 +98,7 @@ export function InputTray({ onAstLoaded, currentFormat, currentTemplateId }: Inp
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => {
         abortController.abort();
-      }, 45000);
+      }, 60000);
 
       try {
         const extractRes = await fetch("/api/extract", {
@@ -136,7 +136,7 @@ export function InputTray({ onAstLoaded, currentFormat, currentTemplateId }: Inp
       console.error("File processing error:", err);
       if (err instanceof DOMException && err.name === "AbortError") {
         setErrorMessage(
-          "File extraction timed out after 45 seconds. Please try again with a smaller dataset."
+          "File extraction timed out after 60 seconds. Please try again with a smaller dataset."
         );
       } else {
         setErrorMessage(err instanceof Error ? err.message : "Error processing file.");
@@ -209,7 +209,7 @@ Q4-2024,225000,25%,96%,9100`;
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => {
       abortController.abort();
-    }, 45000);
+    }, 60000);
 
     try {
       const urlRes = await fetch("/api/extract-url", {
@@ -239,7 +239,7 @@ Q4-2024,225000,25%,96%,9100`;
       setUrlInput("");
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setErrorMessage("URL extraction timed out after 45 seconds. Please try again or check the URL.");
+        setErrorMessage("URL extraction timed out after 60 seconds. Please try again or check the URL.");
       } else {
         setErrorMessage(err instanceof Error ? err.message : "Error processing URL");
       }
@@ -271,7 +271,7 @@ Q4-2024,225000,25%,96%,9100`;
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => {
       abortController.abort();
-    }, 45000);
+    }, 60000);
 
     try {
       const extractRes = await fetch("/api/extract", {
@@ -291,7 +291,7 @@ Q4-2024,225000,25%,96%,9100`;
       setTextInput("");
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setErrorMessage("Extraction timed out after 45 seconds. Please try again with shorter text.");
+        setErrorMessage("Extraction timed out after 60 seconds. Please try again with shorter text.");
       } else {
         setErrorMessage(err instanceof Error ? err.message : "Error processing text");
       }

@@ -66,7 +66,7 @@ export function PresentationCanvas({
     {
       id: "deck-cover",
       content: (
-        <div className="flex flex-col justify-between h-full px-12 pt-10 pb-6 relative overflow-hidden">
+        <div className="flex flex-col justify-between h-full px-12 py-7 relative overflow-hidden">
           {ast.meta.category && (
             <div className="flex items-center gap-2">
               <span
@@ -78,9 +78,9 @@ export function PresentationCanvas({
               </span>
             </div>
           )}
-          <div className="my-auto flex flex-col justify-center max-w-2xl">
+          <div className="my-auto flex flex-col justify-center max-w-2xl flex-1 min-h-0">
             <h1
-              className="text-4xl md:text-5xl font-black tracking-tight leading-[1.08] mb-3"
+              className="text-4xl md:text-5xl font-black tracking-tight leading-[1.08] mb-2"
               style={{ color: theme.ink, fontFamily: theme.fontDisplay }}
               contentEditable={Boolean(onUpdateText)}
               suppressContentEditableWarning
@@ -88,7 +88,7 @@ export function PresentationCanvas({
             >
               {ast.meta.title}
             </h1>
-            <div className="w-14 h-1 rounded-full my-3" style={{ backgroundColor: theme.accent }} />
+            <div className="w-14 h-1 rounded-full my-2" style={{ backgroundColor: theme.accent }} />
             {ast.meta.subtitle && (
               <p
                 className="text-base md:text-lg opacity-85 leading-relaxed font-normal max-w-xl"
@@ -103,7 +103,7 @@ export function PresentationCanvas({
             {/* Executive Summary */}
             {ast.executiveSummary && (
               <p
-                className="text-xs md:text-sm opacity-80 leading-relaxed font-normal max-w-xl mt-2.5"
+                className="text-xs md:text-sm opacity-80 leading-relaxed font-normal max-w-xl mt-2"
                 style={{ color: theme.ink, fontFamily: theme.fontBody }}
                 contentEditable={Boolean(onUpdateText)}
                 suppressContentEditableWarning
@@ -112,10 +112,10 @@ export function PresentationCanvas({
                 {ast.executiveSummary}
               </p>
             )}
-            {/* Cover Takeaway Highlights */}
+            {/* Cover Takeaway Highlights (limit to 2 items to guarantee footer breathing room) */}
             {ast.coverHighlights && ast.coverHighlights.length > 0 && (
-              <div className="flex flex-col gap-1.5 mt-2.5 max-w-xl">
-                {ast.coverHighlights.slice(0, 3).map((highlight, hIdx) => (
+              <div className="flex flex-col gap-1.5 mt-2 max-w-xl">
+                {ast.coverHighlights.slice(0, 2).map((highlight, hIdx) => (
                   <div
                     key={hIdx}
                     className="flex items-start gap-2 text-xs font-medium px-3 py-1 rounded-lg border border-black/5 dark:border-white/10"
@@ -312,149 +312,76 @@ export function PresentationCanvas({
       ),
     })),
 
-    // Slide 4+: Structured Blocks with Auto-Pagination (max 5 rows or 4 steps per slide)
-    ...ast.blocks.flatMap((block, bIdx) => {
-      if (block.type === "comparison_table" && block.rows && block.rows.length > 5) {
-        const chunkSize = 5;
-        const totalParts = Math.ceil(block.rows.length / chunkSize);
-        return Array.from({ length: totalParts }, (_, p) => {
-          const chunkRows = block.rows.slice(p * chunkSize, (p + 1) * chunkSize);
-          return {
-            id: `deck-block-${bIdx + 1}-table-p${p + 1}`,
-            content: (
-              <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
-                <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
-                    Comparison Table ({p + 1}/{totalParts})
-                  </span>
-                  <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-                    {block.title || "Comparison Matrix"}
-                  </h2>
-                </div>
-                <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-center">
-                  <ComparisonTableBlock
-                    headers={block.headers}
-                    rows={chunkRows}
-                    inkColor={theme.ink}
-                    surfaceBorder={theme.surfaceBorder}
-                    accentColor={theme.accent}
-                  />
-                </div>
-                <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-                  <span className="text-xs font-mono opacity-60">Rows {p * chunkSize + 1}–{Math.min(block.rows.length, (p + 1) * chunkSize)} of {block.rows.length}</span>
-                  <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-                </div>
-              </div>
-            ),
-          };
-        });
-      } else if (block.type === "numbered_steps" && block.steps && block.steps.length > 4) {
-        const chunkSize = 4;
-        const totalParts = Math.ceil(block.steps.length / chunkSize);
-        return Array.from({ length: totalParts }, (_, p) => {
-          const chunkSteps = block.steps.slice(p * chunkSize, (p + 1) * chunkSize);
-          return {
-            id: `deck-block-${bIdx + 1}-steps-p${p + 1}`,
-            content: (
-              <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
-                <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
-                    Process Framework ({p + 1}/{totalParts})
-                  </span>
-                  <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-                    {block.title || "Execution Steps"}
-                  </h2>
-                </div>
-                <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-center">
-                  <ProcessStepsBlock
-                    steps={chunkSteps}
-                    accentColor={theme.accent}
-                    inkColor={theme.ink}
-                    surfaceBorder={theme.surfaceBorder}
-                  />
-                </div>
-                <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-                  <span className="text-xs font-mono opacity-60">Steps {p * chunkSize + 1}–{Math.min(block.steps.length, (p + 1) * chunkSize)} of {block.steps.length}</span>
-                  <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-                </div>
-              </div>
-            ),
-          };
-        });
-      }
-
-      return [
-        {
-          id: block.id || `deck-block-${bIdx + 1}`,
-          content: (
-            <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
-              <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
-                  Strategic Breakdown
-                </span>
-                <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-                  {"title" in block && block.title
-                    ? block.title
-                    : block.type === "key_takeaways"
-                    ? "Key Takeaways"
-                    : "Strategic Breakdown"}
-                </h2>
-              </div>
-              <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-center">
-                {block.type === "numbered_steps" && (
-                  <ProcessStepsBlock
-                    steps={block.steps}
-                    accentColor={theme.accent}
-                    inkColor={theme.ink}
-                    surfaceBorder={theme.surfaceBorder}
-                  />
-                )}
-                {block.type === "comparison_table" && (
-                  <ComparisonTableBlock
-                    headers={block.headers}
-                    rows={block.rows}
-                    inkColor={theme.ink}
-                    surfaceBorder={theme.surfaceBorder}
-                    accentColor={theme.accent}
-                  />
-                )}
-                {block.type === "pros_cons" && (
-                  <ProsConsBlock
-                    pros={block.pros}
-                    cons={block.cons}
-                    inkColor={theme.ink}
-                    surfaceBorder={theme.surfaceBorder}
-                  />
-                )}
-                {block.type === "callout_quote" && (
-                  <CalloutQuoteBlock
-                    quote={block.quote}
-                    author={block.author}
-                    role={block.role}
-                    accentColor={theme.accent}
-                    inkColor={theme.ink}
-                    surfaceBorder={theme.surfaceBorder}
-                  />
-                )}
-                {block.type === "key_takeaways" && (
-                  <KeyTakeawaysBlock
-                    title={block.title}
-                    bullets={block.bullets}
-                    accentColor={theme.accent}
-                    inkColor={theme.ink}
-                    surfaceBorder={theme.surfaceBorder}
-                  />
-                )}
-              </div>
-              <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-                <span className="text-xs font-mono opacity-60">{"title" in block && block.title ? block.title : "Key Takeaways"}</span>
-                <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-              </div>
-            </div>
-          ),
-        },
-      ];
-    }),
+    // Slide 4+: Structured Blocks (1-to-1 matching SlideFilmstrip)
+    ...ast.blocks.map((block, bIdx) => ({
+      id: block.id || `deck-block-${bIdx + 1}`,
+      content: (
+        <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+          <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
+              Strategic Breakdown
+            </span>
+            <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+              {"title" in block && block.title
+                ? block.title
+                : block.type === "key_takeaways"
+                ? "Key Takeaways"
+                : "Strategic Breakdown"}
+            </h2>
+          </div>
+          <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-center">
+            {block.type === "numbered_steps" && (
+              <ProcessStepsBlock
+                steps={block.steps}
+                accentColor={theme.accent}
+                inkColor={theme.ink}
+                surfaceBorder={theme.surfaceBorder}
+              />
+            )}
+            {block.type === "comparison_table" && (
+              <ComparisonTableBlock
+                headers={block.headers}
+                rows={block.rows}
+                inkColor={theme.ink}
+                surfaceBorder={theme.surfaceBorder}
+                accentColor={theme.accent}
+              />
+            )}
+            {block.type === "pros_cons" && (
+              <ProsConsBlock
+                pros={block.pros}
+                cons={block.cons}
+                inkColor={theme.ink}
+                surfaceBorder={theme.surfaceBorder}
+              />
+            )}
+            {block.type === "callout_quote" && (
+              <CalloutQuoteBlock
+                quote={block.quote}
+                author={block.author}
+                role={block.role}
+                accentColor={theme.accent}
+                inkColor={theme.ink}
+                surfaceBorder={theme.surfaceBorder}
+              />
+            )}
+            {block.type === "key_takeaways" && (
+              <KeyTakeawaysBlock
+                title={block.title}
+                bullets={block.bullets}
+                accentColor={theme.accent}
+                inkColor={theme.ink}
+                surfaceBorder={theme.surfaceBorder}
+              />
+            )}
+          </div>
+          <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+            <span className="text-xs font-mono opacity-60">{"title" in block && block.title ? block.title : "Key Takeaways"}</span>
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+          </div>
+        </div>
+      ),
+    })),
   ];
 
   const safeSlideIndex = Math.min(Math.max(0, effectiveIndex), Math.max(0, slides.length - 1));

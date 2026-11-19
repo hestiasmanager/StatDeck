@@ -179,7 +179,17 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
       const { slideIndex } = action.payload;
       const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
       const target = getSlideTarget(newAst, slideIndex);
-      if (target?.type === "chart") {
+      if (target?.type === "kpi") {
+        newAst.blocks.unshift({
+          id: `block-${Date.now()}`,
+          type: "key_takeaways",
+          title: "Core Metrics Summary",
+          bullets: (newAst.kpis || []).map((k) => ({
+            headline: k.label,
+            detail: `${k.value}${k.delta ? ` (${k.delta})` : ""}`,
+          })),
+        });
+      } else if (target?.type === "chart") {
         const original = newAst.charts[target.chartIndex];
         const clone = { ...original, id: `chart-${Date.now()}` };
         newAst.charts.splice(target.chartIndex + 1, 0, clone);
@@ -199,7 +209,9 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
       const { slideIndex } = action.payload;
       const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
       const target = getSlideTarget(newAst, slideIndex);
-      if (target?.type === "chart") {
+      if (target?.type === "kpi") {
+        newAst.kpis = [];
+      } else if (target?.type === "chart") {
         newAst.charts.splice(target.chartIndex, 1);
       } else if (target?.type === "block") {
         newAst.blocks.splice(target.blockIndex, 1);

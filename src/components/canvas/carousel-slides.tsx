@@ -309,89 +309,13 @@ export function buildCarouselSlides(
     });
   });
 
-  // Slide 4+: Structured Blocks with Auto-Pagination (max 5 rows or 4 steps per slide)
+  // Slide 4+: Structured Blocks (1-to-1 matching SlideFilmstrip)
   ast.blocks.forEach((block, bIdx) => {
-    if (block.type === "comparison_table" && block.rows && block.rows.length > 5) {
-      const chunkSize = 5;
-      const totalParts = Math.ceil(block.rows.length / chunkSize);
-      for (let p = 0; p < totalParts; p++) {
-        const chunkRows = block.rows.slice(p * chunkSize, (p + 1) * chunkSize);
-        const partTitle = `${block.title || "Comparison"} (Part ${p + 1}/${totalParts})`;
-        slides.push({
-          id: `block-${bIdx + 1}-table-p${p + 1}`,
-          title: partTitle,
-          content: (
-            <div className="flex flex-col justify-between h-full p-10 md:p-12">
-              <div className="flex flex-col gap-1 border-b pb-4" style={{ borderColor: theme.surfaceBorder }}>
-                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
-                  Comparison Table ({p + 1}/{totalParts})
-                </span>
-                <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-                  {block.title || "Comparison"}
-                </h2>
-              </div>
-              <div className="my-auto">
-                <ComparisonTableBlock
-                  headers={block.headers}
-                  rows={chunkRows}
-                  inkColor={theme.ink}
-                  surfaceBorder={theme.surfaceBorder}
-                  accentColor={theme.accent}
-                />
-              </div>
-              <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
-                <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
-                  Page {p + 1} of {totalParts}
-                </span>
-                <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-              </div>
-            </div>
-          ),
-        });
-      }
-    } else if (block.type === "numbered_steps" && block.steps && block.steps.length > 4) {
-      const chunkSize = 4;
-      const totalParts = Math.ceil(block.steps.length / chunkSize);
-      for (let p = 0; p < totalParts; p++) {
-        const chunkSteps = block.steps.slice(p * chunkSize, (p + 1) * chunkSize);
-        const partTitle = `${block.title || "Action Plan"} (Part ${p + 1}/${totalParts})`;
-        slides.push({
-          id: `block-${bIdx + 1}-steps-p${p + 1}`,
-          title: partTitle,
-          content: (
-            <div className="flex flex-col justify-between h-full p-10 md:p-12">
-              <div className="flex flex-col gap-1 border-b pb-4" style={{ borderColor: theme.surfaceBorder }}>
-                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
-                  Process Stages ({p + 1}/{totalParts})
-                </span>
-                <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-                  {block.title || "Process Steps"}
-                </h2>
-              </div>
-              <div className="my-auto">
-                <ProcessStepsBlock
-                  steps={chunkSteps}
-                  accentColor={theme.accent}
-                  inkColor={theme.ink}
-                  surfaceBorder={theme.surfaceBorder}
-                />
-              </div>
-              <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
-                <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
-                  Steps {p * chunkSize + 1}–{Math.min(block.steps.length, (p + 1) * chunkSize)} of {block.steps.length}
-                </span>
-                <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-              </div>
-            </div>
-          ),
-        });
-      }
-    } else {
-      slides.push({
-        id: block.id || `block-${bIdx + 1}`,
-        title: "title" in block && block.title ? block.title : `Insight ${bIdx + 1}`,
-        content: (
-          <div className="flex flex-col justify-between h-full p-10 md:p-12">
+    slides.push({
+      id: block.id || `block-${bIdx + 1}`,
+      title: "title" in block && block.title ? block.title : `Insight ${bIdx + 1}`,
+      content: (
+        <div className="flex flex-col justify-between h-full p-10 md:p-12">
             <div className="flex flex-col gap-1 border-b pb-4" style={{ borderColor: theme.surfaceBorder }}>
               <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
                 Strategic Breakdown
@@ -459,7 +383,6 @@ export function buildCarouselSlides(
           </div>
         ),
       });
-    }
   });
 
   // Slide 5: Outro & Citations

@@ -115,6 +115,7 @@ async function callOpenRouterWithFallback(
       response_format: { type: "json_object" },
       temperature: 0,
       reasoning: { effort: "low" },
+      max_tokens: 2500,
     }),
     signal,
   });
@@ -164,11 +165,11 @@ export async function POST(req: NextRequest) {
   console.time("extract");
   const startTime = Date.now();
 
-  // Set up 45-second overall abort controller for direct fetch
+  // Set up 60-second overall abort controller for direct fetch
   const overallAbortController = new AbortController();
   const overallTimeoutId = setTimeout(() => {
-    overallAbortController.abort(new Error("AI extraction timed out after 45 seconds"));
-  }, 45000);
+    overallAbortController.abort(new Error("AI extraction timed out after 60 seconds"));
+  }, 60000);
 
   try {
     // 1. IP / Client Rate Limiting (Sliding Window)
@@ -265,38 +266,33 @@ ${finalContent}`;
     let successfulModel: string | null = null;
     let lastError: { error: string; statusCode: number; details?: any } | null = null;
 
-    // 5. Primary Provider: OpenRouter with Automatic Multi-Model Failover (25s timeout)
+    // 5. Primary Provider: OpenRouter with Automatic Multi-Model Failover (20s Hydrogen attempt -> 3.8 Flash fallback)
     if (openRouterKey) {
-      const defaultOpenRouterModels = [
-        "google/gemini-4-hydrogen",
-        "google/gemini-3.8-flash",
-        "google/gemini-3.5-flash-lite",
-      ];
-      const openRouterModels = clientOpenRouterModel
-        ? [clientOpenRouterModel, ...defaultOpenRouterModels.filter((m) => m !== clientOpenRouterModel)]
-        : defaultOpenRouterModels;
+      const primaryModel = clientOpenRouterModel || "google/gemini-4-hydrogen";
+      const fallbackModels = ["google/gemini-3.8-flash", "google/gemini-3.5-flash-lite"];
 
-      const orController = new AbortController();
-      const orTimeoutId = setTimeout(() => {
-        orController.abort(new Error("OpenRouter request timed out after 25000ms"));
-      }, 25000);
-      const onOverallAbort = () => orController.abort(overallAbortController.signal.reason);
-      overallAbortController.signal.addEventListener("abort", onOverallAbort, { once: true });
+      let orSuccess = false;
+
+      // Attempt 1: Primary Hydrogen model with 20s timeout
+      const primaryController = new AbortController();
+      const primaryTimeoutId = setTimeout(() => {
+        primaryController.abort(new Error("OpenRouter primary model timed out after 20000ms"));
+      }, 20000);
+      const onOverallAbortPrimary = () => primaryController.abort(overallAbortController.signal.reason);
+      overallAbortController.signal.addEventListener("abort", onOverallAbortPrimary, { once: true });
 
       try {
-        console.log(
-          `[API /api/extract] Invoking OpenRouter (Primary) with models: ${openRouterModels.join(", ")}...`
-        );
+        console.log(`[API /api/extract] Invoking OpenRouter Primary (${primaryModel}, 20s timeout)...`);
         const orRes = await callOpenRouterWithFallback(
           openRouterKey,
           promptText,
-          openRouterModels,
-          orController.signal
+          [primaryModel],
+          primaryController.signal
         );
 
         if (orRes.ok) {
           const data = await orRes.json();
-          const usedModel = data?.model || "google/gemini-4-hydrogen";
+          const usedModel = data?.model || primaryModel;
           const rawText = data?.choices?.[0]?.message?.content;
 
           if (rawText) {
@@ -304,6 +300,7 @@ ${finalContent}`;
             if (validated.success) {
               successfulAst = validated.ast;
               successfulModel = `openrouter/${usedModel}`;
+              orSuccess = true;
             } else {
               lastError = {
                 error: validated.error,
@@ -311,11 +308,6 @@ ${finalContent}`;
                 details: validated.details,
               };
             }
-          } else {
-            lastError = {
-              error: "OpenRouter response did not contain message content",
-              statusCode: 502,
-            };
           }
         } else {
           const errData = await orRes.json().catch(() => null);
@@ -324,40 +316,78 @@ ${finalContent}`;
             errData?.message ||
             orRes.statusText ||
             `OpenRouter responded with HTTP ${orRes.status}`;
-
           lastError = {
             error: orMessage,
             statusCode: orRes.status,
             details: errData?.error || errData,
           };
-          console.warn(
-            `[API /api/extract] OpenRouter failed with HTTP ${orRes.status} (${orMessage}). Falling back to secondary providers...`
-          );
+          console.warn(`[API /api/extract] OpenRouter primary (${primaryModel}) failed with HTTP ${orRes.status} (${orMessage}). Falling back to gemini-3.8-flash...`);
         }
       } catch (orErr) {
         if (overallAbortController.signal.aborted) throw orErr;
-
-        const isTimeout =
-          orController.signal.aborted ||
-          (orErr instanceof Error &&
-            (orErr.name === "AbortError" || orErr.message.toLowerCase().includes("timed out")));
-
-        if (isTimeout) {
-          console.warn("[API /api/extract] OpenRouter timed out after 25000ms. Falling back to secondary providers...");
-          lastError = {
-            error: "OpenRouter request timed out after 25s",
-            statusCode: 504,
-          };
-        } else {
-          console.warn("[API /api/extract] OpenRouter fetch error:", orErr);
-          lastError = {
-            error: orErr instanceof Error ? orErr.message : String(orErr),
-            statusCode: 502,
-          };
-        }
+        console.warn(`[API /api/extract] OpenRouter primary (${primaryModel}) timed out after 20s or errored. Immediately falling back to gemini-3.8-flash...`);
       } finally {
-        clearTimeout(orTimeoutId);
-        overallAbortController.signal.removeEventListener("abort", onOverallAbort);
+        clearTimeout(primaryTimeoutId);
+        overallAbortController.signal.removeEventListener("abort", onOverallAbortPrimary);
+      }
+
+      // Attempt 2: Immediate fallback to gemini-3.8-flash if Hydrogen took >20s or failed
+      if (!orSuccess && !overallAbortController.signal.aborted) {
+        const fallbackController = new AbortController();
+        const fallbackTimeoutId = setTimeout(() => {
+          fallbackController.abort(new Error("OpenRouter fallback models timed out"));
+        }, 25000);
+        const onOverallAbortFallback = () => fallbackController.abort(overallAbortController.signal.reason);
+        overallAbortController.signal.addEventListener("abort", onOverallAbortFallback, { once: true });
+
+        try {
+          console.log(`[API /api/extract] Invoking OpenRouter Fallback models (${fallbackModels.join(", ")})...`);
+          const orFallbackRes = await callOpenRouterWithFallback(
+            openRouterKey,
+            promptText,
+            fallbackModels,
+            fallbackController.signal
+          );
+
+          if (orFallbackRes.ok) {
+            const data = await orFallbackRes.json();
+            const usedModel = data?.model || fallbackModels[0];
+            const rawText = data?.choices?.[0]?.message?.content;
+
+            if (rawText) {
+              const validated = validateExtractedAst(rawText, format, templateId, `openrouter/${usedModel}`);
+              if (validated.success) {
+                successfulAst = validated.ast;
+                successfulModel = `openrouter/${usedModel}`;
+                orSuccess = true;
+              } else {
+                lastError = {
+                  error: validated.error,
+                  statusCode: validated.statusCode,
+                  details: validated.details,
+                };
+              }
+            }
+          } else {
+            const errData = await orFallbackRes.json().catch(() => null);
+            const orMessage =
+              errData?.error?.message ||
+              errData?.message ||
+              orFallbackRes.statusText ||
+              `OpenRouter fallback responded with HTTP ${orFallbackRes.status}`;
+            lastError = {
+              error: orMessage,
+              statusCode: orFallbackRes.status,
+              details: errData?.error || errData,
+            };
+          }
+        } catch (fallbackErr) {
+          if (overallAbortController.signal.aborted) throw fallbackErr;
+          console.warn("[API /api/extract] OpenRouter fallback fetch error:", fallbackErr);
+        } finally {
+          clearTimeout(fallbackTimeoutId);
+          overallAbortController.signal.removeEventListener("abort", onOverallAbortFallback);
+        }
       }
     }
 

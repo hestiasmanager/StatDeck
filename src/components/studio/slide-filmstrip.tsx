@@ -157,51 +157,62 @@ export function SlideFilmstrip({
               </div>
 
               {/* Hover Action Controls (Reorder, Duplicate, Delete) */}
-              <div className="hidden group-hover:flex items-center gap-0.5 ml-1 pl-1.5 border-l border-slate-200 dark:border-slate-700">
+              <div
+                className="hidden group-hover:flex items-center gap-0.5 ml-1 pl-1.5 border-l border-slate-200 dark:border-slate-700 pointer-events-auto z-20"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {idx > 0 && onReorderSlide && (
                   <button
+                    type="button"
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
                       onReorderSlide(idx, idx - 1);
                     }}
                     title="Move Left"
-                    className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                   >
                     <ChevronLeft className="w-3 h-3" />
                   </button>
                 )}
                 {idx < slideItems.length - 1 && onReorderSlide && (
                   <button
+                    type="button"
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
                       onReorderSlide(idx, idx + 1);
                     }}
                     title="Move Right"
-                    className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    className="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                   >
                     <ChevronRight className="w-3 h-3" />
                   </button>
                 )}
                 {onDuplicateSlide && item.type !== "cover" && (
                   <button
+                    type="button"
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
                       onDuplicateSlide(idx);
                     }}
                     title="Duplicate Slide"
-                    className="p-1 rounded-md text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    className="p-1 rounded-md text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                   >
                     <Copy className="w-3 h-3" />
                   </button>
                 )}
                 {onDeleteSlide && item.type !== "cover" && slideItems.length > 2 && (
                   <button
+                    type="button"
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
                       onDeleteSlide(idx);
                     }}
                     title="Delete Slide"
-                    className="p-1 rounded-md text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    className="p-1 rounded-md text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>

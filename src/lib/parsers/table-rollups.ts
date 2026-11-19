@@ -58,12 +58,29 @@ export function isSummaryOrTotalRow(
   return false;
 }
 
-const KNOWN_CURRENCY_SYMBOLS = new Set(["$", "€", "£", "¥", "₹", "₩"]);
+const KNOWN_CURRENCY_SYMBOLS = new Set([
+  "$",
+  "€",
+  "£",
+  "¥",
+  "₹",
+  "₩",
+  "A$",
+  "AU$",
+  "C$",
+  "CA$",
+  "R$",
+  "NZ$",
+  "HK$",
+  "S$",
+  "US$",
+]);
 
 /**
  * Extracts a numeric value from a cell, handling:
  * - Parenthesized accounting negatives: ($1,234.50) or (400) -> -1234.5, -400
- * - Currency symbols ($, €, £, ¥, ₹, ₩) and percentages (%)
+ * - Non-standard currencies (A$, R$, ₹, €, £, C$, NZ$, HK$, S$) and percentages (%)
+ * - Special symbols and quotation marks (<, >, ~, ≈, ", ')
  * - Trailing k, m, b multipliers: $45.2k -> 45200, 1.5M -> 1500000, 2.3B -> 2300000000
  * - Thousands separators (commas) and European decimal commas
  */
@@ -77,6 +94,10 @@ export function parseCleanNumber(val: unknown): { num: number; unit: string } | 
   let str = String(val).trim();
   if (!str) return null;
 
+  // Strip enclosing quotes and comparison/approx signs: <$50, >100, "1,200", ~45%
+  str = str.replace(/^["'`\s]+|["'`\s]+$/g, "");
+  str = str.replace(/^[<>~≈=±]\s*/, "");
+
   // Check for parenthesized accounting negatives: ($1,234.50), (400), (12.5%)
   let isNegative = false;
   const parenMatch = str.match(/^\s*\((.*)\)\s*$/);
@@ -85,9 +106,16 @@ export function parseCleanNumber(val: unknown): { num: number; unit: string } | 
     str = parenMatch[1].trim();
   }
 
-  // Determine prefix or suffix unit ($, €, £, ¥, ₹, ₩, %)
+  // Determine prefix or suffix unit (A$, R$, $, €, £, ¥, ₹, ₩, %)
   let unit = "";
-  if (str.startsWith("$") || str.includes("($)")) unit = "$";
+  if (/^(A\$|AU\$)/i.test(str)) unit = "A$";
+  else if (/^(C\$|CA\$)/i.test(str)) unit = "C$";
+  else if (/^R\$/i.test(str)) unit = "R$";
+  else if (/^NZ\$/i.test(str)) unit = "NZ$";
+  else if (/^HK\$/i.test(str)) unit = "HK$";
+  else if (/^S\$/i.test(str)) unit = "S$";
+  else if (/^US\$/i.test(str)) unit = "$";
+  else if (str.startsWith("$") || str.includes("($)")) unit = "$";
   else if (str.startsWith("€") || str.includes("(€)")) unit = "€";
   else if (str.startsWith("£") || str.includes("(£)")) unit = "£";
   else if (str.startsWith("¥") || str.includes("(¥)")) unit = "¥";
@@ -104,11 +132,15 @@ export function parseCleanNumber(val: unknown): { num: number; unit: string } | 
   else if (/\bGBP\b/i.test(str)) unit = "£";
   else if (/\bINR\b/i.test(str)) unit = "₹";
   else if (/\bJPY\b/i.test(str)) unit = "¥";
+  else if (/\bAUD\b/i.test(str)) unit = "A$";
+  else if (/\bCAD\b/i.test(str)) unit = "C$";
+  else if (/\bBRL\b/i.test(str)) unit = "R$";
 
-  // Strip currency symbols, percentages, and internal parentheses
+  // Strip currency symbols, percentages, comparison signs, quotes, and internal parentheses
   let cleanStr = str
-    .replace(/[$,€£¥₹₩%()]/g, "")
-    .replace(/\b(USD|EUR|GBP|INR|JPY|Rs\.?)\b/gi, "")
+    .replace(/^(A\$|AU\$|C\$|CA\$|R\$|NZ\$|HK\$|S\$|US\$)/i, "")
+    .replace(/[$,€£¥₹₩%()"'`<>~≈=±]/g, "")
+    .replace(/\b(USD|EUR|GBP|INR|JPY|AUD|CAD|BRL|NZD|HKD|SGD|Rs\.?)\b/gi, "")
     .trim();
 
   // Check for leading minus/plus sign

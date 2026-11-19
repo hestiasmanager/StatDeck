@@ -598,6 +598,36 @@ export function ExportModal({
             <span>{exportMessage}</span>
           </div>
         )}
+
+        {/* Hidden offscreen container rendering all slides for high-res PDF and ZIP export */}
+        <div
+          ref={offscreenContainerRef}
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            left: "-9999px",
+            top: "-9999px",
+            width: "540px",
+            opacity: 0,
+            pointerEvents: "none",
+            zIndex: -999,
+          }}
+        >
+          {carouselSlides.map((slide, idx) => (
+            <div
+              key={`offscreen-slide-${slide.id || idx}`}
+              data-carousel-slide="true"
+              className="relative w-[540px] h-[675px] rounded-2xl overflow-hidden border flex-shrink-0 mb-4"
+              style={{
+                backgroundColor: theme.bg,
+                borderColor: theme.surfaceBorder,
+                color: theme.ink,
+              }}
+            >
+              {slide.content}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
