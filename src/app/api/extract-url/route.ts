@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractCleanArticleFromUrl } from "@/lib/parsers/url-readability";
+import { extractCleanArticleFromUrl, UrlFetchError } from "@/lib/parsers/url-readability";
 import { checkRateLimit } from "@/lib/cache/rate-limit";
 import { z } from "zod";
+
+const BLOCKED_ERROR_MESSAGE =
+  "This website blocks automated reading. Please copy and paste the article text into the Notes tab instead.";
 
 const RequestSchema = z.object({
   url: z.string().url("A valid URL is required (e.g. https://example.com/article)"),
@@ -33,6 +36,26 @@ export async function POST(req: NextRequest) {
 
     const article = await extractCleanArticleFromUrl(parse.data.url);
 
+    // Check if extracted text is under 600 characters and matches anti-bot/blocking patterns
+    const rawText = (article.textContent || "").trim();
+    const combinedText = `${article.title || ""} ${rawText}`.trim();
+    const isUnder600Chars = rawText.length < 600 || combinedText.length < 600;
+
+    const lowerText = `${article.title || ""} ${rawText}`.toLowerCase();
+    const matchesBlockedKeyword =
+      lowerText.includes("access denied") ||
+      lowerText.includes("403 forbidden") ||
+      lowerText.includes("just a moment...") ||
+      lowerText.includes("just a moment") ||
+      lowerText.includes("enable javascript and cookies");
+
+    if (isUnder600Chars && matchesBlockedKeyword) {
+      return NextResponse.json(
+        { error: BLOCKED_ERROR_MESSAGE },
+        { status: 422 }
+      );
+    }
+
     // Assemble text for LLM synthesis
     const sections: string[] = [];
     if (article.title) sections.push(`Title: ${article.title}`);
@@ -56,8 +79,26 @@ export async function POST(req: NextRequest) {
       siteName: article.siteName,
       cleanedContent,
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("URL extraction error:", err);
+
+    // If the fetched response (or Jina fallback) has HTTP status >= 400
+    const isHttp4xxOr5xx =
+      (err instanceof UrlFetchError && err.status >= 400) ||
+      (typeof err === "object" &&
+        err !== null &&
+        "status" in err &&
+        typeof (err as { status: unknown }).status === "number" &&
+        (err as { status: number }).status >= 400) ||
+      (err instanceof Error && /HTTP\s+([45]\d\d)/i.test(err.message));
+
+    if (isHttp4xxOr5xx) {
+      return NextResponse.json(
+        { error: BLOCKED_ERROR_MESSAGE },
+        { status: 422 }
+      );
+    }
+
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to fetch and parse URL content" },
       { status: 500 }

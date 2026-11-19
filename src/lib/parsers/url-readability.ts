@@ -10,6 +10,15 @@ export interface CleanArticleResult {
   siteName?: string;
 }
 
+export class UrlFetchError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "UrlFetchError";
+    this.status = status;
+  }
+}
+
 /**
  * Fallback reader using r.jina.ai when Cloudflare, 403 Forbidden,
  * or 401 Unauthorized blocks direct server-side article fetching.
@@ -26,7 +35,10 @@ async function fetchJinaFallback(url: string, parsedUrl: URL): Promise<CleanArti
   });
 
   if (!jinaRes.ok) {
-    throw new Error(`Failed to fetch URL content (HTTP ${jinaRes.status} via fallback)`);
+    throw new UrlFetchError(
+      `Failed to fetch URL content (HTTP ${jinaRes.status} via fallback)`,
+      jinaRes.status
+    );
   }
 
   const markdownText = await jinaRes.text();
@@ -105,14 +117,30 @@ export async function extractCleanArticleFromUrl(url: string): Promise<CleanArti
   // If Cloudflare or anti-bot blocks with 401, 403, or 429, fall back to r.jina.ai
   if (response.status === 403 || response.status === 401 || response.status === 429) {
     console.warn(`Direct fetch returned HTTP ${response.status}. Automatically falling back to r.jina.ai...`);
-    return fetchJinaFallback(url, parsedUrl);
+    try {
+      return await fetchJinaFallback(url, parsedUrl);
+    } catch (jinaErr) {
+      if (jinaErr instanceof UrlFetchError && jinaErr.status >= 400) {
+        throw jinaErr;
+      }
+      throw new UrlFetchError(
+        `Direct fetch returned HTTP ${response.status} and fallback failed`,
+        response.status
+      );
+    }
   }
 
   if (!response.ok) {
     try {
       return await fetchJinaFallback(url, parsedUrl);
-    } catch {
-      throw new Error(`Failed to fetch page: HTTP ${response.status} ${response.statusText}`);
+    } catch (jinaErr) {
+      if (jinaErr instanceof UrlFetchError && jinaErr.status >= 400) {
+        throw jinaErr;
+      }
+      throw new UrlFetchError(
+        `Failed to fetch page: HTTP ${response.status} ${response.statusText}`,
+        response.status
+      );
     }
   }
 
