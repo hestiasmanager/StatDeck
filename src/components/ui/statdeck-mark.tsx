@@ -3,17 +3,21 @@ import React from "react";
 export interface StatDeckMarkProps extends React.SVGProps<SVGSVGElement> {
   className?: string;
   frameColor?: string;
+  innerColor?: string;
   barColor?: string;
+  hasBorder?: boolean;
 }
 
 /**
- * Geometric StatDeck brandmark:
- * Crisp rounded square frame (rx="5") with three ascending vertical rounded bars.
+ * Official StatDeck Brandmark:
+ * Precision geometric squircle frame with white inner window and three ascending vertical rounded bars.
  */
 export function StatDeckMark({
   className = "w-4 h-4",
-  frameColor = "currentColor",
+  frameColor = "#0F172A",
+  innerColor = "#FFFFFF",
   barColor = "#2563EB",
+  hasBorder = true,
   ...props
 }: StatDeckMarkProps) {
   return (
@@ -24,20 +28,39 @@ export function StatDeckMark({
       className={className}
       {...props}
     >
-      {/* Outer rounded square frame */}
+      {/* Outer rounded squircle frame */}
       <rect
-        x="2.5"
-        y="2.5"
-        width="19"
-        height="19"
+        x="2"
+        y="2"
+        width="20"
+        height="20"
         rx="5"
-        stroke={frameColor}
-        strokeWidth="2.4"
+        fill={frameColor}
+        stroke={hasBorder ? "rgba(255,255,255,0.12)" : "none"}
+        strokeWidth="0.5"
       />
-      {/* Ascending vertical rounded bars */}
-      <rect x="6.5" y="12.5" width="2.5" height="6.5" rx="1.25" fill={barColor} />
-      <rect x="10.75" y="9" width="2.5" height="10" rx="1.25" fill={barColor} />
-      <rect x="15" y="5.5" width="2.5" height="13.5" rx="1.25" fill={barColor} />
+      {/* Inner contrast window */}
+      <rect
+        x="4.7"
+        y="4.7"
+        width="14.6"
+        height="14.6"
+        rx="2.6"
+        fill={innerColor}
+      />
+      {/* Three ascending vertical rounded bars with flat bottom edge */}
+      <path
+        d="M 6.33 19.3 V 14.4 A 1.5 1.5 0 0 1 9.33 14.4 V 19.3 Z"
+        fill={barColor}
+      />
+      <path
+        d="M 10.48 19.3 V 11.46 A 1.5 1.5 0 0 1 13.48 11.46 V 19.3 Z"
+        fill={barColor}
+      />
+      <path
+        d="M 14.63 19.3 V 8.0 A 1.5 1.5 0 0 1 17.63 8.0 V 19.3 Z"
+        fill={barColor}
+      />
     </svg>
   );
 }

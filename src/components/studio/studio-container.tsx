@@ -242,7 +242,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
 
             {/* Logo */}
             <div className="flex items-center gap-2.5">
-              <StatDeckMark className="w-6 h-6 text-slate-900 dark:text-slate-100 flex-shrink-0" barColor="#2563EB" />
+              <StatDeckMark className="w-6 h-6 flex-shrink-0" barColor="#2563EB" />
               <span className="font-extrabold tracking-tight text-base hidden sm:inline text-slate-900 dark:text-slate-100">
                 StatDeck
               </span>
