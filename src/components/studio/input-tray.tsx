@@ -82,31 +82,45 @@ export function InputTray({ onAstLoaded, currentFormat, currentTemplateId }: Inp
       }
 
       setStatusMessage(`Synthesizing visual AST for ${file.name}...`);
-      const extractRes = await fetch("/api/extract", {
-        method: "POST",
-        headers: getExtractionHeaders(),
-        body: JSON.stringify({
-          content: extractedMarkdown,
-          format: currentFormat,
-          templateId: currentTemplateId,
-        }),
-      });
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => {
+        abortController.abort();
+      }, 25000);
 
-      const extractData = await extractRes.json();
-      if (!extractRes.ok) {
-        throw new Error(extractData.error || "Failed to synthesize visual deck AST");
+      try {
+        const extractRes = await fetch("/api/extract", {
+          method: "POST",
+          headers: getExtractionHeaders(),
+          body: JSON.stringify({
+            content: extractedMarkdown,
+            format: currentFormat,
+            templateId: currentTemplateId,
+          }),
+          signal: abortController.signal,
+        });
+
+        const extractData = await extractRes.json();
+        if (!extractRes.ok) {
+          throw new Error(extractData.error || "Failed to synthesize visual deck AST");
+        }
+
+        setLoadedFileInfo({
+          name: file.name,
+          rowCount,
+          type: extension ? extension.toUpperCase() : "FILE",
+        });
+
+        onAstLoaded(extractData.ast, `Parsed from ${file.name}`);
+      } finally {
+        clearTimeout(timeoutId);
       }
-
-      setLoadedFileInfo({
-        name: file.name,
-        rowCount,
-        type: extension ? extension.toUpperCase() : "FILE",
-      });
-
-      onAstLoaded(extractData.ast, `Parsed from ${file.name}`);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("File processing error:", err);
-      setErrorMessage(err instanceof Error ? err.message : "Error processing file.");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setErrorMessage("File extraction timed out after 25 seconds. Please try again with a smaller dataset.");
+      } else {
+        setErrorMessage(err instanceof Error ? err.message : "Error processing file.");
+      }
     } finally {
       setIsLoading(false);
       setStatusMessage("");
@@ -172,11 +186,17 @@ Q4-2024,225000,25%,96%,9100`;
     setErrorMessage(null);
     setStatusMessage("Reading and parsing page content...");
 
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortController.abort();
+    }, 25000);
+
     try {
       const urlRes = await fetch("/api/extract-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: targetUrl }),
+        signal: abortController.signal,
       });
       const urlData = await urlRes.json();
       if (!urlRes.ok) throw new Error(urlData.error || "Failed to parse URL content");
@@ -190,15 +210,21 @@ Q4-2024,225000,25%,96%,9100`;
           format: currentFormat,
           templateId: currentTemplateId,
         }),
+        signal: abortController.signal,
       });
       const extractData = await extractRes.json();
       if (!extractRes.ok) throw new Error(extractData.error || "Failed to extract visual AST");
 
       onAstLoaded(extractData.ast, `Extracted from ${urlData.siteName || targetUrl}`);
       setUrlInput("");
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Error processing URL");
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setErrorMessage("URL extraction timed out after 25 seconds. Please try again or check the URL.");
+      } else {
+        setErrorMessage(err instanceof Error ? err.message : "Error processing URL");
+      }
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
       setStatusMessage("");
     }
@@ -213,6 +239,11 @@ Q4-2024,225000,25%,96%,9100`;
     setErrorMessage(null);
     setStatusMessage("Synthesizing layout AST from notes...");
 
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortController.abort();
+    }, 25000);
+
     try {
       const extractRes = await fetch("/api/extract", {
         method: "POST",
@@ -222,15 +253,21 @@ Q4-2024,225000,25%,96%,9100`;
           format: currentFormat,
           templateId: currentTemplateId,
         }),
+        signal: abortController.signal,
       });
       const extractData = await extractRes.json();
       if (!extractRes.ok) throw new Error(extractData.error || "Failed to extract AST");
 
       onAstLoaded(extractData.ast, "Extracted from raw notes");
       setTextInput("");
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Error processing text");
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setErrorMessage("Extraction timed out after 25 seconds. Please try again with shorter text.");
+      } else {
+        setErrorMessage(err instanceof Error ? err.message : "Error processing text");
+      }
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
       setStatusMessage("");
     }

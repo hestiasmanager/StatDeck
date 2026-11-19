@@ -10,13 +10,14 @@ CORE RULES & CONSTRAINTS:
    - Provide 1 primary chart (type: "bar", "horizontal_bar", "donut", or "line") that represents the central data story.
    - Use between 3 and 8 data points with clean, readable short labels and numerical values.
    - Explicitly define 'unit' (e.g. "$M", "%", "Users", "ms", "K").
-3. STRUCTURED RETENTION BLOCKS:
-   - Convert qualitative takeaways into 1 or 2 structured blocks:
-     - "numbered_steps": For linear processes, growth levers, or chronological milestones.
-     - "comparison_table": For Before vs After, Competitor vs Solution, or Two-Option comparisons.
-     - "pros_cons": For balanced decision matrices.
-     - "key_takeaways": For high-impact bulleted executive takeaways.
-     - "callout_quote": For an authoritative quote or thesis summary.
+3. STRUCTURED RETENTION BLOCKS (MANDATORY):
+   - You MUST extract and populate 1 or 2 structured blocks ('key_takeaways', 'numbered_steps', or 'comparison_table') directly and truthfully from the source content.
+   - NEVER omit blocks or return empty arrays. Extract real, substantive takeaways, insights, or steps directly from the user's input text.
+   - "key_takeaways": Provide 2 to 4 bullet points with a clear 'headline' and concise 'detail' derived directly from the content.
+   - "numbered_steps": Provide 2 to 5 actionable stages or steps with real 'title' and 'description' from the text.
+   - "comparison_table": Compare real dimensions or entities mentioned in the source with real 'headers' and 'rows'.
+   - "pros_cons": For balanced decision matrices extracted from the text.
+   - "callout_quote": For an authoritative quote or thesis summary from the text.
 4. EDITORIAL VOICE:
    - Make 'title' punchy, bold, and curiosity-inducing (max 10-12 words).
    - Make 'subtitle' a clear, concise thesis statement.

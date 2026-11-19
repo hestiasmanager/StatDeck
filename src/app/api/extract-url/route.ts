@@ -44,12 +44,17 @@ export async function POST(req: NextRequest) {
     }
 
     const aggregatedContent = sections.join("\n\n");
+    // Truncate to maximum 15,000 characters to prevent prompt bloat and LLM timeouts
+    const cleanedContent =
+      aggregatedContent.length > 15000
+        ? aggregatedContent.slice(0, 15000).trim()
+        : aggregatedContent;
 
     return NextResponse.json({
       success: true,
       title: article.title,
       siteName: article.siteName,
-      cleanedContent: aggregatedContent,
+      cleanedContent,
     });
   } catch (err) {
     console.error("URL extraction error:", err);

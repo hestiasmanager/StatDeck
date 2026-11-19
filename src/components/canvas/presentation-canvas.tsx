@@ -31,7 +31,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
     {
       id: "deck-cover",
       content: (
-        <div className="flex flex-col justify-between h-full p-12">
+        <div className="flex flex-col justify-between h-full px-12 pt-10 pb-6">
           {ast.meta.category && (
             <span
               className="self-start px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-md"
@@ -62,7 +62,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
               </p>
             )}
           </div>
-          <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+          <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-mono opacity-60">
               {ast.meta.date ? `${ast.meta.date} • ` : ""}Source: {ast.meta.sourceCitations[0] || "StatDeck"}
             </span>
@@ -75,8 +75,8 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
     {
       id: "deck-kpis",
       content: (
-        <div className="flex flex-col justify-between h-full p-12">
-          <div className="flex flex-col gap-1 border-b pb-4" style={{ borderColor: theme.surfaceBorder }}>
+        <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+          <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
               Key Metrics
             </span>
@@ -84,7 +84,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
               Executive Performance Summary
             </h2>
           </div>
-          <div className="grid grid-cols-4 gap-4 my-auto">
+          <div className="grid grid-cols-4 gap-4 my-auto flex-1 min-h-0 items-center">
             {ast.kpis.map((kpi, idx) => (
               <div
                 key={idx}
@@ -124,7 +124,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
               </div>
             ))}
           </div>
-          <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+          <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-mono opacity-60">Executive Summary</span>
             <WatermarkBadge visible={ast.watermark} />
           </div>
@@ -137,42 +137,44 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
           {
             id: "deck-chart",
             content: (
-              <div className="flex flex-col justify-between h-full p-12">
-                <div className="flex flex-col gap-1 border-b pb-4" style={{ borderColor: theme.surfaceBorder }}>
+              <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+                <div className="flex flex-col gap-0.5 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
                   <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
                     Data Analytics
                   </span>
-                  <h2 className="text-2xl font-bold" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+                  <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
                     {ast.charts[0].title}
                   </h2>
                 </div>
                 <div
-                  className="p-6 rounded-2xl border my-auto max-w-3xl mx-auto w-full"
+                  className="flex-1 min-h-0 my-2 p-3 rounded-2xl border max-w-3xl mx-auto w-full flex items-center justify-center overflow-hidden"
                   style={{
                     backgroundColor: theme.surface,
                     borderColor: theme.surfaceBorder,
                     borderRadius: theme.cardRadius,
                   }}
                 >
-                  {ast.charts[0].type === "bar" && (
-                    <SvgBarChart chart={ast.charts[0]} accentColor={theme.accent} inkColor={theme.ink} />
-                  )}
-                  {ast.charts[0].type === "horizontal_bar" && (
-                    <SvgHorizontalBar chart={ast.charts[0]} accentColor={theme.accent} inkColor={theme.ink} />
-                  )}
-                  {ast.charts[0].type === "donut" && (
-                    <SvgDonutChart
-                      chart={ast.charts[0]}
-                      colorPalette={theme.chartColors}
-                      inkColor={theme.ink}
-                    />
-                  )}
-                  {(ast.charts[0].type === "line" || ast.charts[0].type === "area") && (
-                    <SvgLineChart chart={ast.charts[0]} accentColor={theme.accent} inkColor={theme.ink} />
-                  )}
+                  <div className="w-full h-full max-h-[220px] flex items-center justify-center">
+                    {ast.charts[0].type === "bar" && (
+                      <SvgBarChart chart={ast.charts[0]} accentColor={theme.accent} inkColor={theme.ink} />
+                    )}
+                    {ast.charts[0].type === "horizontal_bar" && (
+                      <SvgHorizontalBar chart={ast.charts[0]} accentColor={theme.accent} inkColor={theme.ink} />
+                    )}
+                    {ast.charts[0].type === "donut" && (
+                      <SvgDonutChart
+                        chart={ast.charts[0]}
+                        colorPalette={theme.chartColors}
+                        inkColor={theme.ink}
+                      />
+                    )}
+                    {(ast.charts[0].type === "line" || ast.charts[0].type === "area") && (
+                      <SvgLineChart chart={ast.charts[0]} accentColor={theme.accent} inkColor={theme.ink} />
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
-                  <span className="text-xs font-mono opacity-60">{ast.charts[0].title}</span>
+                <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                  <span className="text-xs font-mono opacity-60 truncate max-w-[400px]">{ast.charts[0].title}</span>
                   <WatermarkBadge visible={ast.watermark} />
                 </div>
               </div>
@@ -186,16 +188,16 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
           {
             id: "deck-blocks",
             content: (
-              <div className="flex flex-col justify-between h-full p-12">
-                <div className="flex flex-col gap-1 border-b pb-4" style={{ borderColor: theme.surfaceBorder }}>
+              <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+                <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
                   <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
                     Strategic Breakdown
                   </span>
-                  <h2 className="text-2xl font-bold" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+                  <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
                     {"title" in ast.blocks[0] && ast.blocks[0].title ? ast.blocks[0].title : "Implementation Levers"}
                   </h2>
                 </div>
-                <div className="my-auto max-w-3xl mx-auto w-full">
+                <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-center">
                   {ast.blocks[0].type === "numbered_steps" && (
                     <ProcessStepsBlock
                       steps={ast.blocks[0].steps}
@@ -241,7 +243,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
                     />
                   )}
                 </div>
-                <div className="flex items-center justify-between border-t pt-4" style={{ borderColor: theme.surfaceBorder }}>
+                <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
                   <span className="text-xs font-mono opacity-60">Key Takeaways</span>
                   <WatermarkBadge visible={ast.watermark} />
                 </div>

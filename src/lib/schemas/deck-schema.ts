@@ -199,77 +199,77 @@ export function normalizeExtractionDeck(
     const blockId = b.id || `block-${i + 1}`;
 
     if (b.type === "numbered_steps") {
-      const steps =
-        b.steps && b.steps.length >= 2
-          ? b.steps.map((s, idx) => ({
-              step: s.step || idx + 1,
-              title: s.title || `Step ${idx + 1}`,
-              description: s.description || "",
-            }))
-          : [
-              { step: 1, title: "Initial Phase", description: "Foundational setup and data synthesis." },
-              { step: 2, title: "Execution Phase", description: "Production deployment and automated validation." },
-            ];
-      normalizedBlocks.push({
-        id: blockId,
-        type: "numbered_steps",
-        title: b.title,
-        steps,
-      });
+      const validSteps = (b.steps || [])
+        .filter((s) => s && (s.title?.trim() || s.description?.trim()))
+        .map((s, idx) => ({
+          step: s.step || idx + 1,
+          title: s.title?.trim() || `Step ${idx + 1}`,
+          description: s.description?.trim() || "",
+        }));
+      if (validSteps.length > 0) {
+        normalizedBlocks.push({
+          id: blockId,
+          type: "numbered_steps",
+          title: b.title?.trim() || undefined,
+          steps: validSteps,
+        });
+      }
     } else if (b.type === "comparison_table") {
-      const headers =
-        b.headers && b.headers.length >= 2
-          ? b.headers.map((h) => h.trim())
-          : ["Dimension / Metric", "Value"];
-      const rows =
-        b.rows && b.rows.length >= 2
-          ? b.rows.map((r) => ({
-              feature: r.feature || "Metric",
-              colA: r.colA || "N/A",
-              colB: r.colB || "",
-              values: r.values,
-            }))
-          : [
-              { feature: "Latency", colA: "500ms", colB: "42ms" },
-              { feature: "Reliability", colA: "99.0%", colB: "99.99%" },
-            ];
-      normalizedBlocks.push({
-        id: blockId,
-        type: "comparison_table",
-        title: b.title,
-        headers,
-        rows,
-      });
+      const headers = (b.headers || []).map((h) => h?.trim()).filter(Boolean);
+      const validRows = (b.rows || [])
+        .filter((r) => r && (r.feature?.trim() || r.colA?.trim() || (r.values && r.values.length > 0)))
+        .map((r) => ({
+          feature: r.feature?.trim() || "Item",
+          colA: r.colA?.trim() || "",
+          colB: r.colB?.trim() || undefined,
+          values: r.values?.map((v) => v?.trim() || "") || undefined,
+        }));
+      if (validRows.length > 0) {
+        normalizedBlocks.push({
+          id: blockId,
+          type: "comparison_table",
+          title: b.title?.trim() || undefined,
+          headers: headers.length >= 2 ? headers : ["Dimension", "Value"],
+          rows: validRows,
+        });
+      }
     } else if (b.type === "pros_cons") {
-      normalizedBlocks.push({
-        id: blockId,
-        type: "pros_cons",
-        title: b.title,
-        pros: b.pros && b.pros.length > 0 ? b.pros : ["High operational velocity", "Deterministic data model"],
-        cons: b.cons && b.cons.length > 0 ? b.cons : ["Requires upfront schema strictness"],
-      });
+      const validPros = (b.pros || []).map((p) => p?.trim()).filter(Boolean);
+      const validCons = (b.cons || []).map((c) => c?.trim()).filter(Boolean);
+      if (validPros.length > 0 || validCons.length > 0) {
+        normalizedBlocks.push({
+          id: blockId,
+          type: "pros_cons",
+          title: b.title?.trim() || undefined,
+          pros: validPros,
+          cons: validCons,
+        });
+      }
     } else if (b.type === "callout_quote") {
-      normalizedBlocks.push({
-        id: blockId,
-        type: "callout_quote",
-        quote: b.quote || "Precision in data architecture yields compounding dividends.",
-        author: b.author || "StatDeck Research",
-        role: b.role,
-      });
+      if (b.quote && b.quote.trim().length > 0) {
+        normalizedBlocks.push({
+          id: blockId,
+          type: "callout_quote",
+          quote: b.quote.trim(),
+          author: b.author?.trim() || "Key Insight",
+          role: b.role?.trim() || undefined,
+        });
+      }
     } else if (b.type === "key_takeaways") {
-      const bullets =
-        b.bullets && b.bullets.length >= 2
-          ? b.bullets
-          : [
-              { headline: "Strict Schema Boundaries", detail: "Guarantees zero layout hallucination." },
-              { headline: "Deterministic Serialization", detail: "100% client-side export without headless browser overhead." },
-            ];
-      normalizedBlocks.push({
-        id: blockId,
-        type: "key_takeaways",
-        title: b.title,
-        bullets,
-      });
+      const validBullets = (b.bullets || [])
+        .filter((bullet) => bullet && (bullet.headline?.trim() || bullet.detail?.trim()))
+        .map((bullet) => ({
+          headline: bullet.headline?.trim() || "",
+          detail: bullet.detail?.trim() || "",
+        }));
+      if (validBullets.length > 0) {
+        normalizedBlocks.push({
+          id: blockId,
+          type: "key_takeaways",
+          title: b.title?.trim() || undefined,
+          bullets: validBullets,
+        });
+      }
     }
   }
 
