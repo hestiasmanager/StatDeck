@@ -122,13 +122,13 @@ ${rawContent.slice(0, 10000)}`;
     }
   }
 
-  // 3. Direct Google Gemini Execution (Primary Default: gemini-2.5-flash / gemini-2.0-flash / gemini-1.5-flash)
+  // 3. Direct Google Gemini Execution (Primary: gemini-4-hydrogen / gemini-3.1-flash-lite / gemini-4-neon)
   if (activeGeminiKey) {
     const candidateModels = [
       process.env.GEMINI_MODEL,
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
+      "gemini-4-hydrogen",
+      "gemini-3.1-flash-lite",
+      "gemini-4-neon",
     ].filter((m): m is string => Boolean(m && m.trim()));
 
     // Deduplicate candidate models
@@ -233,6 +233,6 @@ ${rawContent.slice(0, 10000)}`;
 
   // For unstructured text/notes/URLs without an AI key: throw clear prompt error
   throw new Error(
-    "No AI API key found. Please add your Google Gemini or OpenRouter API key in the top-bar AI Settings modal (🔑) or configure GOOGLE_GENERATIVE_AI_API_KEY."
+    "AI service unavailable. Please configure GOOGLE_GENERATIVE_AI_API_KEY or GEMINI_API_KEY in your environment."
   );
 }

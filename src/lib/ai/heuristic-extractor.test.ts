@@ -40,13 +40,13 @@ Summary: Enterprise spending on accelerators grew 84% year over year as datacent
   try {
     extractHeuristicDeckAST(sampleArticle, "infographic", "executive-dark");
   } catch (err) {
-    if (err instanceof Error && err.message.includes("No AI API key found")) {
+    if (err instanceof Error && err.message.includes("AI service unavailable")) {
       threwExpected = true;
     }
   }
 
   if (!threwExpected) {
-    throw new Error("Expected heuristic extractor to throw 'No AI API key found' for unstructured text");
+    throw new Error("Expected heuristic extractor to throw 'AI service unavailable' for unstructured text");
   }
 
   console.log("[PASS] Unstructured text throws clear AI API key prompt instead of fake data!");

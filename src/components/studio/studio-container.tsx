@@ -10,7 +10,6 @@ import { ThemePicker } from "@/components/studio/theme-picker";
 import { InputTray } from "@/components/studio/input-tray";
 import { ExportModal } from "@/components/studio/export-modal";
 import { BrandKitModal } from "@/components/studio/brand-kit-modal";
-import { ApiKeyModal } from "@/components/studio/api-key-modal";
 import { ZoomToolbar } from "@/components/studio/zoom-toolbar";
 import { InfographicCanvas } from "@/components/canvas/infographic-canvas";
 import { CarouselCanvas } from "@/components/canvas/carousel-canvas";
@@ -21,7 +20,6 @@ import {
   Download,
   Sparkles,
   Globe,
-  Key,
   PanelLeftClose,
   PanelLeftOpen,
   X,
@@ -144,7 +142,6 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
   const [zoom, setZoom] = useState(1.0);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isBrandKitOpen, setIsBrandKitOpen] = useState(false);
-  const [isApiKeyOpen, setIsApiKeyOpen] = useState(false);
 
   const canvasViewportRef = useRef<HTMLDivElement>(null);
   const infographicRef = useRef<HTMLDivElement>(null);
@@ -274,16 +271,6 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
                 <Redo2 className="w-3.5 h-3.5" />
               </button>
             </div>
-
-            {/* API Key Settings Button */}
-            <button
-              onClick={() => setIsApiKeyOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition-colors"
-              title="Configure Gemini or OpenAI Keys"
-            >
-              <Key className="w-3.5 h-3.5 text-amber-500" />
-              <span className="hidden md:inline">API Key</span>
-            </button>
 
             {/* Brand Kit Button */}
             <button
@@ -427,11 +414,6 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
         isOpen={isBrandKitOpen}
         onClose={() => setIsBrandKitOpen(false)}
         onApplyBrandKit={(kit) => dispatch({ type: "APPLY_BRAND_KIT", payload: kit })}
-      />
-
-      <ApiKeyModal
-        isOpen={isApiKeyOpen}
-        onClose={() => setIsApiKeyOpen(false)}
       />
     </div>
   );

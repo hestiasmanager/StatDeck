@@ -51,7 +51,7 @@ export function extractHeuristicDeckAST(
 
   // Unstructured text without an AI key: throw clear error prompt instead of hallucinating placeholder rows
   throw new Error(
-    "No AI API key found. Please add your Google Gemini or OpenRouter API key in the top-bar AI Settings modal (🔑) or configure GOOGLE_GENERATIVE_AI_API_KEY."
+    "AI service unavailable. Please configure GOOGLE_GENERATIVE_AI_API_KEY or GEMINI_API_KEY in your environment."
   );
 }
 
@@ -72,7 +72,7 @@ function parseTableToAST(content: string, format: OutputFormat, templateId: stri
   const tableLines = lines.filter((l) => l.startsWith("|") && l.endsWith("|") && !l.includes("---"));
   if (tableLines.length < 2) {
     throw new Error(
-      "Unable to parse table rows. Please add your Google Gemini or OpenRouter API key in the top-bar AI Settings modal (🔑) to synthesize visual decks."
+      "Unable to parse table rows. Please ensure GOOGLE_GENERATIVE_AI_API_KEY is configured in your environment."
     );
   }
 

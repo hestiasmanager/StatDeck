@@ -32,28 +32,7 @@ interface LoadedFileInfo {
 }
 
 function getExtractionHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (typeof window !== "undefined") {
-    const isValidKey = (k: string | null): boolean =>
-      Boolean(
-        k &&
-          k.trim().length > 15 &&
-          !k.toLowerCase().includes("redacted") &&
-          !k.toLowerCase().includes("dummy") &&
-          !k.toLowerCase().includes("test")
-      );
-
-    const openRouterKey = localStorage.getItem("statdeck_openrouter_key");
-    const openRouterModel = localStorage.getItem("statdeck_openrouter_model");
-    const geminiKey = localStorage.getItem("statdeck_gemini_key");
-    const openAiKey = localStorage.getItem("statdeck_openai_key");
-
-    if (isValidKey(openRouterKey)) headers["x-openrouter-key"] = openRouterKey!.trim();
-    if (openRouterModel) headers["x-openrouter-model"] = openRouterModel.trim();
-    if (isValidKey(geminiKey)) headers["x-gemini-key"] = geminiKey!.trim();
-    if (isValidKey(openAiKey)) headers["x-openai-key"] = openAiKey!.trim();
-  }
-  return headers;
+  return { "Content-Type": "application/json" };
 }
 
 export function InputTray({ onAstLoaded, currentFormat, currentTemplateId }: InputTrayProps) {
