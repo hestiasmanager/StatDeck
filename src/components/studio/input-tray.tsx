@@ -93,7 +93,7 @@ export function InputTray({ onAstLoaded, currentFormat, currentTemplateId }: Inp
       }
 
       setStatusMessage(
-        `Synthesizing visual AST for ${file.name}${activeSheet ? ` (${activeSheet})` : ""}...`
+        `Designing visual slides for ${file.name}${activeSheet ? ` (${activeSheet})` : ""}...`
       );
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => {
@@ -221,7 +221,7 @@ Q4-2024,225000,25%,96%,9100`;
       const urlData = await urlRes.json();
       if (!urlRes.ok) throw new Error(urlData.error || "Failed to parse URL content");
 
-      setStatusMessage("Synthesizing data layout AST...");
+      setStatusMessage("Creating visual layout...");
       const extractRes = await fetch("/api/extract", {
         method: "POST",
         headers: getExtractionHeaders(),
@@ -265,7 +265,7 @@ Q4-2024,225000,25%,96%,9100`;
         `Pre-computing exact JavaScript sums for ${tableType === "pipe" ? "markdown" : "CSV"} table (${rowCount} data rows)...`
       );
     } else {
-      setStatusMessage("Synthesizing layout AST from notes...");
+      setStatusMessage("Creating visuals from notes...");
     }
 
     const abortController = new AbortController();
@@ -555,7 +555,7 @@ Q4-2024,225000,25%,96%,9100`;
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             rows={3}
-            placeholder="Paste raw earnings notes, survey metrics, or thesis..."
+            placeholder="Paste data, a link, or drop any messy Excel file..."
             className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
@@ -563,7 +563,7 @@ Q4-2024,225000,25%,96%,9100`;
             type="submit"
             className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors"
           >
-            Synthesize Visual AST
+            Generate Visuals
           </button>
         </form>
       )}

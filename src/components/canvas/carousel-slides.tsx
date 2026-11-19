@@ -13,6 +13,7 @@ import { ProsConsBlock } from "@/components/blocks/pros-cons-block";
 import { CalloutQuoteBlock } from "@/components/blocks/callout-quote";
 import { KeyTakeawaysBlock } from "@/components/blocks/key-takeaways";
 import { WatermarkBadge } from "@/components/studio/watermark-badge";
+import { getKpiValueSizeClass } from "@/lib/utils/kpi-formatter";
 import { ArrowRight } from "lucide-react";
 
 export interface CarouselSlideData {
@@ -155,11 +156,11 @@ export function buildCarouselSlides(
               The Hard Numbers
             </h2>
           </div>
-          <div className="grid grid-cols-2 gap-4 my-auto">
+          <div className="grid grid-cols-2 gap-4 items-stretch my-auto">
             {ast.kpis.map((kpi, idx) => (
               <div
                 key={idx}
-                className="p-6 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between shadow-2xs transition-all hover:scale-[1.02]"
+                className="p-6 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between h-full min-h-[140px] shadow-2xs transition-all hover:scale-[1.02]"
                 style={{
                   backgroundColor: theme.surface,
                   borderColor: theme.surfaceBorder,
@@ -167,7 +168,10 @@ export function buildCarouselSlides(
                 }}
               >
                 <span
-                  className="text-2xl md:text-3xl xl:text-4xl font-extrabold tracking-tight font-mono tabular-nums leading-tight truncate block max-w-full"
+                  className={`${getKpiValueSizeClass(
+                    kpi.value,
+                    "carousel"
+                  )} font-extrabold tracking-tight font-mono tabular-nums leading-tight block max-w-full break-normal`}
                   style={{ color: theme.accent }}
                   title={kpi.value}
                 >

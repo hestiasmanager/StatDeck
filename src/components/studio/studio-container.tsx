@@ -10,6 +10,7 @@ import { ThemePicker } from "@/components/studio/theme-picker";
 import { InputTray } from "@/components/studio/input-tray";
 import { ExportModal } from "@/components/studio/export-modal";
 import { BrandKitModal } from "@/components/studio/brand-kit-modal";
+import { TemplateGalleryModal } from "@/components/studio/template-gallery-modal";
 import { ZoomToolbar } from "@/components/studio/zoom-toolbar";
 import { InfographicCanvas } from "@/components/canvas/infographic-canvas";
 import { CarouselCanvas } from "@/components/canvas/carousel-canvas";
@@ -20,6 +21,7 @@ import {
   Download,
   Sparkles,
   Globe,
+  LayoutGrid,
   PanelLeftClose,
   PanelLeftOpen,
   X,
@@ -154,29 +156,38 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
   });
 
   // UI state for minimize / maximize & responsive layout
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 1024;
+    }
+    return true;
+  });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoom, setZoom] = useState(1.0);
+  const [isAutoFit, setIsAutoFit] = useState(true);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isBrandKitOpen, setIsBrandKitOpen] = useState(false);
+  const [isTemplateGalleryOpen, setIsTemplateGalleryOpen] = useState(false);
 
   const canvasViewportRef = useRef<HTMLDivElement>(null);
   const infographicRef = useRef<HTMLDivElement>(null);
 
-  // Fit to screen calculator
-  const handleFitToScreen = useCallback(() => {
+  // True auto-fit zoom calculator with 32px+ balanced margins and 0 horizontal scrollbar
+  const calculateAutoFit = useCallback(() => {
     if (!canvasViewportRef.current) return;
     const container = canvasViewportRef.current;
-    const availableWidth = container.clientWidth - 48; // padding
-    const availableHeight = container.clientHeight - 80; // toolbar + padding
+    // 64px total horizontal margin (32px left + 32px right)
+    const availableWidth = Math.max(300, container.clientWidth - 64);
+    // 96px total vertical margin (toolbar + 32px vertical room)
+    const availableHeight = Math.max(300, container.clientHeight - 96);
 
     const format = state.present.format;
     let targetWidth = 540;
-    let targetHeight = 740;
+    let targetHeight = 725;
 
     if (format === "presentation") {
       targetWidth = 800;
-      targetHeight = 520;
+      targetHeight = 500;
     } else if (format === "infographic") {
       targetWidth = 800;
       targetHeight = 1400;
@@ -185,19 +196,38 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
     const scaleX = availableWidth / targetWidth;
     const scaleY = availableHeight / targetHeight;
 
-    // For infographic, fit mostly to width so it fills nicely and scrolls
-    let newScale = format === "infographic" ? scaleX : Math.min(scaleX, scaleY);
-    // Clamp between 0.4 and 1.2
-    newScale = Math.max(0.4, Math.min(1.2, Math.round(newScale * 100) / 100));
+    // For infographic, fit mostly to width with max 1.0 so it scrolls vertically
+    let newScale = format === "infographic" ? Math.min(1.0, scaleX) : Math.min(scaleX, scaleY);
+    newScale = Math.max(0.4, Math.min(1.25, Math.round(newScale * 100) / 100));
     setZoom(newScale);
   }, [state.present.format]);
 
-  // Auto-fit on initial mount or format change if screen is small
+  // ResizeObserver to automatically calculate zoom when viewport or sidebar resizes
   useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 1440) {
-      handleFitToScreen();
+    if (!canvasViewportRef.current) return;
+    const el = canvasViewportRef.current;
+
+    const observer = new ResizeObserver(() => {
+      if (isAutoFit) {
+        calculateAutoFit();
+      }
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [calculateAutoFit, isAutoFit]);
+
+  // Recalculate auto-fit when format, sidebar state, or fullscreen toggles
+  useEffect(() => {
+    if (isAutoFit) {
+      calculateAutoFit();
     }
-  }, [state.present.format, handleFitToScreen]);
+  }, [state.present.format, isSidebarOpen, isFullscreen, calculateAutoFit, isAutoFit]);
+
+  const handleFitToScreen = () => {
+    setIsAutoFit(true);
+    calculateAutoFit();
+  };
 
   // Keyboard shortcuts: Undo/Redo, Escape for Fullscreen
   useEffect(() => {
@@ -287,6 +317,16 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
               </button>
             </div>
 
+            {/* Template Gallery Button (288+ Combinations) */}
+            <button
+              onClick={() => setIsTemplateGalleryOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+              title="Open Template Gallery (288+ Combinations)"
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-blue-500" />
+              <span className="hidden sm:inline">Templates</span>
+            </button>
+
             {/* Brand Kit Button */}
             <button
               onClick={() => setIsBrandKitOpen(true)}
@@ -310,27 +350,27 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
 
       {/* 2. Main Studio Body */}
       <main className="flex-1 flex overflow-hidden relative">
-        {/* Mobile/Tablet Drawer Backdrop Overlay */}
+        {/* Mobile/Tablet Drawer Backdrop Overlay (< 1024px) */}
         {isSidebarOpen && !isFullscreen && (
           <div
             onClick={() => setIsSidebarOpen(false)}
-            className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-xs z-40 transition-opacity"
+            className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-xs z-40 transition-opacity"
             aria-label="Close sidebar overlay"
           />
         )}
 
-        {/* Collapsible Left Sidebar (Slide-over Drawer on Mobile/Tablet) */}
+        {/* Collapsible Left Sidebar (Slide-over Drawer on Mobile/Tablet < 1024px) */}
         <aside
-          className={`h-full border-r border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex flex-col gap-5 p-4 overflow-y-auto transition-all duration-300 ease-in-out md:relative fixed inset-y-0 left-0 z-50 md:z-20 flex-shrink-0 ${
+          className={`h-full border-r border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex flex-col gap-5 p-4 overflow-y-auto transition-all duration-300 ease-in-out lg:relative fixed inset-y-0 left-0 z-50 lg:z-20 flex-shrink-0 ${
             isFullscreen
               ? "hidden"
               : isSidebarOpen
-              ? "w-80 md:w-96 shadow-2xl md:shadow-none opacity-100 translate-x-0"
+              ? "w-80 lg:w-96 shadow-2xl lg:shadow-none opacity-100 translate-x-0"
               : "w-0 p-0 border-0 opacity-0 -translate-x-full pointer-events-none"
           }`}
         >
           {/* Mobile Drawer Close Header */}
-          <div className="flex items-center justify-between md:hidden pb-1 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-between lg:hidden pb-1 border-b border-slate-200 dark:border-slate-800">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Studio Controls</span>
             <button
               onClick={() => setIsSidebarOpen(false)}
@@ -344,7 +384,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
           {/* Data Ingestion Section */}
           <section className="flex flex-col gap-1.5">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Data Ingestion
+              Add Your Content
             </span>
             <InputTray
               currentFormat={currentAst.format}
@@ -358,6 +398,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
             <ThemePicker
               currentThemeId={currentAst.templateId}
               onSelectTheme={(themeId) => dispatch({ type: "SET_THEME", payload: themeId })}
+              onOpenGallery={() => setIsTemplateGalleryOpen(true)}
             />
           </section>
 
@@ -459,7 +500,10 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
             {/* Zoom Controls */}
             <div className="flex items-center gap-1">
               <button
-                onClick={() => setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10))}
+                onClick={() => {
+                  setIsAutoFit(false);
+                  setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10));
+                }}
                 disabled={zoom <= 0.4}
                 className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 text-slate-600 dark:text-slate-300 transition-colors"
                 title="Zoom Out"
@@ -467,14 +511,20 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
                 <ZoomOut className="w-3.5 h-3.5" />
               </button>
               <button
-                onClick={() => setZoom(1.0)}
-                title="Reset Zoom"
+                onClick={() => {
+                  setIsAutoFit(false);
+                  setZoom(1.0);
+                }}
+                title="Reset Zoom (100%)"
                 className="px-2 py-0.5 rounded font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 {Math.round(zoom * 100)}%
               </button>
               <button
-                onClick={() => setZoom((z) => Math.min(1.6, Math.round((z + 0.1) * 10) / 10))}
+                onClick={() => {
+                  setIsAutoFit(false);
+                  setZoom((z) => Math.min(1.6, Math.round((z + 0.1) * 10) / 10));
+                }}
                 disabled={zoom >= 1.6}
                 className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 text-slate-600 dark:text-slate-300 transition-colors"
                 title="Zoom In"
@@ -525,6 +575,13 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
         isOpen={isBrandKitOpen}
         onClose={() => setIsBrandKitOpen(false)}
         onApplyBrandKit={(kit) => dispatch({ type: "APPLY_BRAND_KIT", payload: kit })}
+      />
+
+      <TemplateGalleryModal
+        isOpen={isTemplateGalleryOpen}
+        onClose={() => setIsTemplateGalleryOpen(false)}
+        currentTemplateId={currentAst.templateId}
+        onSelectTemplate={(templateId) => dispatch({ type: "SET_THEME", payload: templateId })}
       />
     </div>
   );

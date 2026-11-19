@@ -3,11 +3,12 @@
 import React, { useState } from "react";
 import { EDITORIAL_THEMES } from "@/lib/themes/registry";
 import type { ThemeTokens } from "@/lib/themes/types";
-import { Palette, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Palette, Check, ChevronDown, ChevronUp, LayoutGrid } from "lucide-react";
 
 interface ThemePickerProps {
   currentThemeId: string;
   onSelectTheme: (themeId: string) => void;
+  onOpenGallery?: () => void;
 }
 
 function getThemeFontLabel(theme: ThemeTokens): string {
@@ -23,7 +24,7 @@ function getThemeFontLabel(theme: ThemeTokens): string {
   return "Inter";
 }
 
-export function ThemePicker({ currentThemeId, onSelectTheme }: ThemePickerProps) {
+export function ThemePicker({ currentThemeId, onSelectTheme, onOpenGallery }: ThemePickerProps) {
   const [filter, setFilter] = useState<"all" | "minimal" | "dark" | "editorial" | "bold">("all");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const allThemes = Object.values(EDITORIAL_THEMES);
@@ -130,6 +131,16 @@ export function ThemePicker({ currentThemeId, onSelectTheme }: ThemePickerProps)
               );
             })}
           </div>
+
+          {onOpenGallery && (
+            <button
+              onClick={onOpenGallery}
+              className="w-full mt-1.5 py-1.5 px-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-750 hover:border-blue-500 dark:hover:border-blue-400 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer bg-slate-50/50 dark:bg-slate-900/50"
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-blue-500" />
+              <span>Browse 288+ Templates Gallery</span>
+            </button>
+          )}
         </>
       )}
     </div>

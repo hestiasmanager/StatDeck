@@ -14,6 +14,7 @@ import { ProsConsBlock } from "@/components/blocks/pros-cons-block";
 import { CalloutQuoteBlock } from "@/components/blocks/callout-quote";
 import { KeyTakeawaysBlock } from "@/components/blocks/key-takeaways";
 import { WatermarkBadge } from "@/components/studio/watermark-badge";
+import { getKpiValueSizeClass } from "@/lib/utils/kpi-formatter";
 
 interface PresentationCanvasProps {
   ast: DeckAST;
@@ -135,11 +136,11 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
                     Executive Performance Summary
                   </h2>
                 </div>
-                <div className="grid grid-cols-4 gap-4 my-auto flex-1 min-h-0 items-center">
+                <div className="grid grid-cols-4 gap-4 my-auto flex-1 min-h-0 items-stretch">
                   {ast.kpis.map((kpi, idx) => (
                     <div
                       key={idx}
-                      className="p-4 md:p-5 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between shadow-2xs transition-all hover:scale-[1.02] overflow-hidden min-w-0"
+                      className="p-4 md:p-5 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between h-full min-h-[110px] shadow-2xs transition-all hover:scale-[1.02] overflow-hidden min-w-0"
                       style={{
                         backgroundColor: theme.surface,
                         borderColor: theme.surfaceBorder,
@@ -147,13 +148,10 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
                       }}
                     >
                       <span
-                        className={`font-extrabold tracking-tight font-mono tabular-nums leading-tight truncate block max-w-full ${
-                          kpi.value.length > 8
-                            ? "text-xl xl:text-2xl"
-                            : kpi.value.length > 5
-                            ? "text-2xl xl:text-3xl"
-                            : "text-3xl xl:text-4xl"
-                        }`}
+                        className={`${getKpiValueSizeClass(
+                          kpi.value,
+                          "presentation"
+                        )} font-extrabold tracking-tight font-mono tabular-nums leading-tight block max-w-full break-normal`}
                         style={{ color: theme.accent }}
                         title={kpi.value}
                       >
