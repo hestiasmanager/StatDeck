@@ -12,6 +12,7 @@ export interface ExtractASTOptions {
   clientOpenRouterModel?: string;
   clientGeminiKey?: string;
   clientOpenAiKey?: string;
+  deepAnalysis?: boolean;
   abortSignal?: AbortSignal;
 }
 
@@ -122,23 +123,28 @@ ${rawContent.slice(0, 10000)}`;
     }
   }
 
-  // 3. Direct Google Gemini Execution (Fast structured extraction with low thinking config)
+  // 3. Direct Google Gemini Execution (Primary: gemini-3.5-flash-lite for instant ~2s response)
   if (activeGeminiKey) {
-    // For dense multi-table inputs, prioritize gemini-4-hydrogen (with thinkingLevel: "low"),
-    // while routing simple JSON extraction to gemini-3.5-flash-lite first for instant ~2-4s response.
-    const isDenseTable =
-      rawContent.split("\n").filter((l) => l.trim().startsWith("|")).length >= 4 ||
-      rawContent.includes("PRE-COMPUTED JAVASCRIPT ROLLUPS");
+    const configuredModel = process.env.GEMINI_MODEL?.trim();
 
-    const candidateModels = [
-      process.env.GEMINI_MODEL,
-      ...(isDenseTable
-        ? ["gemini-4-hydrogen", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-4-neon"]
-        : ["gemini-3.5-flash-lite", "gemini-4-hydrogen", "gemini-3.1-flash-lite", "gemini-4-neon"]),
-    ].filter((m): m is string => Boolean(m && m.trim()));
+    // Default to gemini-3.5-flash-lite for ultra-fast structured synthesis;
+    // only prioritize gemini-4-hydrogen when explicit deepAnalysis is toggled.
+    const candidateModels = options?.deepAnalysis
+      ? [
+          configuredModel === "gemini-4-hydrogen" ? configuredModel : "gemini-4-hydrogen",
+          "gemini-3.5-flash-lite",
+          "gemini-3.1-flash-lite",
+        ]
+      : [
+          configuredModel && configuredModel !== "gemini-4-hydrogen" ? configuredModel : "gemini-3.5-flash-lite",
+          "gemini-3.5-flash-lite",
+          "gemini-3.1-flash-lite",
+          "gemini-4-hydrogen",
+          "gemini-4-neon",
+        ];
 
     // Deduplicate candidate models
-    const uniqueModels = Array.from(new Set(candidateModels));
+    const uniqueModels = Array.from(new Set(candidateModels.filter(Boolean)));
 
     for (const modelId of uniqueModels) {
       try {

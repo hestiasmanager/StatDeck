@@ -11,9 +11,12 @@ const RequestBodySchema = z.object({
   content: z.string().min(10).max(50000),
   format: OutputFormatSchema.default("carousel"),
   templateId: z.string().default("clean-bento"),
+  deepAnalysis: z.boolean().optional().default(false),
 });
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
+
   // Set up 45-second abort controller so extraction never hangs indefinitely
   const abortController = new AbortController();
   const timeoutId = setTimeout(() => {
@@ -30,10 +33,13 @@ export async function POST(req: NextRequest) {
     const rateLimitCheck = await checkRateLimit(`rate:extract:${ip}`, 15, 600000);
     if (!rateLimitCheck.success) {
       clearTimeout(timeoutId);
+      const elapsedMs = Date.now() - startTime;
+      console.warn(`[API /api/extract] Rate limit exceeded for IP ${ip} after ${elapsedMs}ms`);
       return NextResponse.json(
         {
           error: "Rate limit exceeded. Please wait a few minutes or upgrade your plan.",
           reset: rateLimitCheck.reset,
+          elapsedMs,
         },
         { status: 429 }
       );
@@ -44,39 +50,57 @@ export async function POST(req: NextRequest) {
     const parseResult = RequestBodySchema.safeParse(json);
     if (!parseResult.success) {
       clearTimeout(timeoutId);
+      const elapsedMs = Date.now() - startTime;
+      console.warn(`[API /api/extract] Invalid request payload after ${elapsedMs}ms:`, parseResult.error.flatten());
       return NextResponse.json(
-        { error: "Invalid request payload", details: parseResult.error.flatten() },
+        { error: "Invalid request payload", details: parseResult.error.flatten(), elapsedMs },
         { status: 400 }
       );
     }
 
-    const { content, format, templateId } = parseResult.data;
+    const { content, format, templateId, deepAnalysis } = parseResult.data;
 
     const clientOpenRouterKey = req.headers.get("x-openrouter-key") || undefined;
     const clientOpenRouterModel = req.headers.get("x-openrouter-model") || undefined;
     const clientGeminiKey = req.headers.get("x-gemini-key") || undefined;
     const clientOpenAiKey = req.headers.get("x-openai-key") || undefined;
 
-    // 3. Execute Structured LLM Extraction with 20s abort signal
+    // 3. Execute Structured LLM Extraction (defaults to gemini-3.5-flash-lite)
     const result = await extractDeckAST(content, format, templateId, {
       clientOpenRouterKey,
       clientOpenRouterModel,
       clientGeminiKey,
       clientOpenAiKey,
+      deepAnalysis,
       abortSignal: abortController.signal,
     });
 
     clearTimeout(timeoutId);
+    const elapsedMs = Date.now() - startTime;
+    console.log(
+      `[API /api/extract] Succeeded in ${elapsedMs}ms | model: ${result.modelUsed} | cached: ${result.cached} | deep: ${deepAnalysis}`
+    );
 
     return NextResponse.json({
       success: true,
       ast: result.ast,
       cached: result.cached,
       modelUsed: result.modelUsed,
+      elapsedMs,
     });
   } catch (error) {
     clearTimeout(timeoutId);
-    console.error("Extraction API error:", error);
+    const elapsedMs = Date.now() - startTime;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    const errorName = error instanceof Error ? error.name : "UnknownError";
+
+    console.error(`[API /api/extract] FAILED after ${elapsedMs}ms:`, {
+      name: errorName,
+      message: errorMessage,
+      aborted: abortController.signal.aborted,
+      stack: errorStack,
+    });
 
     const isTimeout =
       abortController.signal.aborted ||
@@ -88,7 +112,8 @@ export async function POST(req: NextRequest) {
     if (isTimeout) {
       return NextResponse.json(
         {
-          error: "AI extraction timed out after 45 seconds. Please try again or check your model/API key.",
+          error: `AI extraction timed out after ${elapsedMs}ms. Please try again or check your model/API key.`,
+          elapsedMs,
         },
         { status: 504 }
       );
@@ -97,7 +122,7 @@ export async function POST(req: NextRequest) {
     const message = error instanceof Error ? error.message : "Failed to extract structured deck";
     const status = message.includes("No AI API key found") ? 400 : 500;
     return NextResponse.json(
-      { error: message },
+      { error: message, elapsedMs },
       { status }
     );
   }
