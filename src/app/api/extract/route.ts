@@ -5,7 +5,7 @@ import { OutputFormatSchema } from "@/lib/schemas/deck-schema";
 import { z } from "zod";
 
 // Vercel serverless function max duration (seconds)
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const RequestBodySchema = z.object({
   content: z.string().min(10).max(50000),
@@ -14,11 +14,11 @@ const RequestBodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  // Set up 20-second abort controller so extraction never hangs indefinitely
+  // Set up 45-second abort controller so extraction never hangs indefinitely
   const abortController = new AbortController();
   const timeoutId = setTimeout(() => {
-    abortController.abort(new Error("AI extraction timed out after 20 seconds"));
-  }, 20000);
+    abortController.abort(new Error("AI extraction timed out after 45 seconds"));
+  }, 45000);
 
   try {
     // 1. IP / Client Rate Limiting (Sliding Window)
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     if (isTimeout) {
       return NextResponse.json(
         {
-          error: "AI extraction timed out after 20 seconds. Please try again or check your model/API key.",
+          error: "AI extraction timed out after 45 seconds. Please try again or check your model/API key.",
         },
         { status: 504 }
       );

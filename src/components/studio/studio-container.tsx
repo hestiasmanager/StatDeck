@@ -32,6 +32,7 @@ import {
   ScrollText,
   Monitor,
 } from "lucide-react";
+import { StatDeckMark } from "@/components/ui/statdeck-mark";
 
 // --- Studio State & Reducer with Undo/Redo ---
 interface StudioState {
@@ -240,11 +241,9 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
             </button>
 
             {/* Logo */}
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-sm font-black text-xs">
-                S
-              </div>
-              <span className="font-extrabold tracking-tight text-base hidden sm:inline">
+            <div className="flex items-center gap-2.5">
+              <StatDeckMark className="w-6 h-6 text-slate-900 dark:text-slate-100 flex-shrink-0" barColor="#2563EB" />
+              <span className="font-extrabold tracking-tight text-base hidden sm:inline text-slate-900 dark:text-slate-100">
                 StatDeck
               </span>
             </div>

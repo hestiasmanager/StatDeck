@@ -261,7 +261,7 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
             ) : (
               <div />
             )}
-            <WatermarkBadge visible={ast.watermark} />
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
           </footer>
         </div>
       </div>

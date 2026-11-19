@@ -122,13 +122,19 @@ ${rawContent.slice(0, 10000)}`;
     }
   }
 
-  // 3. Direct Google Gemini Execution (Primary: gemini-4-hydrogen / gemini-3.1-flash-lite / gemini-4-neon)
+  // 3. Direct Google Gemini Execution (Fast structured extraction with low thinking config)
   if (activeGeminiKey) {
+    // For dense multi-table inputs, prioritize gemini-4-hydrogen (with thinkingLevel: "low"),
+    // while routing simple JSON extraction to gemini-3.5-flash-lite first for instant ~2-4s response.
+    const isDenseTable =
+      rawContent.split("\n").filter((l) => l.trim().startsWith("|")).length >= 4 ||
+      rawContent.includes("PRE-COMPUTED JAVASCRIPT ROLLUPS");
+
     const candidateModels = [
       process.env.GEMINI_MODEL,
-      "gemini-4-hydrogen",
-      "gemini-3.1-flash-lite",
-      "gemini-4-neon",
+      ...(isDenseTable
+        ? ["gemini-4-hydrogen", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-4-neon"]
+        : ["gemini-3.5-flash-lite", "gemini-4-hydrogen", "gemini-3.1-flash-lite", "gemini-4-neon"]),
     ].filter((m): m is string => Boolean(m && m.trim()));
 
     // Deduplicate candidate models
@@ -144,6 +150,14 @@ ${rawContent.slice(0, 10000)}`;
           prompt: promptText,
           maxTokens: 900,
           temperature: 0.2,
+          providerOptions: {
+            google: {
+              thinkingConfig: {
+                thinkingLevel: "low",
+                thinkingBudget: 0,
+              },
+            },
+          },
           abortSignal: options?.abortSignal,
         });
 

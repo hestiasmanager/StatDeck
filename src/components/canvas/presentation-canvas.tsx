@@ -70,7 +70,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
             <span className="text-xs font-mono opacity-60">
               {ast.meta.date ? `${ast.meta.date} • ` : ""}Source: {ast.meta.sourceCitations[0] || "StatDeck"}
             </span>
-            <WatermarkBadge visible={ast.watermark} />
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
           </div>
         </div>
       ),
@@ -133,7 +133,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
           </div>
           <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-mono opacity-60">Executive Summary</span>
-            <WatermarkBadge visible={ast.watermark} />
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
           </div>
         </div>
       ),
@@ -182,7 +182,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
                 </div>
                 <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
                   <span className="text-xs font-mono opacity-60 truncate max-w-[400px]">{ast.charts[0].title}</span>
-                  <WatermarkBadge visible={ast.watermark} />
+                  <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
                 </div>
               </div>
             ),
@@ -252,7 +252,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
                 </div>
                 <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
                   <span className="text-xs font-mono opacity-60">Key Takeaways</span>
-                  <WatermarkBadge visible={ast.watermark} />
+                  <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
                 </div>
               </div>
             ),

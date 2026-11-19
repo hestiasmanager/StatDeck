@@ -13,6 +13,7 @@ import { ProsConsBlock } from "@/components/blocks/pros-cons-block";
 import { CalloutQuoteBlock } from "@/components/blocks/callout-quote";
 import { KeyTakeawaysBlock } from "@/components/blocks/key-takeaways";
 import { WatermarkBadge } from "@/components/studio/watermark-badge";
+import { ArrowRight } from "lucide-react";
 
 export interface CarouselSlideData {
   id: string;
@@ -88,11 +89,16 @@ export function buildCarouselSlides(
         >
           <div className="flex items-center gap-2 text-xs font-mono opacity-65" style={{ color: theme.ink }}>
             {ast.meta.date && <span>{ast.meta.date} •</span>}
-            <span className="truncate max-w-[200px]">
-              {ast.meta.sourceCitations[0] ? `Source: ${ast.meta.sourceCitations[0]}` : "Swipe for breakdown 👉"}
-            </span>
+            {ast.meta.sourceCitations[0] ? (
+              <span className="truncate max-w-[200px]">Source: {ast.meta.sourceCitations[0]}</span>
+            ) : (
+              <span className="inline-flex items-center gap-1 font-medium font-sans">
+                <span>Swipe</span>
+                <ArrowRight className="w-3.5 h-3.5 opacity-70" />
+              </span>
+            )}
           </div>
-          <WatermarkBadge visible={ast.watermark} />
+          <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
         </div>
       </div>
     ),
@@ -159,7 +165,7 @@ export function buildCarouselSlides(
           <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
             Core Metrics
           </span>
-          <WatermarkBadge visible={ast.watermark} />
+          <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
         </div>
       </div>
     ),
@@ -206,7 +212,7 @@ export function buildCarouselSlides(
             <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
               Data Breakdown
             </span>
-            <WatermarkBadge visible={ast.watermark} />
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
           </div>
         </div>
       ),
@@ -279,7 +285,7 @@ export function buildCarouselSlides(
             <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
               Strategic Insights
             </span>
-            <WatermarkBadge visible={ast.watermark} />
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
           </div>
         </div>
       ),
@@ -315,7 +321,7 @@ export function buildCarouselSlides(
           <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
             Summary
           </span>
-          <WatermarkBadge visible={ast.watermark} />
+          <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
         </div>
       </div>
     ),

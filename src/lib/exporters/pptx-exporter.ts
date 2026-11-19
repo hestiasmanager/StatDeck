@@ -86,7 +86,7 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
 
   // Watermark for free tier
   if (ast.watermark) {
-    slide1.addText("Visualized with StatDeck • statdeck.ai", {
+    slide1.addText("Made with StatDeck", {
       x: 9.0,
       y: 6.8,
       w: 4.0,
