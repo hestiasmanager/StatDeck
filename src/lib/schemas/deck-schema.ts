@@ -492,22 +492,67 @@ export function normalizeExtractionDeck(
       }
     } else if (b.type === "comparison_table") {
       const rawHeaders = Array.isArray(b.headers) ? b.headers : [];
-      const headers = rawHeaders
-        .filter((h: any): h is string => typeof h === "string" && h.trim().length > 0)
-        .map((h: string) => h.trim().slice(0, 80));
+      let headers: string[] = [];
+      for (const h of rawHeaders) {
+        if (typeof h === "string" && h.includes(" | ")) {
+          headers.push(...h.split(" | ").map((s) => s.trim()));
+        } else if (typeof h === "string" && h.trim().length > 0) {
+          headers.push(h.trim());
+        }
+      }
+      headers = headers.map((h) => h.slice(0, 80));
 
       const rawRows = Array.isArray(b.rows) ? b.rows : [];
       const validRows = rawRows
         .filter((r: any) => r && (r.feature || r.colA || (Array.isArray(r.values) && r.values.length > 0)))
-        .map((r: any) => ({
-          feature: (typeof r.feature === "string" ? r.feature.trim() : "Item").slice(0, 80),
-          colA: (typeof r.colA === "string" ? r.colA.trim() : "").slice(0, 120),
-          colB: typeof r.colB === "string" && r.colB.trim() ? r.colB.trim().slice(0, 120) : undefined,
-          values: Array.isArray(r.values)
-            ? r.values.map((v: any) => (typeof v === "string" ? v.trim().slice(0, 120) : ""))
-            : undefined,
-        }))
+        .map((r: any) => {
+          let segments: string[] = [];
+          if (Array.isArray(r.values) && r.values.length > 0) {
+            segments = r.values.map((v: any) => (typeof v === "string" ? v : String(v || "")));
+          } else {
+            segments = [
+              typeof r.feature === "string" ? r.feature : "Item",
+              typeof r.colA === "string" ? r.colA : "",
+              ...(typeof r.colB === "string" && r.colB.trim() ? [r.colB] : []),
+            ];
+          }
+
+          // Expand any segment containing " | "
+          const cells: string[] = [];
+          for (const s of segments) {
+            if (typeof s === "string" && s.includes(" | ")) {
+              cells.push(...s.split(" | ").map((part) => part.trim()));
+            } else {
+              cells.push(typeof s === "string" ? s.trim() : "");
+            }
+          }
+
+          const feature = (cells[0] || "Item").slice(0, 80);
+          const colA = (cells[1] || "").slice(0, 120);
+          const colB = cells[2] ? cells[2].slice(0, 120) : undefined;
+          const values = cells.length > 1 ? cells.map((c) => c.slice(0, 120)) : undefined;
+
+          return {
+            feature,
+            colA,
+            colB,
+            values,
+          };
+        })
         .slice(0, 10);
+
+      // If headers count is less than the columns discovered in rows, expand headers
+      const maxRowColumns = validRows.length > 0
+        ? Math.max(...validRows.map((r: any) => (r.values ? r.values.length : 2)), 2)
+        : 2;
+      if (headers.length < maxRowColumns) {
+        if (headers.length === 2 && maxRowColumns >= 3) {
+          headers = ["Metric / Dimension", ...headers];
+        }
+        while (headers.length < maxRowColumns) {
+          headers.push(`Column ${headers.length + 1}`);
+        }
+      }
 
       if (validRows.length >= 2) {
         normalizedBlocks.push({

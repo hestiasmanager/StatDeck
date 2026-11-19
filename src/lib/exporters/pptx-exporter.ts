@@ -1,6 +1,7 @@
 import pptxgen from "pptxgenjs";
 import type { DeckAST } from "@/lib/schemas/deck-schema";
 import { EDITORIAL_THEMES, DEFAULT_THEME_ID } from "@/lib/themes/registry";
+import { resolveRowCells } from "@/components/blocks/comparison-table";
 
 /**
  * Strips '#' from hex colors for pptxgenjs compatibility.
@@ -431,22 +432,15 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
         );
 
         chunkRows.forEach((row) => {
-          const cells: pptxgen.TableCell[] = [];
-          if (displayHeaders.length === 2) {
-            cells.push({ text: row.feature, options: { bold: true, fontSize: 11, color: inkHex } });
-            cells.push({ text: row.colA || row.colB || "", options: { fontSize: 11, color: inkHex } });
-          } else {
-            cells.push({ text: row.feature, options: { bold: true, fontSize: 11, color: inkHex } });
-            cells.push({ text: row.colA || "", options: { fontSize: 11, color: inkHex } });
-            if (displayHeaders.length >= 3) {
-              cells.push({ text: row.colB || "", options: { bold: true, fontSize: 11, color: accentHex } });
-            }
-            if (row.values && row.values.length > 3) {
-              for (let c = 3; c < displayHeaders.length; c++) {
-                cells.push({ text: row.values[c] || "", options: { fontSize: 11, color: inkHex } });
-              }
-            }
-          }
+          const cellValues = resolveRowCells(row, displayHeaders.length);
+          const cells: pptxgen.TableCell[] = cellValues.map((val, cIdx) => ({
+            text: val,
+            options: {
+              bold: cIdx === 0 || cIdx === cellValues.length - 1,
+              fontSize: 11,
+              color: cIdx === cellValues.length - 1 ? accentHex : inkHex,
+            },
+          }));
           tableRows.push(cells);
         });
 

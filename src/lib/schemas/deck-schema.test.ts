@@ -1,5 +1,6 @@
 import { DeckSchema, normalizeExtractionDeck } from "./deck-schema";
 import { SAMPLE_PRESETS } from "../ai/presets";
+import { resolveRowCells } from "../../components/blocks/comparison-table";
 
 // Simple assertion test runner for standalone validation
 export function testDeckSchemaValidation() {
@@ -101,6 +102,40 @@ export function testDeckSchemaValidation() {
     throw new Error("Expected null date to be stripped to undefined");
   }
   console.log("[PASS] normalizeExtractionDeck successfully resilient to nulls, enum mapping, and array clamping.");
+
+  // Test comparison table pipe cell splitting
+  const pipeComparisonPayload = {
+    meta: { title: "Regional Revenue Matrix" },
+    kpis: [{ value: "$141.6K", label: "Total Revenue" }],
+    charts: [],
+    blocks: [
+      {
+        type: "comparison_table",
+        headers: ["Region", "Q1 | Q2 | Q3"], // piped header
+        rows: [
+          { feature: "North America", colA: "$42,500 | $48,100 | $51,000" },
+          { feature: "Europe", colA: "$31,200 | $34,800 | $38,000" },
+        ],
+      },
+    ],
+  };
+
+  const pipeNormalized = normalizeExtractionDeck(pipeComparisonPayload);
+  const compBlock = pipeNormalized.blocks[0];
+  if (compBlock.type !== "comparison_table") {
+    throw new Error("Expected comparison_table block");
+  }
+  if (compBlock.headers.length !== 4) {
+    throw new Error(`Expected 4 split headers, got ${compBlock.headers.length} (${compBlock.headers.join(", ")})`);
+  }
+  const row1Cells = resolveRowCells(compBlock.rows[0], compBlock.headers.length);
+  if (row1Cells.length !== 4) {
+    throw new Error(`Expected 4 resolved row cells, got ${row1Cells.length}`);
+  }
+  if (row1Cells[1] !== "$42,500" || row1Cells[2] !== "$48,100" || row1Cells[3] !== "$51,000") {
+    throw new Error(`Unexpected resolved cell contents: ${JSON.stringify(row1Cells)}`);
+  }
+  console.log("[PASS] comparison_table multi-column pipe cell splitting verified.");
 
   console.log("All DeckSchema tests passed!");
 }

@@ -100,7 +100,7 @@ export function buildCarouselSlides(
               {ast.coverHighlights.slice(0, 3).map((highlight, hIdx) => (
                 <div
                   key={hIdx}
-                  className="flex items-center gap-2 text-[11px] md:text-xs font-medium px-3 py-1.5 rounded-lg border border-black/5 dark:border-white/10"
+                  className="flex items-start gap-2 text-[11px] md:text-xs font-medium px-3 py-1.5 rounded-lg border border-black/5 dark:border-white/10"
                   style={{
                     backgroundColor: `${theme.accent}0A`,
                     borderColor: theme.surfaceBorder,
@@ -108,10 +108,10 @@ export function buildCarouselSlides(
                   }}
                 >
                   <span
-                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5"
                     style={{ backgroundColor: theme.accent }}
                   />
-                  <span className="leading-snug truncate">{highlight}</span>
+                  <span className="leading-snug">{highlight}</span>
                 </div>
               ))}
             </div>

@@ -32,7 +32,7 @@ CORE RULES & CONSTRAINTS:
 
 5. REAL COLUMN HEADERS & ROLLUP PRESERVATION (CRITICAL):
    - When the source contains tabular, CSV, or Excel data with EXACT COLUMN HEADERS, you MUST PRESERVE and USE those exact real column header names (e.g. "Book Title", "Series", "2025 Revenue ($)").
-   - In 'comparison_table' blocks, 'headers' MUST contain the exact column names being compared or displayed.
+   - In 'comparison_table' blocks, 'headers' MUST contain the exact column names being compared or displayed. Each column value must be placed in its own separate cell ('feature', 'colA', 'colB', and 'values' for columns beyond 3). NEVER join multiple column values into a single string with ' | ' (e.g. '$42,500 | $48,100 | $51,000' is forbidden—split them across columns so 'headers' length matches cell count).
    - Leverage any PRE-COMPUTED JAVASCRIPT ROLLUPS (totals, averages, min/max, YoY deltas) provided in the source directly for your 'kpis' to ensure 100% mathematical precision.
 
 6. WRITTEN NARRATIVE & CONTEXT ON SLIDES 1, 2, AND 3 (MANDATORY):

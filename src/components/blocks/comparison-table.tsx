@@ -13,6 +13,43 @@ interface ComparisonTableBlockProps {
   accentColor?: string;
 }
 
+/**
+ * Resolves atomic cell strings for a comparison table row, ensuring
+ * that any joined pipe string (e.g. "$42,500 | $48,100 | $51,000") is split
+ * into its own column cells and the total cell count strictly matches headers.
+ */
+export function resolveRowCells(row: ComparisonRow, targetCount: number): string[] {
+  let rawSegments: string[] = [];
+
+  if (Array.isArray(row.values) && row.values.length > 0) {
+    if (row.values[0] === row.feature || row.values.length === targetCount) {
+      rawSegments = [...row.values];
+    } else {
+      rawSegments = [row.feature, ...row.values];
+    }
+  } else {
+    rawSegments = [row.feature, row.colA || "", ...(row.colB ? [row.colB] : [])];
+  }
+
+  // Expand any segment that contains " | "
+  const expanded: string[] = [];
+  for (const seg of rawSegments) {
+    if (typeof seg === "string" && seg.includes(" | ")) {
+      expanded.push(...seg.split(" | ").map((s) => s.trim()));
+    } else if (typeof seg === "string") {
+      expanded.push(seg.trim());
+    } else {
+      expanded.push("");
+    }
+  }
+
+  // Guarantee exact length matching targetCount
+  while (expanded.length < targetCount) {
+    expanded.push("");
+  }
+  return expanded.slice(0, targetCount);
+}
+
 export function ComparisonTableBlock({
   title,
   headers,
@@ -23,11 +60,25 @@ export function ComparisonTableBlock({
 }: ComparisonTableBlockProps) {
   const hasColB = rows.some((r) => r.colB && r.colB.trim().length > 0);
 
+  // If any header contains " | ", split it into separate columns
+  let displayHeaders: string[] = [];
+  for (const h of headers) {
+    if (typeof h === "string" && h.includes(" | ")) {
+      displayHeaders.push(...h.split(" | ").map((s) => s.trim()));
+    } else if (typeof h === "string") {
+      displayHeaders.push(h.trim());
+    }
+  }
+
   // If 2 headers are provided but rows contain 3 populated columns (feature, colA, colB),
   // infer leading header contextually rather than hardcoding static "Dimension"
-  let displayHeaders = headers;
-  if (headers.length === 2 && hasColB) {
-    displayHeaders = ["Metric / Dimension", headers[0], headers[1]];
+  if (displayHeaders.length === 2 && hasColB) {
+    displayHeaders = ["Metric / Dimension", displayHeaders[0], displayHeaders[1]];
+  }
+
+  // Ensure at least 2 headers
+  if (displayHeaders.length < 2) {
+    displayHeaders = ["Metric / Feature", "Value"];
   }
 
   return (
@@ -62,22 +113,7 @@ export function ComparisonTableBlock({
           </thead>
           <tbody>
             {rows.map((row, idx) => {
-              const cellValues: string[] = [];
-              if (displayHeaders.length === 2) {
-                cellValues.push(row.feature);
-                cellValues.push(row.colA || row.colB || "");
-              } else {
-                cellValues.push(row.feature);
-                cellValues.push(row.colA || "");
-                if (displayHeaders.length >= 3) {
-                  cellValues.push(row.colB || "");
-                }
-                if (row.values && row.values.length > 3) {
-                  for (let c = 3; c < displayHeaders.length; c++) {
-                    cellValues.push(row.values[c] || "");
-                  }
-                }
-              }
+              const cellValues = resolveRowCells(row, displayHeaders.length);
 
               return (
                 <tr

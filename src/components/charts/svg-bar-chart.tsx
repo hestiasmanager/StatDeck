@@ -36,11 +36,12 @@ export function SvgBarChart({
 
   // Horizontal dashed gridlines at 25%, 50%, 75%, 100%
   const gridLevels = [0.25, 0.5, 0.75, 1.0];
+  const topPadding = 20;
 
   return (
     <div className="w-full flex flex-col items-center select-none">
       <svg
-        viewBox={`0 0 ${viewBoxWidth} ${chartHeight + 65}`}
+        viewBox={`0 -${topPadding} ${viewBoxWidth} ${chartHeight + 65 + topPadding}`}
         className="w-full max-h-[300px] overflow-visible"
         aria-label={chart.title}
       >
