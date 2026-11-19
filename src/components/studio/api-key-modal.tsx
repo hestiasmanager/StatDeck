@@ -9,7 +9,8 @@ interface ApiKeyModalProps {
 }
 
 const POPULAR_OPENROUTER_MODELS = [
-  { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash (Fastest & Best Value)" },
+  { id: "google/gemini-3.8-flash", name: "Gemini 3.8 Flash (Fastest & Best Value)" },
+  { id: "google/gemini-3.5-flash-lite", name: "Gemini 3.5 Flash Lite (Ultra-Low Cost)" },
   { id: "openai/gpt-4o-mini", name: "GPT-4o-mini (Reliable & Structured)" },
   { id: "anthropic/claude-3.5-haiku", name: "Claude 3.5 Haiku (Sharp Editorial Prose)" },
   { id: "deepseek/deepseek-chat", name: "DeepSeek V3 (Ultra-Low Cost)" },
@@ -18,7 +19,7 @@ const POPULAR_OPENROUTER_MODELS = [
 
 export function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
   const [openRouterKey, setOpenRouterKey] = useState("");
-  const [openRouterModel, setOpenRouterModel] = useState("google/gemini-2.5-flash");
+  const [openRouterModel, setOpenRouterModel] = useState("google/gemini-3.8-flash");
   const [geminiKey, setGeminiKey] = useState("");
   const [openAiKey, setOpenAiKey] = useState("");
   const [activeTab, setActiveTab] = useState<"openrouter" | "direct">("openrouter");
@@ -27,7 +28,7 @@ export function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       setOpenRouterKey(localStorage.getItem("statdeck_openrouter_key") || "");
-      setOpenRouterModel(localStorage.getItem("statdeck_openrouter_model") || "google/gemini-2.5-flash");
+      setOpenRouterModel(localStorage.getItem("statdeck_openrouter_model") || "google/gemini-3.8-flash");
       setGeminiKey(localStorage.getItem("statdeck_gemini_key") || "");
       setOpenAiKey(localStorage.getItem("statdeck_openai_key") || "");
     }

@@ -75,7 +75,7 @@ ${rawContent.slice(0, 10000)}`;
       const selectedModel =
         options?.clientOpenRouterModel ||
         process.env.OPENROUTER_MODEL ||
-        "google/gemini-2.5-flash";
+        "google/gemini-3.8-flash";
 
       const { object } = await generateObject({
         model: openrouter(selectedModel),
@@ -96,23 +96,40 @@ ${rawContent.slice(0, 10000)}`;
     }
   }
 
-  // 3. Direct Google Gemini Execution (Production gemini-2.5-flash)
+  // 3. Direct Google Gemini Execution (Production gemini-3.8-flash / gemini-3.5-flash-lite)
   if (geminiApiKey) {
     try {
       const google = createGoogleGenerativeAI({ apiKey: geminiApiKey });
-      const { object } = await generateObject({
-        model: google("gemini-2.5-flash"),
-        schema: ExtractionDeckSchema,
-        system: STATDECK_SYSTEM_PROMPT,
-        prompt: promptText,
-        maxTokens: 900,
-        temperature: 0.2,
-      });
+      const targetModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+      let objectResult: { object: Parameters<typeof normalizeExtractionDeck>[0]; used: string };
 
-      const validatedAst = normalizeExtractionDeck(object, format, templateId);
+      try {
+        const res = await generateObject({
+          model: google(targetModel),
+          schema: ExtractionDeckSchema,
+          system: STATDECK_SYSTEM_PROMPT,
+          prompt: promptText,
+          maxTokens: 900,
+          temperature: 0.2,
+        });
+        objectResult = { object: res.object, used: targetModel };
+      } catch (primaryModelErr) {
+        console.warn(`Primary Gemini model ${targetModel} error, trying gemini-3.5-flash-lite:`, primaryModelErr);
+        const res = await generateObject({
+          model: google("gemini-3.5-flash-lite"),
+          schema: ExtractionDeckSchema,
+          system: STATDECK_SYSTEM_PROMPT,
+          prompt: promptText,
+          maxTokens: 900,
+          temperature: 0.2,
+        });
+        objectResult = { object: res.object, used: "gemini-3.5-flash-lite" };
+      }
+
+      const validatedAst = normalizeExtractionDeck(objectResult.object, format, templateId);
 
       await redis.set(cacheKey, validatedAst, { ex: 604800 });
-      return { ast: validatedAst, cached: false, modelUsed: "google/gemini-2.5-flash" };
+      return { ast: validatedAst, cached: false, modelUsed: `google/${objectResult.used}` };
     } catch (geminiErr) {
       console.error("Direct Google Gemini error:", geminiErr);
       lastError = geminiErr instanceof Error ? geminiErr : new Error(String(geminiErr));

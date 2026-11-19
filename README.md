@@ -68,8 +68,9 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 # AI Gateway (Provide OpenRouter, Gemini, or OpenAI)
 OPENROUTER_API_KEY="sk-or-v1-..."
-OPENROUTER_MODEL="google/gemini-2.5-flash"
+OPENROUTER_MODEL="google/gemini-3.8-flash"
 GOOGLE_GENERATIVE_AI_API_KEY=""
+GEMINI_MODEL="gemini-3.8-flash"
 OPENAI_API_KEY=""
 
 # Public REST API Key (for external automation & /api/v1/render-json)
