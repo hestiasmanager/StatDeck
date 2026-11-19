@@ -662,7 +662,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
           {/* Canvas Viewport (Independent Isolated Scroll Container) */}
           <div
             ref={canvasViewportRef}
-            className="flex-1 min-w-0 h-full overflow-auto relative p-6 flex flex-col items-center justify-start bg-slate-100/80 dark:bg-slate-950 pb-36"
+            className="flex-1 min-w-0 h-full overflow-auto relative p-6 flex flex-col items-center justify-start bg-slate-100/80 dark:bg-slate-950 pb-40"
           >
             {currentAst.format === "infographic" && (
               <InfographicCanvas
@@ -701,8 +701,8 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
           <div
             className={`absolute left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-3.5 py-1.5 rounded-full border border-slate-200/90 dark:border-slate-800 shadow-2xl transition-all max-w-[95%] pointer-events-auto ${
               !isFullscreen && (currentAst.format === "carousel" || currentAst.format === "presentation")
-                ? "bottom-16"
-                : "bottom-5"
+                ? "bottom-24"
+                : "bottom-6"
             }`}
           >
               {/* Format Quick Switcher */}
