@@ -20,10 +20,18 @@ interface PresentationCanvasProps {
   ast: DeckAST;
   onUpdateText?: (path: string, newText: string) => void;
   scale?: number;
+  currentSlideIndex?: number;
+  onSlideChange?: (index: number) => void;
 }
 
-export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: PresentationCanvasProps) {
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+export function PresentationCanvas({
+  ast,
+  onUpdateText,
+  scale = 1,
+  currentSlideIndex: controlledIndex,
+  onSlideChange,
+}: PresentationCanvasProps) {
+  const [internalSlideIndex, setInternalSlideIndex] = useState(0);
   const theme = EDITORIAL_THEMES[ast.templateId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
 
   // Deck identity tracking to reset slide index back to 0 whenever a new deck is synthesized
@@ -34,8 +42,23 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
 
   if (prevDeckKey !== deckKey) {
     setPrevDeckKey(deckKey);
-    setCurrentSlideIndex(0);
+    if (onSlideChange) {
+      onSlideChange(0);
+    } else {
+      setInternalSlideIndex(0);
+    }
   }
+
+  const effectiveIndex = controlledIndex !== undefined ? controlledIndex : internalSlideIndex;
+
+  const setSlide = (newIndex: number) => {
+    const clamped = Math.min(Math.max(0, newIndex), Math.max(0, slides.length - 1));
+    if (onSlideChange) {
+      onSlideChange(clamped);
+    } else {
+      setInternalSlideIndex(clamped);
+    }
+  };
 
   // 16:9 Slides Sequence
   const slides = [
@@ -434,10 +457,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
     }),
   ];
 
-  const safeSlideIndex = Math.min(currentSlideIndex, Math.max(0, slides.length - 1));
-  if (currentSlideIndex > safeSlideIndex) {
-    setCurrentSlideIndex(safeSlideIndex);
-  }
+  const safeSlideIndex = Math.min(Math.max(0, effectiveIndex), Math.max(0, slides.length - 1));
 
   return (
     <div className="flex flex-col items-center gap-4 my-auto py-2">
@@ -468,9 +488,9 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
       {/* Slide Navigation */}
       <div className="flex items-center gap-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-md text-xs font-medium z-10">
         <button
-          onClick={() => setCurrentSlideIndex((prev) => Math.max(0, prev - 1))}
+          onClick={() => setSlide(safeSlideIndex - 1)}
           disabled={safeSlideIndex === 0}
-          className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors"
+          className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors cursor-pointer"
           aria-label="Previous Slide"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -482,9 +502,9 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
         </span>
 
         <button
-          onClick={() => setCurrentSlideIndex((prev) => Math.min(slides.length - 1, prev + 1))}
+          onClick={() => setSlide(safeSlideIndex + 1)}
           disabled={safeSlideIndex >= slides.length - 1}
-          className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors"
+          className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors cursor-pointer"
           aria-label="Next Slide"
         >
           <ChevronRight className="w-4 h-4" />

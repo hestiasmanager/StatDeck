@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useReducer, useEffect, useState, useRef, useCallback } from "react";
-import type { DeckAST, OutputFormat } from "@/lib/schemas/deck-schema";
+import type { DeckAST, OutputFormat, ChartType, BlockType } from "@/lib/schemas/deck-schema";
 import type { BrandKit } from "@/lib/schemas/brand-kit-schema";
-import { applyBrandKitToTheme } from "@/lib/themes/registry";
+import { applyBrandKitToTheme, EDITORIAL_THEMES, DEFAULT_THEME_ID } from "@/lib/themes/registry";
 import { SAMPLE_PRESETS } from "@/lib/ai/presets";
 import { FormatSwitcher } from "@/components/studio/format-switcher";
 import { ThemePicker } from "@/components/studio/theme-picker";
@@ -11,7 +11,9 @@ import { InputTray } from "@/components/studio/input-tray";
 import { ExportModal } from "@/components/studio/export-modal";
 import { BrandKitModal } from "@/components/studio/brand-kit-modal";
 import { TemplateGalleryModal } from "@/components/studio/template-gallery-modal";
-import { ZoomToolbar } from "@/components/studio/zoom-toolbar";
+import { SlideFilmstrip } from "@/components/studio/slide-filmstrip";
+import { SlideLayoutModal } from "@/components/studio/slide-layout-modal";
+import { CommandPalette } from "@/components/studio/command-palette";
 import { InfographicCanvas } from "@/components/canvas/infographic-canvas";
 import { CarouselCanvas } from "@/components/canvas/carousel-canvas";
 import { PresentationCanvas } from "@/components/canvas/presentation-canvas";
@@ -33,8 +35,38 @@ import {
   Layers,
   ScrollText,
   Monitor,
+  SlidersHorizontal,
+  Command,
 } from "lucide-react";
 import { StatDeckMark } from "@/components/ui/statdeck-mark";
+
+// --- Helper to map slide index to AST elements ---
+function getSlideTarget(
+  ast: DeckAST,
+  slideIndex: number
+):
+  | { type: "cover" }
+  | { type: "kpi" }
+  | { type: "chart"; chartIndex: number }
+  | { type: "block"; blockIndex: number }
+  | null {
+  if (slideIndex === 0) return { type: "cover" };
+  const hasKpi = Boolean(ast.kpis && ast.kpis.length > 0);
+  let tracker = 1;
+  if (hasKpi) {
+    if (slideIndex === 1) return { type: "kpi" };
+    tracker = 2;
+  }
+  const chartIdx = slideIndex - tracker;
+  if (chartIdx >= 0 && chartIdx < ast.charts.length) {
+    return { type: "chart", chartIndex: chartIdx };
+  }
+  const blockIdx = slideIndex - tracker - ast.charts.length;
+  if (blockIdx >= 0 && blockIdx < ast.blocks.length) {
+    return { type: "block", blockIndex: blockIdx };
+  }
+  return null;
+}
 
 // --- Studio State & Reducer with Undo/Redo ---
 interface StudioState {
@@ -49,6 +81,12 @@ type StudioAction =
   | { type: "SET_THEME"; payload: string }
   | { type: "UPDATE_TEXT"; payload: { path: string; value: string } }
   | { type: "APPLY_BRAND_KIT"; payload: BrandKit }
+  | { type: "REORDER_SLIDES"; payload: { fromIndex: number; toIndex: number } }
+  | { type: "DUPLICATE_SLIDE"; payload: { slideIndex: number } }
+  | { type: "DELETE_SLIDE"; payload: { slideIndex: number } }
+  | { type: "ADD_SLIDE"; payload: { type: "chart" | "kpi" | "takeaways" | "table" } }
+  | { type: "UPDATE_CHART_TYPE"; payload: { chartIndex: number; chartType: ChartType } }
+  | { type: "UPDATE_BLOCK_TYPE"; payload: { blockIndex: number; blockType: BlockType } }
   | { type: "UNDO" }
   | { type: "REDO" };
 
@@ -117,6 +155,155 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
       };
     }
 
+    case "REORDER_SLIDES": {
+      const { fromIndex, toIndex } = action.payload;
+      const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
+      const fromTarget = getSlideTarget(newAst, fromIndex);
+      const toTarget = getSlideTarget(newAst, toIndex);
+
+      if (fromTarget?.type === "chart" && toTarget?.type === "chart") {
+        const [moved] = newAst.charts.splice(fromTarget.chartIndex, 1);
+        newAst.charts.splice(toTarget.chartIndex, 0, moved);
+      } else if (fromTarget?.type === "block" && toTarget?.type === "block") {
+        const [moved] = newAst.blocks.splice(fromTarget.blockIndex, 1);
+        newAst.blocks.splice(toTarget.blockIndex, 0, moved);
+      }
+      return {
+        past: [...state.past, state.present],
+        present: newAst,
+        future: [],
+      };
+    }
+
+    case "DUPLICATE_SLIDE": {
+      const { slideIndex } = action.payload;
+      const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
+      const target = getSlideTarget(newAst, slideIndex);
+      if (target?.type === "chart") {
+        const original = newAst.charts[target.chartIndex];
+        const clone = { ...original, id: `chart-${Date.now()}` };
+        newAst.charts.splice(target.chartIndex + 1, 0, clone);
+      } else if (target?.type === "block") {
+        const original = newAst.blocks[target.blockIndex];
+        const clone = { ...original, id: `block-${Date.now()}` };
+        newAst.blocks.splice(target.blockIndex + 1, 0, clone);
+      }
+      return {
+        past: [...state.past, state.present],
+        present: newAst,
+        future: [],
+      };
+    }
+
+    case "DELETE_SLIDE": {
+      const { slideIndex } = action.payload;
+      const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
+      const target = getSlideTarget(newAst, slideIndex);
+      if (target?.type === "chart") {
+        newAst.charts.splice(target.chartIndex, 1);
+      } else if (target?.type === "block") {
+        newAst.blocks.splice(target.blockIndex, 1);
+      }
+      return {
+        past: [...state.past, state.present],
+        present: newAst,
+        future: [],
+      };
+    }
+
+    case "ADD_SLIDE": {
+      const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
+      const slideType = action.payload.type;
+      if (slideType === "chart") {
+        newAst.charts.push({
+          id: `chart-${Date.now()}`,
+          type: "bar",
+          title: "Performance Distribution",
+          unit: "%",
+          data: [
+            { label: "Segment Alpha", value: 65 },
+            { label: "Segment Beta", value: 92 },
+            { label: "Segment Gamma", value: 48 },
+          ],
+        });
+      } else if (slideType === "kpi") {
+        if (!newAst.kpis || newAst.kpis.length === 0) {
+          newAst.kpis = [
+            { id: "kpi-1", label: "Annual Run Rate", value: "$4.2M", delta: "+34% YoY", deltaType: "positive" },
+            { id: "kpi-2", label: "Retention Rate", value: "98.4%", delta: "+1.8%", deltaType: "positive" },
+            { id: "kpi-3", label: "LTV / CAC", value: "5.2x", delta: "Optimal", deltaType: "positive" },
+          ];
+        } else {
+          newAst.kpis.push({
+            id: `kpi-${Date.now()}`,
+            label: "Operational Velocity",
+            value: "99.9%",
+            delta: "+0.4%",
+            deltaType: "positive",
+          });
+        }
+      } else if (slideType === "takeaways") {
+        newAst.blocks.push({
+          id: `block-${Date.now()}`,
+          type: "key_takeaways",
+          title: "Strategic Priorities & Next Steps",
+          bullets: [
+            {
+              headline: "Accelerate GTM Pipeline",
+              detail: "Prioritize top-tier enterprise accounts with specialized white-glove onboarding.",
+            },
+            {
+              headline: "Improve Gross Margin Velocity",
+              detail: "Streamline infrastructure overhead to maximize operational leverage.",
+            },
+          ],
+        });
+      } else if (slideType === "table") {
+        newAst.blocks.push({
+          id: `block-${Date.now()}`,
+          type: "comparison_table",
+          title: "Quarterly Performance Benchmarks",
+          headers: ["Metric", "Target", "Actual", "Status"],
+          rows: [
+            { cells: ["Net New ARR", "$500,000", "$620,000", "Exceeded"] },
+            { cells: ["Gross Margin", "80%", "83.5%", "Healthy"] },
+            { cells: ["Net Churn", "< 1.0%", "0.6%", "Strong"] },
+          ],
+        });
+      }
+      return {
+        past: [...state.past, state.present],
+        present: newAst,
+        future: [],
+      };
+    }
+
+    case "UPDATE_CHART_TYPE": {
+      const { chartIndex, chartType } = action.payload;
+      const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
+      if (newAst.charts[chartIndex]) {
+        newAst.charts[chartIndex].type = chartType;
+      }
+      return {
+        past: [...state.past, state.present],
+        present: newAst,
+        future: [],
+      };
+    }
+
+    case "UPDATE_BLOCK_TYPE": {
+      const { blockIndex, blockType } = action.payload;
+      const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
+      if (newAst.blocks[blockIndex]) {
+        newAst.blocks[blockIndex].type = blockType;
+      }
+      return {
+        past: [...state.past, state.present],
+        present: newAst,
+        future: [],
+      };
+    }
+
     case "UNDO": {
       if (state.past.length === 0) return state;
       const previous = state.past[state.past.length - 1];
@@ -165,12 +352,32 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoom, setZoom] = useState(1.0);
   const [isAutoFit, setIsAutoFit] = useState(true);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+
+  // Modals state
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isBrandKitOpen, setIsBrandKitOpen] = useState(false);
   const [isTemplateGalleryOpen, setIsTemplateGalleryOpen] = useState(false);
+  const [isSlideLayoutOpen, setIsSlideLayoutOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
   const canvasViewportRef = useRef<HTMLDivElement>(null);
   const infographicRef = useRef<HTMLDivElement>(null);
+
+  const currentAst = state.present;
+  const theme = EDITORIAL_THEMES[currentAst.templateId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
+
+  // Total slides count
+  const totalSlides =
+    1 +
+    (currentAst.kpis && currentAst.kpis.length > 0 ? 1 : 0) +
+    currentAst.charts.length +
+    currentAst.blocks.length;
+
+  // Reset slide index on AST synthesis switch
+  useEffect(() => {
+    setCurrentSlideIndex(0);
+  }, [currentAst.id]);
 
   // True auto-fit zoom calculator with 32px+ balanced margins and 0 horizontal scrollbar
   const calculateAutoFit = useCallback(() => {
@@ -178,8 +385,8 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
     const container = canvasViewportRef.current;
     // 64px total horizontal margin (32px left + 32px right)
     const availableWidth = Math.max(300, container.clientWidth - 64);
-    // 96px total vertical margin (toolbar + 32px vertical room)
-    const availableHeight = Math.max(300, container.clientHeight - 96);
+    // 140px total vertical margin (toolbar + filmstrip + 32px vertical room)
+    const availableHeight = Math.max(300, container.clientHeight - 140);
 
     const format = state.present.format;
     let targetWidth = 540;
@@ -229,11 +436,14 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
     calculateAutoFit();
   };
 
-  // Keyboard shortcuts: Undo/Redo, Escape for Fullscreen
+  // Keyboard shortcuts: Cmd+K, Undo/Redo, Escape for Fullscreen
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isFullscreen) {
         setIsFullscreen(false);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
         if (e.shiftKey) {
           e.preventDefault();
@@ -255,8 +465,6 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
   const handleUpdateText = (path: string, newText: string) => {
     dispatch({ type: "UPDATE_TEXT", payload: { path, value: newText } });
   };
-
-  const currentAst = state.present;
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 select-none">
@@ -297,13 +505,23 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
 
           {/* Right Action Controls */}
           <div className="flex items-center gap-2">
+            {/* Command Palette Trigger */}
+            <button
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors"
+              title="Command Palette (Cmd+K / Ctrl+K)"
+            >
+              <Command className="w-3.5 h-3.5 text-slate-500" />
+              <span className="text-[11px] font-mono text-slate-400">⌘K</span>
+            </button>
+
             {/* Undo / Redo */}
             <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 rounded-lg p-0.5 border border-slate-200/80 dark:border-slate-700/60">
               <button
                 onClick={() => dispatch({ type: "UNDO" })}
                 disabled={state.past.length === 0}
                 title="Undo (Ctrl+Z)"
-                className="p-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-30 transition-colors"
+                className="p-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-30 transition-colors cursor-pointer"
               >
                 <Undo2 className="w-3.5 h-3.5" />
               </button>
@@ -311,7 +529,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
                 onClick={() => dispatch({ type: "REDO" })}
                 disabled={state.future.length === 0}
                 title="Redo (Ctrl+Shift+Z)"
-                className="p-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-30 transition-colors"
+                className="p-1.5 rounded-md text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-30 transition-colors cursor-pointer"
               >
                 <Redo2 className="w-3.5 h-3.5" />
               </button>
@@ -330,7 +548,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
             {/* Brand Kit Button */}
             <button
               onClick={() => setIsBrandKitOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
             >
               <Globe className="w-3.5 h-3.5 text-blue-500" />
               <span className="hidden md:inline">Brand Kit</span>
@@ -339,7 +557,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
             {/* Export Assets Button */}
             <button
               onClick={() => setIsExportOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-102"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-102 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Export</span>
@@ -371,7 +589,9 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
         >
           {/* Mobile Drawer Close Header */}
           <div className="flex items-center justify-between lg:hidden pb-1 border-b border-slate-200 dark:border-slate-800">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Studio Controls</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Studio Controls
+            </span>
             <button
               onClick={() => setIsSidebarOpen(false)}
               className="p-1 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -433,136 +653,183 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
           </button>
         )}
 
-        {/* Canvas Viewport (Independent Isolated Scroll Container) */}
-        <div
-          ref={canvasViewportRef}
-          className="flex-1 h-full overflow-auto relative p-6 flex flex-col items-center justify-start bg-slate-100/80 dark:bg-slate-950 pb-24"
-        >
-          {currentAst.format === "infographic" && (
-            <InfographicCanvas
-              ref={infographicRef}
-              ast={currentAst}
-              onUpdateText={handleUpdateText}
-              scale={zoom}
-            />
-          )}
+        {/* Canvas & Filmstrip Column */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+          {/* Canvas Viewport (Independent Isolated Scroll Container) */}
+          <div
+            ref={canvasViewportRef}
+            className="flex-1 h-full overflow-auto relative p-6 flex flex-col items-center justify-start bg-slate-100/80 dark:bg-slate-950 pb-28"
+          >
+            {currentAst.format === "infographic" && (
+              <InfographicCanvas
+                ref={infographicRef}
+                ast={currentAst}
+                onUpdateText={handleUpdateText}
+                scale={zoom}
+              />
+            )}
 
-          {currentAst.format === "carousel" && (
-            <CarouselCanvas
-              key={currentAst.id || "carousel-canvas"}
-              ast={currentAst}
-              onUpdateText={handleUpdateText}
-              scale={zoom}
-            />
-          )}
+            {currentAst.format === "carousel" && (
+              <CarouselCanvas
+                key={currentAst.id || "carousel-canvas"}
+                ast={currentAst}
+                onUpdateText={handleUpdateText}
+                scale={zoom}
+                currentSlideIndex={currentSlideIndex}
+                onSlideChange={setCurrentSlideIndex}
+              />
+            )}
 
-          {currentAst.format === "presentation" && (
-            <PresentationCanvas
-              key={currentAst.id || "presentation-canvas"}
-              ast={currentAst}
-              onUpdateText={handleUpdateText}
-              scale={zoom}
-            />
-          )}
+            {currentAst.format === "presentation" && (
+              <PresentationCanvas
+                key={currentAst.id || "presentation-canvas"}
+                ast={currentAst}
+                onUpdateText={handleUpdateText}
+                scale={zoom}
+                currentSlideIndex={currentSlideIndex}
+                onSlideChange={setCurrentSlideIndex}
+              />
+            )}
 
-          {/* Floating Figma/Pitch-style Bottom Quick Action Bar */}
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-3.5 py-1.5 rounded-full border border-slate-200/90 dark:border-slate-800 shadow-2xl transition-all max-w-[95vw]">
-            {/* Format Quick Switcher */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-full">
-              {(
-                [
-                  { id: "carousel", label: "Carousel", sub: "4:5", icon: <Layers className="w-3.5 h-3.5" /> },
-                  { id: "infographic", label: "Infographic", sub: "Poster", icon: <ScrollText className="w-3.5 h-3.5" /> },
-                  { id: "presentation", label: "Deck", sub: "16:9", icon: <Monitor className="w-3.5 h-3.5" /> },
-                ] as const
-              ).map((fmt) => {
-                const isActive = currentAst.format === fmt.id;
-                return (
+            {/* Floating Bottom Quick Action Bar */}
+            <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-3.5 py-1.5 rounded-full border border-slate-200/90 dark:border-slate-800 shadow-2xl transition-all max-w-[95vw]">
+              {/* Format Quick Switcher */}
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-full">
+                {(
+                  [
+                    { id: "carousel", label: "Carousel", sub: "4:5", icon: <Layers className="w-3.5 h-3.5" /> },
+                    { id: "infographic", label: "Infographic", sub: "Poster", icon: <ScrollText className="w-3.5 h-3.5" /> },
+                    { id: "presentation", label: "Deck", sub: "16:9", icon: <Monitor className="w-3.5 h-3.5" /> },
+                  ] as const
+                ).map((fmt) => {
+                  const isActive = currentAst.format === fmt.id;
+                  return (
+                    <button
+                      key={fmt.id}
+                      onClick={() => dispatch({ type: "SET_FORMAT", payload: fmt.id })}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                        isActive
+                          ? "bg-white dark:bg-slate-950 text-blue-600 dark:text-blue-400 shadow-xs"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                      }`}
+                    >
+                      {fmt.icon}
+                      <span className="hidden sm:inline">{fmt.label}</span>
+                      <span className="inline sm:hidden">{fmt.sub}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
+
+              {/* Slide Layout Switcher (For Carousel and Presentation) */}
+              {currentAst.format !== "infographic" && (
+                <>
                   <button
-                    key={fmt.id}
-                    onClick={() => dispatch({ type: "SET_FORMAT", payload: fmt.id })}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all ${
-                      isActive
-                        ? "bg-white dark:bg-slate-950 text-blue-600 dark:text-blue-400 shadow-xs"
-                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-                    }`}
+                    onClick={() => setIsSlideLayoutOpen(true)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    title="Change Active Slide Layout / Chart Type"
                   >
-                    {fmt.icon}
-                    <span className="hidden sm:inline">{fmt.label}</span>
-                    <span className="inline sm:hidden">{fmt.sub}</span>
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="hidden sm:inline">Layout</span>
                   </button>
-                );
-              })}
+                  <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
+                </>
+              )}
+
+              {/* Zoom Controls */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    setIsAutoFit(false);
+                    setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10));
+                  }}
+                  disabled={zoom <= 0.4}
+                  className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 text-slate-600 dark:text-slate-300 transition-colors"
+                  title="Zoom Out"
+                >
+                  <ZoomOut className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => {
+                    setIsAutoFit(false);
+                    setZoom(1.0);
+                  }}
+                  title="Reset Zoom (100%)"
+                  className="px-2 py-0.5 rounded font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  {Math.round(zoom * 100)}%
+                </button>
+                <button
+                  onClick={() => {
+                    setIsAutoFit(false);
+                    setZoom((z) => Math.min(1.6, Math.round((z + 0.1) * 10) / 10));
+                  }}
+                  disabled={zoom >= 1.6}
+                  className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 text-slate-600 dark:text-slate-300 transition-colors"
+                  title="Zoom In"
+                >
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={handleFitToScreen}
+                  title="Fit to Screen"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <Scan className="w-3 h-3" />
+                  <span className="hidden sm:inline">Fit</span>
+                </button>
+                <button
+                  onClick={() => setIsFullscreen((prev) => !prev)}
+                  title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                  className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors hidden sm:block"
+                >
+                  {isFullscreen ? (
+                    <Minimize2 className="w-3.5 h-3.5" />
+                  ) : (
+                    <Maximize2 className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
+
+              <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
+
+              {/* Quick Export Button */}
+              <button
+                onClick={() => setIsExportOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-full shadow-xs transition-all hover:scale-102 flex-shrink-0"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export</span>
+              </button>
             </div>
-
-            <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
-
-            {/* Zoom Controls */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => {
-                  setIsAutoFit(false);
-                  setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10));
-                }}
-                disabled={zoom <= 0.4}
-                className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 text-slate-600 dark:text-slate-300 transition-colors"
-                title="Zoom Out"
-              >
-                <ZoomOut className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => {
-                  setIsAutoFit(false);
-                  setZoom(1.0);
-                }}
-                title="Reset Zoom (100%)"
-                className="px-2 py-0.5 rounded font-mono text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              >
-                {Math.round(zoom * 100)}%
-              </button>
-              <button
-                onClick={() => {
-                  setIsAutoFit(false);
-                  setZoom((z) => Math.min(1.6, Math.round((z + 0.1) * 10) / 10));
-                }}
-                disabled={zoom >= 1.6}
-                className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 text-slate-600 dark:text-slate-300 transition-colors"
-                title="Zoom In"
-              >
-                <ZoomIn className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={handleFitToScreen}
-                title="Fit to Screen"
-                className="flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              >
-                <Scan className="w-3 h-3" />
-                <span className="hidden sm:inline">Fit</span>
-              </button>
-              <button
-                onClick={() => setIsFullscreen((prev) => !prev)}
-                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-                className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors hidden sm:block"
-              >
-                {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-
-            <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-0.5" />
-
-            {/* Quick Export Button */}
-            <button
-              onClick={() => setIsExportOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-full shadow-xs transition-all hover:scale-102 flex-shrink-0"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export</span>
-            </button>
           </div>
+
+          {/* Bottom Slide Filmstrip Navigator (Carousel & Presentation Modes) */}
+          {!isFullscreen && (currentAst.format === "carousel" || currentAst.format === "presentation") && (
+            <SlideFilmstrip
+              ast={currentAst}
+              currentSlideIndex={currentSlideIndex}
+              totalSlides={totalSlides}
+              onSelectSlide={setCurrentSlideIndex}
+              onReorderSlide={(from, to) =>
+                dispatch({ type: "REORDER_SLIDES", payload: { fromIndex: from, toIndex: to } })
+              }
+              onDuplicateSlide={(idx) =>
+                dispatch({ type: "DUPLICATE_SLIDE", payload: { slideIndex: idx } })
+              }
+              onDeleteSlide={(idx) =>
+                dispatch({ type: "DELETE_SLIDE", payload: { slideIndex: idx } })
+              }
+              onAddSlide={(type) => dispatch({ type: "ADD_SLIDE", payload: { type } })}
+              accentColor={theme.accent}
+            />
+          )}
         </div>
       </main>
 
-      {/* Modals */}
+      {/* Modals & Dialogs */}
       <ExportModal
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
@@ -582,6 +849,32 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
         onClose={() => setIsTemplateGalleryOpen(false)}
         currentTemplateId={currentAst.templateId}
         onSelectTemplate={(templateId) => dispatch({ type: "SET_THEME", payload: templateId })}
+      />
+
+      <SlideLayoutModal
+        isOpen={isSlideLayoutOpen}
+        onClose={() => setIsSlideLayoutOpen(false)}
+        ast={currentAst}
+        currentSlideIndex={currentSlideIndex}
+        onUpdateChartType={(chartIndex, chartType) =>
+          dispatch({ type: "UPDATE_CHART_TYPE", payload: { chartIndex, chartType } })
+        }
+        onUpdateBlockType={(blockIndex, blockType) =>
+          dispatch({ type: "UPDATE_BLOCK_TYPE", payload: { blockIndex, blockType } })
+        }
+      />
+
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onSetFormat={(fmt) => dispatch({ type: "SET_FORMAT", payload: fmt })}
+        onOpenTemplates={() => setIsTemplateGalleryOpen(true)}
+        onOpenExport={() => setIsExportOpen(true)}
+        onUndo={() => dispatch({ type: "UNDO" })}
+        onRedo={() => dispatch({ type: "REDO" })}
+        onFitToScreen={handleFitToScreen}
+        onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
+        onAddSlide={(type) => dispatch({ type: "ADD_SLIDE", payload: { type } })}
       />
     </div>
   );

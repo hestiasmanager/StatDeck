@@ -147,6 +147,7 @@ export type DeckMeta = z.infer<typeof DeckMetaSchema>;
 export type KpiCard = z.infer<typeof KpiCardSchema>;
 export type ChartBlock = z.infer<typeof ChartBlockSchema>;
 export type ContentBlock = z.infer<typeof BlockSchema>;
+export type BlockType = ContentBlock["type"];
 export type ChartType = z.infer<typeof ChartTypeSchema>;
 export type ChartDataPoint = z.infer<typeof ChartDataPointSchema>;
 export type OutputFormat = z.infer<typeof OutputFormatSchema>;
