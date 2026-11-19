@@ -195,24 +195,26 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
   });
 
   // ----------------------------------------------------
-  // Slide 3: Native PowerPoint Chart (if chart exists)
+  // Dynamic Charts: Native PowerPoint Charts (0 to 6 charts)
   // ----------------------------------------------------
-  if (ast.charts.length > 0) {
-    const chart = ast.charts[0];
-    const slide3 = pptx.addSlide();
-    slide3.background = { color: bgHex };
+  ast.charts.forEach((chart, chartIdx) => {
+    const chartSlide = pptx.addSlide();
+    chartSlide.background = { color: bgHex };
 
-    slide3.addText("DATA VISUALIZATION", {
-      x: 1.0,
-      y: 0.8,
-      w: 11.3,
-      h: 0.4,
-      fontSize: 13,
-      bold: true,
-      color: accentHex,
-    });
+    chartSlide.addText(
+      ast.charts.length > 1 ? `DATA VISUALIZATION (${chartIdx + 1}/${ast.charts.length})` : "DATA VISUALIZATION",
+      {
+        x: 1.0,
+        y: 0.8,
+        w: 11.3,
+        h: 0.4,
+        fontSize: 13,
+        bold: true,
+        color: accentHex,
+      }
+    );
 
-    slide3.addText(chart.title, {
+    chartSlide.addText(chart.title, {
       x: 1.0,
       y: 1.3,
       w: 11.3,
@@ -239,7 +241,7 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
 
     const chartColors = theme.chartColors.map((c) => toHex(c));
 
-    slide3.addChart(pptxChartType, chartData, {
+    chartSlide.addChart(pptxChartType, chartData, {
       x: 1.0,
       y: 2.1,
       w: 11.3,
@@ -249,80 +251,86 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
       barDir: chart.type === "horizontal_bar" ? "bar" : "col",
       plotArea: { fill: { color: surfaceHex } },
     });
-  }
+  });
 
   // ----------------------------------------------------
-  // Slide 4: Structured Takeaway Blocks (Steps or Comparison)
+  // Dynamic Structured Takeaway Blocks (with pagination)
   // ----------------------------------------------------
-  if (ast.blocks.length > 0) {
-    const block = ast.blocks[0];
-    const slide4 = pptx.addSlide();
-    slide4.background = { color: bgHex };
-
-    slide4.addText("STRATEGIC BREAKDOWN", {
-      x: 1.0,
-      y: 0.8,
-      w: 11.3,
-      h: 0.4,
-      fontSize: 13,
-      bold: true,
-      color: accentHex,
-    });
-
-    if ("title" in block && block.title) {
-      slide4.addText(block.title, {
-        x: 1.0,
-        y: 1.3,
-        w: 11.3,
-        h: 0.6,
-        fontSize: 22,
-        bold: true,
-        color: inkHex,
-      });
-    }
-
+  ast.blocks.forEach((block, bIdx) => {
     if (block.type === "numbered_steps") {
-      block.steps.forEach((step, idx) => {
-        const yPos = 2.2 + idx * 1.3;
-        // Step number badge
-        slide4.addShape(pptx.ShapeType.ellipse, {
-          x: 1.0,
-          y: yPos,
-          w: 0.5,
-          h: 0.5,
-          fill: { color: accentHex },
-        });
-        slide4.addText(String(step.step), {
-          x: 1.0,
-          y: yPos,
-          w: 0.5,
-          h: 0.5,
-          fontSize: 14,
-          bold: true,
-          color: "FFFFFF",
-          align: "center",
-        });
+      const chunkSize = 4;
+      const totalParts = Math.ceil(block.steps.length / chunkSize);
+      for (let p = 0; p < totalParts; p++) {
+        const chunkSteps = block.steps.slice(p * chunkSize, (p + 1) * chunkSize);
+        const stepSlide = pptx.addSlide();
+        stepSlide.background = { color: bgHex };
 
-        slide4.addText(step.title, {
-          x: 1.8,
-          y: yPos - 0.05,
-          w: 10.0,
-          h: 0.4,
-          fontSize: 16,
+        stepSlide.addText(
+          totalParts > 1 ? `EXECUTION FRAMEWORK (${p + 1}/${totalParts})` : "STRATEGIC BREAKDOWN",
+          {
+            x: 1.0,
+            y: 0.8,
+            w: 11.3,
+            h: 0.4,
+            fontSize: 13,
+            bold: true,
+            color: accentHex,
+          }
+        );
+
+        stepSlide.addText(block.title || "Process Steps", {
+          x: 1.0,
+          y: 1.3,
+          w: 11.3,
+          h: 0.6,
+          fontSize: 22,
           bold: true,
           color: inkHex,
         });
 
-        slide4.addText(step.description, {
-          x: 1.8,
-          y: yPos + 0.35,
-          w: 10.0,
-          h: 0.6,
-          fontSize: 13,
-          color: inkMutedHex,
+        chunkSteps.forEach((step, idx) => {
+          const yPos = 2.2 + idx * 1.3;
+          stepSlide.addShape(pptx.ShapeType.ellipse, {
+            x: 1.0,
+            y: yPos,
+            w: 0.5,
+            h: 0.5,
+            fill: { color: accentHex },
+          });
+          stepSlide.addText(String(step.step || p * chunkSize + idx + 1), {
+            x: 1.0,
+            y: yPos,
+            w: 0.5,
+            h: 0.5,
+            fontSize: 14,
+            bold: true,
+            color: "FFFFFF",
+            align: "center",
+          });
+
+          stepSlide.addText(step.title, {
+            x: 1.8,
+            y: yPos - 0.05,
+            w: 10.0,
+            h: 0.4,
+            fontSize: 16,
+            bold: true,
+            color: inkHex,
+          });
+
+          stepSlide.addText(step.description, {
+            x: 1.8,
+            y: yPos + 0.35,
+            w: 10.0,
+            h: 0.6,
+            fontSize: 13,
+            color: inkMutedHex,
+          });
         });
-      });
+      }
     } else if (block.type === "comparison_table") {
+      const chunkSize = 5;
+      const totalParts = Math.ceil(block.rows.length / chunkSize);
       const headers = block.headers;
       const hasColB = block.rows.some((r) => r.colB && r.colB.trim().length > 0);
       let displayHeaders = headers;
@@ -330,52 +338,146 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
         displayHeaders = ["Metric / Dimension", headers[0], headers[1]];
       }
 
-      // Build PowerPoint native table rows
-      const tableRows: pptxgen.TableRow[] = [];
+      for (let p = 0; p < totalParts; p++) {
+        const chunkRows = block.rows.slice(p * chunkSize, (p + 1) * chunkSize);
+        const tableSlide = pptx.addSlide();
+        tableSlide.background = { color: bgHex };
 
-      // Dynamic header row (100% theme-styled)
-      tableRows.push(
-        displayHeaders.map((h, i) => ({
-          text: h,
-          options: {
+        tableSlide.addText(
+          totalParts > 1 ? `COMPARISON MATRIX (${p + 1}/${totalParts})` : "COMPARISON MATRIX",
+          {
+            x: 1.0,
+            y: 0.8,
+            w: 11.3,
+            h: 0.4,
+            fontSize: 13,
             bold: true,
-            fontSize: 12,
-            color: i === displayHeaders.length - 1 ? accentHex : inkHex,
-            fill: { color: surfaceHex },
-          },
-        }))
-      );
-
-      // Data rows
-      block.rows.forEach((row) => {
-        const cells: pptxgen.TableCell[] = [];
-        if (displayHeaders.length === 2) {
-          cells.push({ text: row.feature, options: { bold: true, fontSize: 11, color: inkHex } });
-          cells.push({ text: row.colA || row.colB || "", options: { fontSize: 11, color: inkHex } });
-        } else {
-          cells.push({ text: row.feature, options: { bold: true, fontSize: 11, color: inkHex } });
-          cells.push({ text: row.colA || "", options: { fontSize: 11, color: inkHex } });
-          if (displayHeaders.length >= 3) {
-            cells.push({ text: row.colB || "", options: { bold: true, fontSize: 11, color: accentHex } });
+            color: accentHex,
           }
-          if (row.values && row.values.length > 3) {
-            for (let c = 3; c < displayHeaders.length; c++) {
-              cells.push({ text: row.values[c] || "", options: { fontSize: 11, color: inkHex } });
+        );
+
+        tableSlide.addText(block.title || "Comparative Analysis", {
+          x: 1.0,
+          y: 1.3,
+          w: 11.3,
+          h: 0.6,
+          fontSize: 22,
+          bold: true,
+          color: inkHex,
+        });
+
+        const tableRows: pptxgen.TableRow[] = [];
+        tableRows.push(
+          displayHeaders.map((h, i) => ({
+            text: h,
+            options: {
+              bold: true,
+              fontSize: 12,
+              color: i === displayHeaders.length - 1 ? accentHex : inkHex,
+              fill: { color: surfaceHex },
+            },
+          }))
+        );
+
+        chunkRows.forEach((row) => {
+          const cells: pptxgen.TableCell[] = [];
+          if (displayHeaders.length === 2) {
+            cells.push({ text: row.feature, options: { bold: true, fontSize: 11, color: inkHex } });
+            cells.push({ text: row.colA || row.colB || "", options: { fontSize: 11, color: inkHex } });
+          } else {
+            cells.push({ text: row.feature, options: { bold: true, fontSize: 11, color: inkHex } });
+            cells.push({ text: row.colA || "", options: { fontSize: 11, color: inkHex } });
+            if (displayHeaders.length >= 3) {
+              cells.push({ text: row.colB || "", options: { bold: true, fontSize: 11, color: accentHex } });
+            }
+            if (row.values && row.values.length > 3) {
+              for (let c = 3; c < displayHeaders.length; c++) {
+                cells.push({ text: row.values[c] || "", options: { fontSize: 11, color: inkHex } });
+              }
             }
           }
-        }
-        tableRows.push(cells);
+          tableRows.push(cells);
+        });
+
+        tableSlide.addTable(tableRows, {
+          x: 1.0,
+          y: 2.1,
+          w: 11.3,
+          autoPage: false,
+          border: { type: "solid", pt: 1, color: "CBD5E1" },
+        });
+      }
+    } else {
+      const blockSlide = pptx.addSlide();
+      blockSlide.background = { color: bgHex };
+
+      blockSlide.addText("STRATEGIC INSIGHTS", {
+        x: 1.0,
+        y: 0.8,
+        w: 11.3,
+        h: 0.4,
+        fontSize: 13,
+        bold: true,
+        color: accentHex,
       });
 
-      slide4.addTable(tableRows, {
-        x: 1.0,
-        y: 2.1,
-        w: 11.3,
-        autoPage: false,
-        border: { type: "solid", pt: 1, color: "CBD5E1" },
-      });
+      if ("title" in block && block.title) {
+        blockSlide.addText(block.title, {
+          x: 1.0,
+          y: 1.3,
+          w: 11.3,
+          h: 0.6,
+          fontSize: 22,
+          bold: true,
+          color: inkHex,
+        });
+      }
+
+      if (block.type === "key_takeaways") {
+        block.bullets.forEach((b, idx) => {
+          const yPos = 2.2 + idx * 1.1;
+          blockSlide.addText(`• ${b.headline}`, {
+            x: 1.0,
+            y: yPos,
+            w: 11.0,
+            h: 0.4,
+            fontSize: 15,
+            bold: true,
+            color: accentHex,
+          });
+          blockSlide.addText(b.detail, {
+            x: 1.4,
+            y: yPos + 0.35,
+            w: 10.6,
+            h: 0.6,
+            fontSize: 13,
+            color: inkMutedHex,
+          });
+        });
+      } else if (block.type === "callout_quote") {
+        blockSlide.addText(`"${block.quote}"`, {
+          x: 1.5,
+          y: 2.5,
+          w: 10.0,
+          h: 1.8,
+          fontSize: 22,
+          italic: true,
+          color: inkHex,
+        });
+        if (block.author) {
+          blockSlide.addText(`— ${block.author}${block.role ? `, ${block.role}` : ""}`, {
+            x: 1.5,
+            y: 4.5,
+            w: 10.0,
+            h: 0.5,
+            fontSize: 14,
+            bold: true,
+            color: accentHex,
+          });
+        }
+      }
     }
-  }
+  });
 
   const safeTitle = (ast.meta.title || "statdeck-presentation")
     .toLowerCase()

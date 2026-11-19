@@ -108,8 +108,9 @@ ${rawContent.slice(0, 10000)}`;
         schema: ExtractionDeckSchema,
         system: STATDECK_SYSTEM_PROMPT,
         prompt: promptText,
-        maxTokens: 900,
+        maxTokens: 3500,
         temperature: 0.2,
+        maxRetries: 0,
         abortSignal: options?.abortSignal,
       });
 
@@ -154,16 +155,19 @@ ${rawContent.slice(0, 10000)}`;
           schema: ExtractionDeckSchema,
           system: STATDECK_SYSTEM_PROMPT,
           prompt: promptText,
-          maxTokens: 900,
+          maxTokens: 3500,
           temperature: 0.2,
-          providerOptions: {
-            google: {
-              thinkingConfig: {
-                thinkingLevel: "low",
-                thinkingBudget: 0,
-              },
-            },
-          },
+          maxRetries: 0,
+          providerOptions: modelId.includes("hydrogen") || modelId.includes("thinking")
+            ? {
+                google: {
+                  thinkingConfig: {
+                    thinkingLevel: "low",
+                    thinkingBudget: 0,
+                  },
+                },
+              }
+            : undefined,
           abortSignal: options?.abortSignal,
         });
 
@@ -186,8 +190,9 @@ ${rawContent.slice(0, 10000)}`;
         schema: ExtractionDeckSchema,
         system: STATDECK_SYSTEM_PROMPT,
         prompt: promptText,
-        maxTokens: 900,
+        maxTokens: 3500,
         temperature: 0.2,
+        maxRetries: 0,
         abortSignal: options?.abortSignal,
       });
 
@@ -220,8 +225,9 @@ ${rawContent.slice(0, 10000)}`;
         schema: ExtractionDeckSchema,
         system: STATDECK_SYSTEM_PROMPT,
         prompt: promptText,
-        maxTokens: 900,
+        maxTokens: 3500,
         temperature: 0.2,
+        maxRetries: 0,
         abortSignal: options?.abortSignal,
       });
 

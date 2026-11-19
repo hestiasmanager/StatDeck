@@ -15,6 +15,7 @@ const RequestBodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  console.time("extract");
   const startTime = Date.now();
 
   // Set up 45-second abort controller so extraction never hangs indefinitely
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
     });
 
     clearTimeout(timeoutId);
+    console.timeEnd("extract");
     const elapsedMs = Date.now() - startTime;
     console.log(
       `[API /api/extract] Succeeded in ${elapsedMs}ms | model: ${result.modelUsed} | cached: ${result.cached} | deep: ${deepAnalysis}`
@@ -90,6 +92,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     clearTimeout(timeoutId);
+    console.timeEnd("extract");
     const elapsedMs = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
@@ -113,16 +116,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: `AI extraction timed out after ${elapsedMs}ms. Please try again or check your model/API key.`,
+          statusCode: 504,
           elapsedMs,
         },
         { status: 504 }
       );
     }
 
-    const message = error instanceof Error ? error.message : "Failed to extract structured deck";
-    const status = message.includes("No AI API key found") ? 400 : 500;
+    let status = 500;
+    const rawStatus = (error as { status?: number; statusCode?: number })?.status ||
+                      (error as { status?: number; statusCode?: number })?.statusCode;
+
+    if (rawStatus && typeof rawStatus === "number" && rawStatus >= 400 && rawStatus <= 599) {
+      status = rawStatus;
+    } else if (
+      errorMessage.includes("429") ||
+      errorMessage.toLowerCase().includes("rate limit") ||
+      errorMessage.toLowerCase().includes("quota") ||
+      errorMessage.toLowerCase().includes("resource_exhausted")
+    ) {
+      status = 429;
+    } else if (
+      errorMessage.includes("401") ||
+      errorMessage.includes("403") ||
+      errorMessage.toLowerCase().includes("api key") ||
+      errorMessage.toLowerCase().includes("unauthorized") ||
+      errorMessage.toLowerCase().includes("forbidden")
+    ) {
+      status = 401;
+    } else if (
+      errorMessage.includes("400") ||
+      errorMessage.toLowerCase().includes("bad request") ||
+      errorMessage.toLowerCase().includes("schema") ||
+      errorMessage.toLowerCase().includes("invalid")
+    ) {
+      status = 400;
+    }
+
     return NextResponse.json(
-      { error: message, elapsedMs },
+      { error: errorMessage, statusCode: status, elapsedMs },
       { status }
     );
   }

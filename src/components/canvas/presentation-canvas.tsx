@@ -138,128 +138,196 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
         </div>
       ),
     },
-    // Slide 3: Chart Visualization
-    ...(ast.charts.length > 0
-      ? [
-          {
-            id: "deck-chart",
-            content: (
-              <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
-                <div className="flex flex-col gap-0.5 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
-                    Data Analytics
-                  </span>
-                  <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-                    {ast.charts[0].title}
-                  </h2>
-                </div>
-                <div
-                  className="flex-1 min-h-0 my-2 p-3 rounded-2xl border max-w-3xl mx-auto w-full flex items-center justify-center overflow-hidden"
-                  style={{
-                    backgroundColor: theme.surface,
-                    borderColor: theme.surfaceBorder,
-                    borderRadius: theme.cardRadius,
-                  }}
-                >
-                  <div className="w-full h-full max-h-[220px] flex items-center justify-center">
-                    {ast.charts[0].type === "bar" && (
-                      <SvgBarChart chart={ast.charts[0]} accentColor={theme.accent} inkColor={theme.ink} />
-                    )}
-                    {ast.charts[0].type === "horizontal_bar" && (
-                      <SvgHorizontalBar chart={ast.charts[0]} accentColor={theme.accent} inkColor={theme.ink} />
-                    )}
-                    {ast.charts[0].type === "donut" && (
-                      <SvgDonutChart
-                        chart={ast.charts[0]}
-                        colorPalette={theme.chartColors}
-                        inkColor={theme.ink}
-                      />
-                    )}
-                    {(ast.charts[0].type === "line" || ast.charts[0].type === "area") && (
-                      <SvgLineChart chart={ast.charts[0]} accentColor={theme.accent} inkColor={theme.ink} />
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-                  <span className="text-xs font-mono opacity-60 truncate max-w-[400px]">{ast.charts[0].title}</span>
-                  <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-                </div>
-              </div>
-            ),
-          },
-        ]
-      : []),
-    // Slide 4: Structured Blocks
-    ...(ast.blocks.length > 0
-      ? [
-          {
-            id: "deck-blocks",
+    // Slide 3+: Visual Charts (Dynamic 0 to 6 charts)
+    ...ast.charts.map((chart, chartIdx) => ({
+      id: chart.id || `deck-chart-${chartIdx + 1}`,
+      content: (
+        <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+          <div className="flex flex-col gap-0.5 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
+              Visual Analytics {ast.charts.length > 1 ? `(${chartIdx + 1}/${ast.charts.length})` : ""}
+            </span>
+            <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+              {chart.title}
+            </h2>
+          </div>
+          <div
+            className="flex-1 min-h-0 my-2 p-3 rounded-2xl border max-w-3xl mx-auto w-full flex items-center justify-center overflow-hidden"
+            style={{
+              backgroundColor: theme.surface,
+              borderColor: theme.surfaceBorder,
+              borderRadius: theme.cardRadius,
+            }}
+          >
+            <div className="w-full h-full max-h-[220px] flex items-center justify-center">
+              {chart.type === "bar" && (
+                <SvgBarChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+              )}
+              {chart.type === "horizontal_bar" && (
+                <SvgHorizontalBar chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+              )}
+              {chart.type === "donut" && (
+                <SvgDonutChart
+                  chart={chart}
+                  colorPalette={theme.chartColors}
+                  inkColor={theme.ink}
+                />
+              )}
+              {(chart.type === "line" || chart.type === "area") && (
+                <SvgLineChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+              )}
+            </div>
+          </div>
+          <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+            <span className="text-xs font-mono opacity-60 truncate max-w-[400px]">{chart.title}</span>
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+          </div>
+        </div>
+      ),
+    })),
+
+    // Slide 4+: Structured Blocks with Auto-Pagination (max 5 rows or 4 steps per slide)
+    ...ast.blocks.flatMap((block, bIdx) => {
+      if (block.type === "comparison_table" && block.rows && block.rows.length > 5) {
+        const chunkSize = 5;
+        const totalParts = Math.ceil(block.rows.length / chunkSize);
+        return Array.from({ length: totalParts }, (_, p) => {
+          const chunkRows = block.rows.slice(p * chunkSize, (p + 1) * chunkSize);
+          return {
+            id: `deck-block-${bIdx + 1}-table-p${p + 1}`,
             content: (
               <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
                 <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
                   <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
-                    Strategic Breakdown
+                    Comparison Table ({p + 1}/{totalParts})
                   </span>
                   <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-                    {"title" in ast.blocks[0] && ast.blocks[0].title ? ast.blocks[0].title : "Implementation Levers"}
+                    {block.title || "Comparison Matrix"}
                   </h2>
                 </div>
                 <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-center">
-                  {ast.blocks[0].type === "numbered_steps" && (
-                    <ProcessStepsBlock
-                      steps={ast.blocks[0].steps}
-                      accentColor={theme.accent}
-                      inkColor={theme.ink}
-                      surfaceBorder={theme.surfaceBorder}
-                    />
-                  )}
-                  {ast.blocks[0].type === "comparison_table" && (
-                    <ComparisonTableBlock
-                      headers={ast.blocks[0].headers}
-                      rows={ast.blocks[0].rows}
-                      inkColor={theme.ink}
-                      surfaceBorder={theme.surfaceBorder}
-                      accentColor={theme.accent}
-                    />
-                  )}
-                  {ast.blocks[0].type === "pros_cons" && (
-                    <ProsConsBlock
-                      pros={ast.blocks[0].pros}
-                      cons={ast.blocks[0].cons}
-                      inkColor={theme.ink}
-                      surfaceBorder={theme.surfaceBorder}
-                    />
-                  )}
-                  {ast.blocks[0].type === "callout_quote" && (
-                    <CalloutQuoteBlock
-                      quote={ast.blocks[0].quote}
-                      author={ast.blocks[0].author}
-                      role={ast.blocks[0].role}
-                      accentColor={theme.accent}
-                      inkColor={theme.ink}
-                      surfaceBorder={theme.surfaceBorder}
-                    />
-                  )}
-                  {ast.blocks[0].type === "key_takeaways" && (
-                    <KeyTakeawaysBlock
-                      title={ast.blocks[0].title}
-                      bullets={ast.blocks[0].bullets}
-                      accentColor={theme.accent}
-                      inkColor={theme.ink}
-                      surfaceBorder={theme.surfaceBorder}
-                    />
-                  )}
+                  <ComparisonTableBlock
+                    headers={block.headers}
+                    rows={chunkRows}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                    accentColor={theme.accent}
+                  />
                 </div>
                 <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-                  <span className="text-xs font-mono opacity-60">Key Takeaways</span>
+                  <span className="text-xs font-mono opacity-60">Rows {p * chunkSize + 1}–{Math.min(block.rows.length, (p + 1) * chunkSize)} of {block.rows.length}</span>
                   <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
                 </div>
               </div>
             ),
-          },
-        ]
-      : []),
+          };
+        });
+      } else if (block.type === "numbered_steps" && block.steps && block.steps.length > 4) {
+        const chunkSize = 4;
+        const totalParts = Math.ceil(block.steps.length / chunkSize);
+        return Array.from({ length: totalParts }, (_, p) => {
+          const chunkSteps = block.steps.slice(p * chunkSize, (p + 1) * chunkSize);
+          return {
+            id: `deck-block-${bIdx + 1}-steps-p${p + 1}`,
+            content: (
+              <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+                <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
+                    Process Framework ({p + 1}/{totalParts})
+                  </span>
+                  <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+                    {block.title || "Execution Steps"}
+                  </h2>
+                </div>
+                <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-center">
+                  <ProcessStepsBlock
+                    steps={chunkSteps}
+                    accentColor={theme.accent}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                </div>
+                <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                  <span className="text-xs font-mono opacity-60">Steps {p * chunkSize + 1}–{Math.min(block.steps.length, (p + 1) * chunkSize)} of {block.steps.length}</span>
+                  <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+                </div>
+              </div>
+            ),
+          };
+        });
+      }
+
+      return [
+        {
+          id: block.id || `deck-block-${bIdx + 1}`,
+          content: (
+            <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+              <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
+                  Strategic Breakdown
+                </span>
+                <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+                  {"title" in block && block.title ? block.title : "Implementation Levers"}
+                </h2>
+              </div>
+              <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-center">
+                {block.type === "numbered_steps" && (
+                  <ProcessStepsBlock
+                    steps={block.steps}
+                    accentColor={theme.accent}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+                {block.type === "comparison_table" && (
+                  <ComparisonTableBlock
+                    headers={block.headers}
+                    rows={block.rows}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                    accentColor={theme.accent}
+                  />
+                )}
+                {block.type === "pros_cons" && (
+                  <ProsConsBlock
+                    pros={block.pros}
+                    cons={block.cons}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+                {block.type === "callout_quote" && (
+                  <CalloutQuoteBlock
+                    quote={block.quote}
+                    author={block.author}
+                    role={block.role}
+                    accentColor={theme.accent}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+                {block.type === "key_takeaways" && (
+                  <KeyTakeawaysBlock
+                    title={block.title}
+                    bullets={block.bullets}
+                    accentColor={theme.accent}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+              </div>
+              <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                <span className="text-xs font-mono opacity-60">{"title" in block && block.title ? block.title : "Key Takeaways"}</span>
+                <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+              </div>
+            </div>
+          ),
+        },
+      ];
+    }),
   ];
+
+  const safeSlideIndex = Math.min(currentSlideIndex, Math.max(0, slides.length - 1));
 
   return (
     <div className="flex flex-col items-center gap-4 my-auto py-2">
@@ -283,7 +351,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
             transformOrigin: "center center",
           }}
         >
-          {slides[currentSlideIndex].content}
+          {slides[safeSlideIndex]?.content}
         </div>
       </div>
 
@@ -291,7 +359,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
       <div className="flex items-center gap-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-md text-xs font-medium z-10">
         <button
           onClick={() => setCurrentSlideIndex((prev) => Math.max(0, prev - 1))}
-          disabled={currentSlideIndex === 0}
+          disabled={safeSlideIndex === 0}
           className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors"
           aria-label="Previous Slide"
         >
@@ -300,12 +368,12 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
 
         <span className="flex items-center gap-1.5 font-mono">
           <Monitor className="w-3.5 h-3.5 text-blue-500" />
-          16:9 Slide {currentSlideIndex + 1} of {slides.length}
+          16:9 Slide {safeSlideIndex + 1} of {slides.length}
         </span>
 
         <button
           onClick={() => setCurrentSlideIndex((prev) => Math.min(slides.length - 1, prev + 1))}
-          disabled={currentSlideIndex === slides.length - 1}
+          disabled={safeSlideIndex >= slides.length - 1}
           className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors"
           aria-label="Next Slide"
         >
