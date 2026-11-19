@@ -3,7 +3,7 @@
 import React, { useReducer, useEffect, useState, useRef, useCallback } from "react";
 import type { DeckAST, OutputFormat, ChartType, BlockType } from "@/lib/schemas/deck-schema";
 import type { BrandKit } from "@/lib/schemas/brand-kit-schema";
-import { applyBrandKitToTheme, EDITORIAL_THEMES, DEFAULT_THEME_ID } from "@/lib/themes/registry";
+import { applyBrandKitToTheme, getThemeTokens } from "@/lib/themes/registry";
 import { SAMPLE_PRESETS } from "@/lib/ai/presets";
 import { FormatSwitcher } from "@/components/studio/format-switcher";
 import { ThemePicker } from "@/components/studio/theme-picker";
@@ -365,7 +365,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
   const infographicRef = useRef<HTMLDivElement>(null);
 
   const currentAst = state.present;
-  const theme = EDITORIAL_THEMES[currentAst.templateId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
+  const theme = getThemeTokens(currentAst.templateId);
 
   // Total slides count
   const totalSlides =
@@ -662,6 +662,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
           >
             {currentAst.format === "infographic" && (
               <InfographicCanvas
+                key={`${currentAst.id || "infographic"}-${currentAst.templateId}`}
                 ref={infographicRef}
                 ast={currentAst}
                 onUpdateText={handleUpdateText}
@@ -671,7 +672,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
 
             {currentAst.format === "carousel" && (
               <CarouselCanvas
-                key={currentAst.id || "carousel-canvas"}
+                key={`${currentAst.id || "carousel"}-${currentAst.templateId}`}
                 ast={currentAst}
                 onUpdateText={handleUpdateText}
                 scale={zoom}
@@ -682,7 +683,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
 
             {currentAst.format === "presentation" && (
               <PresentationCanvas
-                key={currentAst.id || "presentation-canvas"}
+                key={`${currentAst.id || "presentation"}-${currentAst.templateId}`}
                 ast={currentAst}
                 onUpdateText={handleUpdateText}
                 scale={zoom}
@@ -862,6 +863,8 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
         onUpdateBlockType={(blockIndex, blockType) =>
           dispatch({ type: "UPDATE_BLOCK_TYPE", payload: { blockIndex, blockType } })
         }
+        onSelectTheme={(themeId) => dispatch({ type: "SET_THEME", payload: themeId })}
+        onOpenTemplateGallery={() => setIsTemplateGalleryOpen(true)}
       />
 
       <CommandPalette

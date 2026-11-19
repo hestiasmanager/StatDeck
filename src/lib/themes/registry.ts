@@ -420,12 +420,28 @@ export const DEFAULT_THEME_ID = "clean-bento";
  */
 export function getThemeTokens(themeId: string | undefined): ThemeTokens {
   if (!themeId) return EDITORIAL_THEMES[DEFAULT_THEME_ID];
+  // Direct exact match
+  if (EDITORIAL_THEMES[themeId]) return EDITORIAL_THEMES[themeId];
+
+  // Composite format: layout:theme:surface (in any order)
   if (themeId.includes(":")) {
     const parts = themeId.split(":");
-    const subThemeId = parts[1] || parts[0];
-    if (EDITORIAL_THEMES[subThemeId]) return EDITORIAL_THEMES[subThemeId];
+    for (const part of parts) {
+      if (EDITORIAL_THEMES[part]) {
+        const baseTheme = { ...EDITORIAL_THEMES[part] };
+        if (parts.includes("open-canvas")) {
+          baseTheme.cardRadius = "0px";
+        } else if (parts.includes("hairline-bordered")) {
+          baseTheme.cardRadius = "4px";
+        } else if (parts.includes("glass-gradient")) {
+          baseTheme.cardRadius = "20px";
+        }
+        return baseTheme;
+      }
+    }
   }
-  return EDITORIAL_THEMES[themeId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
+
+  return EDITORIAL_THEMES[DEFAULT_THEME_ID];
 }
 
 /**

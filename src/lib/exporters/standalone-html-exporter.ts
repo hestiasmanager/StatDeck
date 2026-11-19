@@ -1,12 +1,12 @@
 import type { DeckAST } from "@/lib/schemas/deck-schema";
-import { EDITORIAL_THEMES, DEFAULT_THEME_ID } from "@/lib/themes/registry";
+import { getThemeTokens } from "@/lib/themes/registry";
 
 /**
  * Generates a clean, standalone, self-contained single-file HTML presentation
  * that can be opened offline in any browser or shared directly.
  */
 export function generateStandaloneHtml(ast: DeckAST): string {
-  const theme = EDITORIAL_THEMES[ast.templateId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
+  const theme = getThemeTokens(ast.templateId);
   const title = ast.meta.title || "StatDeck Presentation";
 
   const kpisHtml = (ast.kpis || [])

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import type { DeckAST } from "@/lib/schemas/deck-schema";
-import { EDITORIAL_THEMES, DEFAULT_THEME_ID } from "@/lib/themes/registry";
+import { getThemeTokens } from "@/lib/themes/registry";
 import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import { buildCarouselSlides } from "@/components/canvas/carousel-slides";
 
@@ -22,7 +22,7 @@ export function CarouselCanvas({
   onSlideChange,
 }: CarouselCanvasProps) {
   const [internalSlideIndex, setInternalSlideIndex] = useState(0);
-  const theme = EDITORIAL_THEMES[ast.templateId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
+  const theme = getThemeTokens(ast.templateId);
 
   // Construct Slides Sequence
   const slides = buildCarouselSlides(ast, onUpdateText);

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { EDITORIAL_THEMES } from "@/lib/themes/registry";
+import { EDITORIAL_THEMES, getThemeTokens } from "@/lib/themes/registry";
 import type { ThemeTokens } from "@/lib/themes/types";
 import { Palette, Check, ChevronDown, ChevronUp, LayoutGrid } from "lucide-react";
 
@@ -28,11 +28,22 @@ export function ThemePicker({ currentThemeId, onSelectTheme, onOpenGallery }: Th
   const [filter, setFilter] = useState<"all" | "minimal" | "dark" | "editorial" | "bold">("all");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const allThemes = Object.values(EDITORIAL_THEMES);
-  const activeTheme = EDITORIAL_THEMES[currentThemeId] || allThemes[0];
+  const activeTheme = getThemeTokens(currentThemeId);
 
   const filteredThemes = filter === "all"
     ? allThemes
     : allThemes.filter((t) => t.category === filter);
+
+  const handleSelectTheme = (themeId: string) => {
+    if (currentThemeId.includes(":")) {
+      const parts = currentThemeId.split(":");
+      const layout = parts[0];
+      const surface = parts[2] || "elevated-soft";
+      onSelectTheme(`${layout}:${themeId}:${surface}`);
+    } else {
+      onSelectTheme(themeId);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -82,12 +93,12 @@ export function ThemePicker({ currentThemeId, onSelectTheme, onOpenGallery }: Th
           {/* Themes Grid */}
           <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
             {filteredThemes.map((theme) => {
-              const isSelected = currentThemeId === theme.id;
+              const isSelected = activeTheme.id === theme.id;
               const fontLabel = getThemeFontLabel(theme);
               return (
                 <button
                   key={theme.id}
-                  onClick={() => onSelectTheme(theme.id)}
+                  onClick={() => handleSelectTheme(theme.id)}
                   className={`flex flex-col gap-2 p-2.5 rounded-xl border text-left transition-all ${
                     isSelected
                       ? "border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 ring-1 ring-blue-500/50 shadow-xs"

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import type { DeckAST } from "@/lib/schemas/deck-schema";
-import { EDITORIAL_THEMES, DEFAULT_THEME_ID } from "@/lib/themes/registry";
+import { getThemeTokens } from "@/lib/themes/registry";
 import { ChevronLeft, ChevronRight, Monitor } from "lucide-react";
 import { SvgBarChart } from "@/components/charts/svg-bar-chart";
 import { SvgHorizontalBar } from "@/components/charts/svg-horizontal-bar";
@@ -32,7 +32,7 @@ export function PresentationCanvas({
   onSlideChange,
 }: PresentationCanvasProps) {
   const [internalSlideIndex, setInternalSlideIndex] = useState(0);
-  const theme = EDITORIAL_THEMES[ast.templateId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
+  const theme = getThemeTokens(ast.templateId);
 
   // Deck identity tracking to reset slide index back to 0 whenever a new deck is synthesized
   const deckKey =

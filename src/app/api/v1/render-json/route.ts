@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DeckSchema } from "@/lib/schemas/deck-schema";
-import { EDITORIAL_THEMES, DEFAULT_THEME_ID } from "@/lib/themes/registry";
+import { getThemeTokens } from "@/lib/themes/registry";
 import crypto from "crypto";
 
 /**
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ast = parse.data;
-    const theme = EDITORIAL_THEMES[ast.templateId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
+    const theme = getThemeTokens(ast.templateId);
 
     // Compute 16:9 slide layout coordinates (width: 960, height: 540)
     const slides = [

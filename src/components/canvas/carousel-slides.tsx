@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { DeckAST } from "@/lib/schemas/deck-schema";
-import { EDITORIAL_THEMES, DEFAULT_THEME_ID } from "@/lib/themes/registry";
+import { getThemeTokens } from "@/lib/themes/registry";
 import { SvgBarChart } from "@/components/charts/svg-bar-chart";
 import { SvgHorizontalBar } from "@/components/charts/svg-horizontal-bar";
 import { SvgDonutChart } from "@/components/charts/svg-donut-chart";
@@ -29,7 +29,7 @@ export function buildCarouselSlides(
   ast: DeckAST,
   onUpdateText?: (path: string, newText: string) => void
 ): CarouselSlideData[] {
-  const theme = EDITORIAL_THEMES[ast.templateId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
+  const theme = getThemeTokens(ast.templateId);
   const slides: CarouselSlideData[] = [];
 
   // Slide 1: Cover (Magazine Cover Design)

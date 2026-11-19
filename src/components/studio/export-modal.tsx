@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import type { DeckAST } from "@/lib/schemas/deck-schema";
-import { EDITORIAL_THEMES, DEFAULT_THEME_ID } from "@/lib/themes/registry";
+import { getThemeTokens } from "@/lib/themes/registry";
 import { exportDeckToPptx } from "@/lib/exporters/pptx-exporter";
 import { exportElementToPng } from "@/lib/exporters/png-exporter";
 import { exportElementToSvg } from "@/lib/exporters/svg-exporter";
@@ -58,7 +58,7 @@ export function ExportModal({
   if (!isOpen) return null;
 
   const isFree = userTier === "free";
-  const theme = EDITORIAL_THEMES[ast.templateId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
+  const theme = getThemeTokens(ast.templateId);
   const carouselSlides = buildCarouselSlides(ast);
 
   // Helper to slugify filenames cleanly

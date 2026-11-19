@@ -11,8 +11,11 @@ import {
   CheckCircle,
   Layers,
   Sparkles,
+  Palette,
+  LayoutGrid,
 } from "lucide-react";
 import type { DeckAST, ChartType, BlockType } from "@/lib/schemas/deck-schema";
+import { EDITORIAL_THEMES, getThemeTokens } from "@/lib/themes/registry";
 
 interface SlideLayoutModalProps {
   isOpen: boolean;
@@ -21,6 +24,8 @@ interface SlideLayoutModalProps {
   currentSlideIndex: number;
   onUpdateChartType: (chartIndex: number, newType: ChartType) => void;
   onUpdateBlockType: (blockIndex: number, newType: BlockType) => void;
+  onSelectTheme?: (themeId: string) => void;
+  onOpenTemplateGallery?: () => void;
 }
 
 export function SlideLayoutModal({
@@ -30,6 +35,8 @@ export function SlideLayoutModal({
   currentSlideIndex,
   onUpdateChartType,
   onUpdateBlockType,
+  onSelectTheme,
+  onOpenTemplateGallery,
 }: SlideLayoutModalProps) {
   if (!isOpen) return null;
 
@@ -169,6 +176,79 @@ export function SlideLayoutModal({
             <p>
               Layout customization is active. You can edit headlines, labels, and citations directly by clicking any text on the slide canvas.
             </p>
+          </div>
+        )}
+
+        {/* Quick Theme Switcher for Active Slide / Deck */}
+        {onSelectTheme && (
+          <div className="flex flex-col gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                <Palette className="w-3.5 h-3.5 text-blue-500" />
+                <span>Color Palette & Theme</span>
+              </span>
+              {onOpenTemplateGallery && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onOpenTemplateGallery();
+                  }}
+                  className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1 hover:underline"
+                >
+                  <LayoutGrid className="w-3 h-3" />
+                  <span>288+ Gallery</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { id: "clean-bento", label: "Clean Bento" },
+                { id: "swiss-grid", label: "Swiss Grid" },
+                { id: "executive-dark", label: "Exec Dark" },
+                { id: "editorial-serif", label: "Editorial" },
+                { id: "minimalist-tech", label: "Min Tech" },
+                { id: "cyber-neon", label: "Cyber Neon" },
+                { id: "fintech-slate", label: "FinTech" },
+                { id: "deep-navy", label: "Deep Navy" },
+              ].map((thm) => {
+                const activeTokens = getThemeTokens(ast.templateId);
+                const isSelected = activeTokens.id === thm.id;
+                const tokenData = EDITORIAL_THEMES[thm.id] || activeTokens;
+                return (
+                  <button
+                    key={thm.id}
+                    onClick={() => {
+                      if (ast.templateId.includes(":")) {
+                        const parts = ast.templateId.split(":");
+                        onSelectTheme(`${parts[0]}:${thm.id}:${parts[2] || "elevated-soft"}`);
+                      } else {
+                        onSelectTheme(thm.id);
+                      }
+                    }}
+                    className={`flex flex-col items-center gap-1 p-1.5 rounded-lg border text-center transition-all ${
+                      isSelected
+                        ? "border-blue-500 bg-blue-50/80 dark:bg-blue-950/50 ring-1 ring-blue-500 shadow-2xs font-bold text-blue-600 dark:text-blue-400"
+                        : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full border border-black/10 shadow-2xs"
+                        style={{ backgroundColor: tokenData.accent }}
+                      />
+                      <span
+                        className="w-2.5 h-2.5 rounded-full border border-black/10 shadow-2xs"
+                        style={{ backgroundColor: tokenData.bg }}
+                      />
+                    </div>
+                    <span className="text-[10px] leading-tight truncate max-w-full">
+                      {thm.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
