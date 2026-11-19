@@ -95,6 +95,37 @@ Total,2050,$267200`;
   console.assert(normContext.chartInsight === "Chart insight for Slide 3", "Chart insight should match");
   console.log("[PASS] Written context extraction and normalization passed.");
 
+  console.log("--- 6. Testing Semicolon (;) and TSV (\\t) Table Auto-Detection ---");
+  const semicolonNote = `Country;Volume;Revenue
+Germany;1200;€145000
+France;950;€112000
+Total;2150;€257000`;
+  const semiResult = enrichNotesWithTableRollups(semicolonNote);
+  console.assert(semiResult.hasTable === true, "Should detect semicolon table");
+  console.assert(semiResult.enrichedText.includes('Total = €257,000'), `Should compute exact semicolon total: ${semiResult.enrichedText}`);
+  console.log("[PASS] Semicolon table auto-detection passed.");
+
+  const tsvNote = `Region\tUnits\tRevenue
+UK\t500\t£75000
+Ireland\t300\t£45000`;
+  const tsvResult = enrichNotesWithTableRollups(tsvNote);
+  console.assert(tsvResult.hasTable === true, "Should detect TSV table");
+  console.assert(tsvResult.enrichedText.includes('Total = £120,000'), "Should compute exact TSV total");
+  console.log("[PASS] TSV table auto-detection passed.");
+
+  console.log("--- 7. Testing Mixed Currencies Safety ---");
+  const mixedCurrencyNote = `Branch;Currency;Amount
+Berlin;EUR;€50000
+Mumbai;INR;₹4000000
+London;GBP;£35000`;
+  const mixedResult = enrichNotesWithTableRollups(mixedCurrencyNote);
+  console.assert(mixedResult.hasTable === true, "Should detect table with mixed currencies");
+  console.assert(mixedResult.enrichedText.includes("FLAG: Mixed Currencies"), "Should flag mixed currencies to prevent bogus cross-currency sum");
+  console.assert(mixedResult.enrichedText.includes("€: Total = €50,000"), "Should provide Euro subtotal");
+  console.assert(mixedResult.enrichedText.includes("₹: Total = ₹4,000,000"), "Should provide Rupee subtotal");
+  console.assert(mixedResult.enrichedText.includes("£: Total = £35,000"), "Should provide Pound subtotal");
+  console.log("[PASS] Mixed currency safety and grouping passed.");
+
   console.log("ALL TESTS COMPLETED SUCCESSFULLY!");
 }
 

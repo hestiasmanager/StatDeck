@@ -1,6 +1,7 @@
 import Papa from "papaparse";
 import { computeTableRollups } from "./table-rollups";
 import { detectHeaderAndRows } from "./header-detector";
+import { detectDelimiter } from "./delimiter-detector";
 
 export interface NotesEnrichmentResult {
   enrichedText: string;
@@ -49,7 +50,7 @@ export function enrichNotesWithTableRollups(text: string): NotesEnrichmentResult
         const { headers, rows } = detectHeaderAndRows(rawGrid);
         if (headers.length >= 2 && rows.length >= 1) {
           const rollupsSummary = computeTableRollups(headers, rows, "Pasted Notes Table");
-          const hasNumericData = rollupsSummary.rollups.some((r) => r.isNumeric && r.total !== undefined);
+          const hasNumericData = rollupsSummary.rollups.some((r) => r.isNumeric && (r.total !== undefined || r.isMixedCurrency));
           if (hasNumericData) {
             const enrichedText = `${rollupsSummary.formattedSummary}\n\nORIGINAL USER NOTES:\n${text}`;
             return {
@@ -67,11 +68,14 @@ export function enrichNotesWithTableRollups(text: string): NotesEnrichmentResult
     }
   }
 
-  // 2. Try detecting CSV or TSV tabular data
+  // 2. Try detecting CSV, TSV, or Semicolon (;) tabular data
   try {
+    const detectedDelim = detectDelimiter(text);
     const parseResult = Papa.parse<string[]>(text, {
       header: false,
       skipEmptyLines: true,
+      delimiter: detectedDelim,
+      delimitersToGuess: [",", ";", "\t", "|"],
     });
 
     if (parseResult.data && parseResult.data.length >= 2) {
@@ -89,7 +93,7 @@ export function enrichNotesWithTableRollups(text: string): NotesEnrichmentResult
           const validHeaderLengths = headers.every((h) => h.length > 0 && h.length < 50);
           if (headers.length >= 2 && rows.length >= 1 && validHeaderLengths) {
             const rollupsSummary = computeTableRollups(headers, rows, "Pasted CSV Notes");
-            const hasNumericData = rollupsSummary.rollups.some((r) => r.isNumeric && r.total !== undefined);
+            const hasNumericData = rollupsSummary.rollups.some((r) => r.isNumeric && (r.total !== undefined || r.isMixedCurrency));
             if (hasNumericData) {
               const enrichedText = `${rollupsSummary.formattedSummary}\n\nORIGINAL USER NOTES:\n${text}`;
               return {

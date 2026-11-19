@@ -1,6 +1,7 @@
 import Papa from "papaparse";
 import { computeTableRollups } from "./table-rollups";
 import { detectHeaderAndRows } from "./header-detector";
+import { detectDelimiter } from "./delimiter-detector";
 
 export interface ParsedCsvSummary {
   headers: string[];
@@ -10,9 +11,9 @@ export interface ParsedCsvSummary {
 }
 
 /**
- * Client-side CSV/TSV parser using native file.text() and Papa.parse.
- * Parses raw grid as 2D array first (header: false), scans the first 15 rows
- * to detect the true header row (skipping leading titles/disclaimers),
+ * Client-side CSV/TSV/semicolon parser using native file.text() and Papa.parse.
+ * Parses raw grid as 2D array first (header: false), auto-detects delimiter (;, \t, ,),
+ * scans the first 15 rows to detect the true header row (skipping leading titles/disclaimers),
  * trims trailing empty columns, pre-computes JavaScript aggregations & rollups,
  * and formats a rich, structured prompt payload for the visual AST synthesizer.
  */
@@ -24,12 +25,15 @@ export async function parseCsvFileClientSide(file: File): Promise<ParsedCsvSumma
 
   // Strip UTF-8 BOM if present
   const cleanText = rawText.replace(/^\uFEFF/, "");
+  const detectedDelimiter = detectDelimiter(cleanText);
 
-  // 1. Parse raw rows as a 2D array first (header: false)
+  // 1. Parse raw rows as a 2D array first (header: false) with auto-detected delimiter
   const results = Papa.parse<unknown[]>(cleanText, {
     header: false,
     skipEmptyLines: "greedy",
     dynamicTyping: true,
+    delimiter: detectedDelimiter,
+    delimitersToGuess: [",", ";", "\t", "|"],
   });
 
   const rawGrid = results.data as unknown[][];

@@ -23,7 +23,7 @@ const RequestBodySchema = z.object({
   deepAnalysis: z.boolean().optional().default(false),
 });
 
-// Helper to call Google Gemini API with low thinking for hydrogen
+// Helper to call Google Gemini API with zero thinking for 3.8 and low thinking for hydrogen
 async function callGeminiModel(
   model: string,
   apiKey: string,
@@ -35,7 +35,9 @@ async function callGeminiModel(
     temperature: 0,
     responseMimeType: "application/json",
   };
-  if (model.includes("hydrogen") || model.includes("gemini-4")) {
+  if (model.includes("3.8") || model.includes("gemini-3.8")) {
+    generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  } else if (model.includes("hydrogen") || model.includes("gemini-4")) {
     generationConfig.thinkingConfig = { thinkingLevel: "low" };
   }
 
@@ -161,11 +163,11 @@ export async function POST(req: NextRequest) {
   console.time("extract");
   const startTime = Date.now();
 
-  // Set up 25-second abort controller for direct fetch
-  const abortController = new AbortController();
-  const timeoutId = setTimeout(() => {
-    abortController.abort(new Error("AI extraction timed out after 25 seconds"));
-  }, 25000);
+  // Set up 45-second overall abort controller for direct fetch
+  const overallAbortController = new AbortController();
+  const overallTimeoutId = setTimeout(() => {
+    overallAbortController.abort(new Error("AI extraction timed out after 45 seconds"));
+  }, 45000);
 
   try {
     // 1. IP / Client Rate Limiting (Sliding Window)
@@ -176,7 +178,7 @@ export async function POST(req: NextRequest) {
 
     const rateLimitCheck = await checkRateLimit(`rate:extract:${ip}`, 15, 600000);
     if (!rateLimitCheck.success) {
-      clearTimeout(timeoutId);
+      clearTimeout(overallTimeoutId);
       const elapsedMs = Date.now() - startTime;
       console.warn(`[API /api/extract] Rate limit exceeded for IP ${ip} after ${elapsedMs}ms`);
       return NextResponse.json(
@@ -193,7 +195,7 @@ export async function POST(req: NextRequest) {
     const json = await req.json();
     const parseResult = RequestBodySchema.safeParse(json);
     if (!parseResult.success) {
-      clearTimeout(timeoutId);
+      clearTimeout(overallTimeoutId);
       const elapsedMs = Date.now() - startTime;
       console.warn(`[API /api/extract] Invalid request payload after ${elapsedMs}ms:`, parseResult.error.flatten());
       return NextResponse.json(
@@ -215,7 +217,7 @@ export async function POST(req: NextRequest) {
     try {
       const cachedData = await redis.get<DeckAST>(cacheKey);
       if (cachedData) {
-        clearTimeout(timeoutId);
+        clearTimeout(overallTimeoutId);
         console.timeEnd("extract");
         const elapsedMs = Date.now() - startTime;
         console.log(`[API /api/extract] Served from Redis cache in ${elapsedMs}ms`);
@@ -262,15 +264,26 @@ ${finalContent}`;
     let successfulModel: string | null = null;
     let lastError: { error: string; statusCode: number; details?: any } | null = null;
 
-    // 5. Execute Direct Fetch to Google Gemini with Automatic 503/429 Fallback
+    // 5. Execute Direct Fetch to Google Gemini with Automatic 503/429 Fallback and Per-Model 10s Timeout
     if (geminiKey) {
       const geminiCandidates = deepAnalysis
         ? ["gemini-4-hydrogen", "gemini-3.8-flash", "gemini-3.5-flash-lite"]
         : ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-4-hydrogen"];
 
       for (const model of geminiCandidates) {
+        // Individual 10s timeout per model attempt so a single stalled model doesn't exhaust the full budget
+        const modelController = new AbortController();
+        const modelTimeoutId = setTimeout(() => {
+          modelController.abort(new Error(`Model ${model} timed out after 10000ms`));
+        }, 10000);
+
+        const onOverallAbort = () => {
+          modelController.abort(overallAbortController.signal.reason);
+        };
+        overallAbortController.signal.addEventListener("abort", onOverallAbort, { once: true });
+
         try {
-          const geminiRes = await callGeminiModel(model, geminiKey, promptText, abortController.signal);
+          const geminiRes = await callGeminiModel(model, geminiKey, promptText, modelController.signal);
 
           if (geminiRes.ok) {
             const data = await geminiRes.json();
@@ -333,22 +346,49 @@ ${finalContent}`;
           console.error(`[API /api/extract] Gemini API failed with non-transient status ${geminiRes.status}:`, googleMessage);
           break;
         } catch (fetchErr) {
-          if (abortController.signal.aborted) throw fetchErr;
+          if (overallAbortController.signal.aborted) throw fetchErr;
+
+          const isModelTimeout =
+            modelController.signal.aborted ||
+            (fetchErr instanceof Error &&
+              (fetchErr.name === "AbortError" || fetchErr.message.toLowerCase().includes("timed out")));
+
+          if (isModelTimeout) {
+            console.warn(
+              `[API /api/extract] Gemini model ${model} timed out after 10000ms. Immediately falling back in same request...`
+            );
+            lastError = {
+              error: `Gemini model ${model} timed out after 10s`,
+              statusCode: 504,
+            };
+            continue;
+          }
+
           console.warn(`[API /api/extract] Network error on model ${model}:`, fetchErr);
           lastError = {
             error: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
             statusCode: 502,
           };
           continue;
+        } finally {
+          clearTimeout(modelTimeoutId);
+          overallAbortController.signal.removeEventListener("abort", onOverallAbort);
         }
       }
     }
 
-    // 6. Direct Fetch to OpenAI (Fallback or tertiary provider)
+    // 6. Direct Fetch to OpenAI (Fallback or tertiary provider with 10s timeout)
     if (!successfulAst && openAiKey) {
+      const oaiController = new AbortController();
+      const oaiTimeoutId = setTimeout(() => {
+        oaiController.abort(new Error("OpenAI gpt-4o-mini timed out after 10000ms"));
+      }, 10000);
+      const onOverallAbort = () => oaiController.abort(overallAbortController.signal.reason);
+      overallAbortController.signal.addEventListener("abort", onOverallAbort, { once: true });
+
       try {
         console.warn("[API /api/extract] Invoking OpenAI gpt-4o-mini provider...");
-        const oaiRes = await callOpenAiModel(openAiKey, promptText, abortController.signal);
+        const oaiRes = await callOpenAiModel(openAiKey, promptText, oaiController.signal);
 
         if (oaiRes.ok) {
           const data = await oaiRes.json();
@@ -382,17 +422,27 @@ ${finalContent}`;
           };
         }
       } catch (oaiErr) {
-        if (abortController.signal.aborted) throw oaiErr;
+        if (overallAbortController.signal.aborted) throw oaiErr;
         console.warn("[API /api/extract] OpenAI fetch error:", oaiErr);
+      } finally {
+        clearTimeout(oaiTimeoutId);
+        overallAbortController.signal.removeEventListener("abort", onOverallAbort);
       }
     }
 
-    // 7. Direct Fetch to OpenRouter (Fallback if OpenRouter key is provided)
+    // 7. Direct Fetch to OpenRouter (Fallback if OpenRouter key is provided with 10s timeout)
     if (!successfulAst && openRouterKey) {
       const selectedModel = clientOpenRouterModel || "google/gemini-2.5-flash";
+      const orController = new AbortController();
+      const orTimeoutId = setTimeout(() => {
+        orController.abort(new Error(`OpenRouter ${selectedModel} timed out after 10000ms`));
+      }, 10000);
+      const onOverallAbort = () => orController.abort(overallAbortController.signal.reason);
+      overallAbortController.signal.addEventListener("abort", onOverallAbort, { once: true });
+
       try {
         console.warn(`[API /api/extract] Invoking OpenRouter provider (${selectedModel})...`);
-        const orRes = await callOpenRouterModel(openRouterKey, selectedModel, promptText, abortController.signal);
+        const orRes = await callOpenRouterModel(openRouterKey, selectedModel, promptText, orController.signal);
 
         if (orRes.ok) {
           const data = await orRes.json();
@@ -426,14 +476,17 @@ ${finalContent}`;
           };
         }
       } catch (orErr) {
-        if (abortController.signal.aborted) throw orErr;
+        if (overallAbortController.signal.aborted) throw orErr;
         console.warn("[API /api/extract] OpenRouter fetch error:", orErr);
+      } finally {
+        clearTimeout(orTimeoutId);
+        overallAbortController.signal.removeEventListener("abort", onOverallAbort);
       }
     }
 
     // If any provider succeeded, cache and return validated AST
     if (successfulAst && successfulModel) {
-      clearTimeout(timeoutId);
+      clearTimeout(overallTimeoutId);
       console.timeEnd("extract");
       const elapsedMs = Date.now() - startTime;
       await redis.set(cacheKey, successfulAst, { ex: 604800 }).catch(() => null);
@@ -449,10 +502,10 @@ ${finalContent}`;
     }
 
     // 8. Fallback: Deterministic Tabular Spreadsheet Parser (No key needed for uploaded CSV/Excel tables)
-    if (finalContent.includes("|") || finalContent.includes(",")) {
+    if (finalContent.includes("|") || finalContent.includes(",") || finalContent.includes(";")) {
       try {
         const heuristicAst = extractHeuristicDeckAST(finalContent, format, templateId);
-        clearTimeout(timeoutId);
+        clearTimeout(overallTimeoutId);
         console.timeEnd("extract");
         const elapsedMs = Date.now() - startTime;
         console.log(`[API /api/extract] Succeeded with deterministic parser in ${elapsedMs}ms`);
@@ -468,7 +521,7 @@ ${finalContent}`;
       }
     }
 
-    clearTimeout(timeoutId);
+    clearTimeout(overallTimeoutId);
     console.timeEnd("extract");
     const elapsedMs = Date.now() - startTime;
 
@@ -496,7 +549,7 @@ ${finalContent}`;
       { status: 401 }
     );
   } catch (error) {
-    clearTimeout(timeoutId);
+    clearTimeout(overallTimeoutId);
     console.timeEnd("extract");
     const elapsedMs = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -504,7 +557,7 @@ ${finalContent}`;
     console.error(`[API /api/extract] Unhandled exception after ${elapsedMs}ms:`, errorMessage);
 
     const isTimeout =
-      abortController.signal.aborted ||
+      overallAbortController.signal.aborted ||
       (error instanceof Error &&
         (error.name === "AbortError" ||
           error.message.toLowerCase().includes("timed out") ||
