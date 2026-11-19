@@ -21,9 +21,20 @@ export interface ExtractASTResult {
   modelUsed: string;
 }
 
+function isValidKey(key?: string): boolean {
+  if (!key) return false;
+  const k = key.trim();
+  if (k.length < 15) return false;
+  const lower = k.toLowerCase();
+  if (lower.includes("redacted") || lower.includes("dummy") || lower.includes("test") || lower.includes("example")) {
+    return false;
+  }
+  return true;
+}
+
 /**
  * Single-call structured LLM extraction supporting:
- * 1. Direct Gemini 3.8 Flash API (@ai-sdk/google) as primary production default
+ * 1. Direct Gemini Flash API (@ai-sdk/google) as primary production default
  * 2. User-provided OpenRouter key (if explicit "sk-or-..." key is entered)
  * 3. Direct OpenAI API (gpt-4o-mini via @ai-sdk/openai)
  * 4. Deterministic tabular spreadsheet parser for uploaded CSV/Excel files.
@@ -55,19 +66,31 @@ TARGET TEMPLATE ID: ${templateId}
 SOURCE DATA CONTENT:
 ${rawContent.slice(0, 10000)}`;
 
-  const userOpenRouterKey = options?.clientOpenRouterKey?.trim();
-  const isUserOpenRouter = Boolean(userOpenRouterKey && userOpenRouterKey.startsWith("sk-or-"));
-  const geminiApiKey = options?.clientGeminiKey?.trim() || process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim();
-  const openAiApiKey = options?.clientOpenAiKey?.trim() || process.env.OPENAI_API_KEY?.trim();
+  // Determine client and server credentials
+  const clientOpenRouterKey = isValidKey(options?.clientOpenRouterKey) ? options!.clientOpenRouterKey!.trim() : undefined;
+  const clientGeminiKey = isValidKey(options?.clientGeminiKey) ? options!.clientGeminiKey!.trim() : undefined;
+  const clientOpenAiKey = isValidKey(options?.clientOpenAiKey) ? options!.clientOpenAiKey!.trim() : undefined;
+
+  const serverGeminiKey =
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
+    process.env.GEMINI_API_KEY?.trim() ||
+    process.env.GOOGLE_API_KEY?.trim();
+
+  const serverOpenRouterKey = process.env.OPENROUTER_API_KEY?.trim();
+  const serverOpenAiKey = process.env.OPENAI_API_KEY?.trim();
+
+  const activeGeminiKey = clientGeminiKey || serverGeminiKey;
+  const activeOpenRouterKey = clientOpenRouterKey || (clientGeminiKey ? undefined : serverOpenRouterKey);
+  const activeOpenAiKey = clientOpenAiKey || serverOpenAiKey;
 
   let lastError: Error | null = null;
 
-  // 2. OpenRouter Execution (ONLY if user explicitly entered an "sk-or-..." key in the modal)
-  if (isUserOpenRouter && userOpenRouterKey) {
+  // 2. OpenRouter Execution (Prioritized if user explicitly passed a valid "sk-or-..." client key)
+  if (clientOpenRouterKey && clientOpenRouterKey.startsWith("sk-or-")) {
     try {
       const openrouter = createOpenAI({
         baseURL: "https://openrouter.ai/api/v1",
-        apiKey: userOpenRouterKey,
+        apiKey: clientOpenRouterKey,
         headers: {
           "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
           "X-Title": "StatDeck Visual Data Architect",
@@ -77,7 +100,7 @@ ${rawContent.slice(0, 10000)}`;
       const selectedModel =
         options?.clientOpenRouterModel ||
         process.env.OPENROUTER_MODEL ||
-        "google/gemini-3.8-flash";
+        "google/gemini-2.5-flash";
 
       const { object } = await generateObject({
         model: openrouter(selectedModel),
@@ -94,21 +117,28 @@ ${rawContent.slice(0, 10000)}`;
       await redis.set(cacheKey, validatedAst, { ex: 604800 });
       return { ast: validatedAst, cached: false, modelUsed: `openrouter/${selectedModel}` };
     } catch (openRouterErr) {
-      console.error("OpenRouter execution error:", openRouterErr);
+      console.warn("Client OpenRouter execution failed, attempting fallback:", openRouterErr);
       lastError = openRouterErr instanceof Error ? openRouterErr : new Error(String(openRouterErr));
     }
   }
 
-  // 3. Direct Google Gemini Execution (Primary Default: gemini-3.8-flash / gemini-3.5-flash-lite)
-  if (geminiApiKey) {
-    try {
-      const google = createGoogleGenerativeAI({ apiKey: geminiApiKey });
-      const targetModel = process.env.GEMINI_MODEL || "gemini-3.8-flash";
-      let objectResult: { object: Parameters<typeof normalizeExtractionDeck>[0]; used: string };
+  // 3. Direct Google Gemini Execution (Primary Default: gemini-2.5-flash / gemini-2.0-flash / gemini-1.5-flash)
+  if (activeGeminiKey) {
+    const candidateModels = [
+      process.env.GEMINI_MODEL,
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash",
+    ].filter((m): m is string => Boolean(m && m.trim()));
 
+    // Deduplicate candidate models
+    const uniqueModels = Array.from(new Set(candidateModels));
+
+    for (const modelId of uniqueModels) {
       try {
+        const google = createGoogleGenerativeAI({ apiKey: activeGeminiKey });
         const res = await generateObject({
-          model: google(targetModel),
+          model: google(modelId),
           schema: ExtractionDeckSchema,
           system: STATDECK_SYSTEM_PROMPT,
           prompt: promptText,
@@ -116,35 +146,21 @@ ${rawContent.slice(0, 10000)}`;
           temperature: 0.2,
           abortSignal: options?.abortSignal,
         });
-        objectResult = { object: res.object, used: targetModel };
-      } catch (primaryModelErr) {
-        console.warn(`Primary Gemini model ${targetModel} error, trying gemini-3.5-flash-lite:`, primaryModelErr);
-        const res = await generateObject({
-          model: google("gemini-3.5-flash-lite"),
-          schema: ExtractionDeckSchema,
-          system: STATDECK_SYSTEM_PROMPT,
-          prompt: promptText,
-          maxTokens: 900,
-          temperature: 0.2,
-          abortSignal: options?.abortSignal,
-        });
-        objectResult = { object: res.object, used: "gemini-3.5-flash-lite" };
+
+        const validatedAst = normalizeExtractionDeck(res.object, format, templateId);
+        await redis.set(cacheKey, validatedAst, { ex: 604800 });
+        return { ast: validatedAst, cached: false, modelUsed: `google/${modelId}` };
+      } catch (geminiErr) {
+        console.warn(`Google Gemini with model ${modelId} failed:`, geminiErr);
+        lastError = geminiErr instanceof Error ? geminiErr : new Error(String(geminiErr));
       }
-
-      const validatedAst = normalizeExtractionDeck(objectResult.object, format, templateId);
-
-      await redis.set(cacheKey, validatedAst, { ex: 604800 });
-      return { ast: validatedAst, cached: false, modelUsed: `google/${objectResult.used}` };
-    } catch (geminiErr) {
-      console.error("Direct Google Gemini error:", geminiErr);
-      lastError = geminiErr instanceof Error ? geminiErr : new Error(String(geminiErr));
     }
   }
 
-  // 4. Direct OpenAI Execution (Production gpt-4o-mini)
-  if (openAiApiKey) {
+  // 4. Direct OpenAI Execution (gpt-4o-mini)
+  if (activeOpenAiKey) {
     try {
-      const openai = createOpenAI({ apiKey: openAiApiKey });
+      const openai = createOpenAI({ apiKey: activeOpenAiKey });
       const { object } = await generateObject({
         model: openai("gpt-4o-mini"),
         schema: ExtractionDeckSchema,
@@ -160,8 +176,41 @@ ${rawContent.slice(0, 10000)}`;
       await redis.set(cacheKey, validatedAst, { ex: 604800 });
       return { ast: validatedAst, cached: false, modelUsed: "openai/gpt-4o-mini" };
     } catch (openAiErr) {
-      console.error("Direct OpenAI error:", openAiErr);
+      console.warn("Direct OpenAI error:", openAiErr);
       lastError = openAiErr instanceof Error ? openAiErr : new Error(String(openAiErr));
+    }
+  }
+
+  // 5. Server OpenRouter Execution (Fallback if server configured)
+  if (activeOpenRouterKey && !clientOpenRouterKey) {
+    try {
+      const openrouter = createOpenAI({
+        baseURL: "https://openrouter.ai/api/v1",
+        apiKey: activeOpenRouterKey,
+        headers: {
+          "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+          "X-Title": "StatDeck Visual Data Architect",
+        },
+      });
+
+      const selectedModel = process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash";
+
+      const { object } = await generateObject({
+        model: openrouter(selectedModel),
+        schema: ExtractionDeckSchema,
+        system: STATDECK_SYSTEM_PROMPT,
+        prompt: promptText,
+        maxTokens: 900,
+        temperature: 0.2,
+        abortSignal: options?.abortSignal,
+      });
+
+      const validatedAst = normalizeExtractionDeck(object, format, templateId);
+      await redis.set(cacheKey, validatedAst, { ex: 604800 });
+      return { ast: validatedAst, cached: false, modelUsed: `openrouter/${selectedModel}` };
+    } catch (serverOrErr) {
+      console.warn("Server OpenRouter execution error:", serverOrErr);
+      lastError = serverOrErr instanceof Error ? serverOrErr : new Error(String(serverOrErr));
     }
   }
 
