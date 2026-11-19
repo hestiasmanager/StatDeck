@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractDeckAST } from "@/lib/ai/extract-ast";
 import { checkRateLimit } from "@/lib/cache/rate-limit";
 import { OutputFormatSchema } from "@/lib/schemas/deck-schema";
+import { enrichNotesWithTableRollups } from "@/lib/parsers/notes-table-enricher";
 import { z } from "zod";
 
 // Vercel serverless function max duration (seconds)
@@ -61,13 +62,18 @@ export async function POST(req: NextRequest) {
 
     const { content, format, templateId, deepAnalysis } = parseResult.data;
 
+    // Run computeTableRollups on pipe/CSV content if not already pre-computed
+    const finalContent = content.includes("PRE-COMPUTED JAVASCRIPT ROLLUPS")
+      ? content
+      : enrichNotesWithTableRollups(content).enrichedText;
+
     const clientOpenRouterKey = req.headers.get("x-openrouter-key") || undefined;
     const clientOpenRouterModel = req.headers.get("x-openrouter-model") || undefined;
     const clientGeminiKey = req.headers.get("x-gemini-key") || undefined;
     const clientOpenAiKey = req.headers.get("x-openai-key") || undefined;
 
     // 3. Execute Structured LLM Extraction (defaults to gemini-3.5-flash-lite)
-    const result = await extractDeckAST(content, format, templateId, {
+    const result = await extractDeckAST(finalContent, format, templateId, {
       clientOpenRouterKey,
       clientOpenRouterModel,
       clientGeminiKey,

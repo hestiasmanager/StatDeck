@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import type { ChartBlock } from "@/lib/schemas/deck-schema";
+import { formatChartValue } from "./chart-format";
 
 interface SvgHorizontalBarProps {
   chart: ChartBlock;
@@ -114,8 +115,7 @@ export function SvgHorizontalBar({
                 className="tabular-nums"
                 fill={isHovered ? accentColor : inkColor}
               >
-                {d.value}
-                {chart.unit ? ` ${chart.unit}` : ""}
+                {formatChartValue(d.value, chart.unit)}
               </text>
             </g>
           );

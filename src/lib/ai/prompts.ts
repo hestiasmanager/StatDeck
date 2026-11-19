@@ -26,6 +26,7 @@ CORE RULES & CONSTRAINTS:
    - Make 'title' punchy, bold, and curiosity-inducing (max 10-12 words).
    - Make 'subtitle' a clear, concise thesis statement.
    - Ensure high signal-to-noise ratio. Zero fluff. Keep explanations crisp.
+   - DATE ACCURACY (CRITICAL): Leave 'date' blank or omit it completely if no explicit year, quarter, or publication date is mentioned in the source input. NEVER guess, assume, or invent placeholder dates (such as "2023-Q3" or the current year) when the source does not state one.
 6. REAL COLUMN HEADERS & ROLLUP PRESERVATION (CRITICAL):
    - When the source contains tabular, CSV, or Excel data with EXACT COLUMN HEADERS, you MUST PRESERVE and USE those exact real column header names (e.g. "Book Title", "Series", "2025 Revenue ($)").
    - NEVER invent generic names like "Dimension", "Metric", "Item", "Category A", "Value", or "Option 1".

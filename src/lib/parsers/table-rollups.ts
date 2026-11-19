@@ -216,10 +216,11 @@ export function computeTableRollups(
   if (numericRollups.length > 0) {
     for (const r of numericRollups) {
       const u = r.unit;
-      const fmtTotal = u === "$" ? `$${r.total?.toLocaleString()}` : `${r.total?.toLocaleString()}${u}`;
-      const fmtAvg = u === "$" ? `$${r.average?.toLocaleString()}` : `${r.average?.toLocaleString()}${u}`;
-      const fmtMax = u === "$" ? `$${r.max?.toLocaleString()}` : `${r.max?.toLocaleString()}${u}`;
-      const fmtMin = u === "$" ? `$${r.min?.toLocaleString()}` : `${r.min?.toLocaleString()}${u}`;
+      const isPrefix = u === "$" || u === "€" || u === "£" || u === "¥" || u === "₹";
+      const fmtTotal = isPrefix ? `${u}${r.total?.toLocaleString("en-US")}` : `${r.total?.toLocaleString("en-US")}${u}`;
+      const fmtAvg = isPrefix ? `${u}${r.average?.toLocaleString("en-US")}` : `${r.average?.toLocaleString("en-US")}${u}`;
+      const fmtMax = isPrefix ? `${u}${r.max?.toLocaleString("en-US")}` : `${r.max?.toLocaleString("en-US")}${u}`;
+      const fmtMin = isPrefix ? `${u}${r.min?.toLocaleString("en-US")}` : `${r.min?.toLocaleString("en-US")}${u}`;
 
       summaryLines.push(
         `- Column "${r.header}": Total = ${fmtTotal} | Average = ${fmtAvg} | Max = ${fmtMax} (Row: "${r.maxLabel}") | Min = ${fmtMin} (Row: "${r.minLabel}")`

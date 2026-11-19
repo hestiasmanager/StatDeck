@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import type { ChartBlock } from "@/lib/schemas/deck-schema";
+import { formatChartValue } from "./chart-format";
 
 interface SvgDonutChartProps {
   chart: ChartBlock;
@@ -135,7 +136,7 @@ export function SvgDonutChart({
                 <span
                   className={`truncate ${isHovered ? "font-bold" : "font-medium"}`}
                   style={{ color: inkColor }}
-                  title={d.label}
+                  title={`${d.label}: ${formatChartValue(d.value, chart.unit)} (${pct}%)`}
                 >
                   {d.label}
                 </span>

@@ -10,7 +10,7 @@ interface KeyTakeawaysBlockProps {
 }
 
 export function KeyTakeawaysBlock({
-  title = "Key Engineering Takeaways",
+  title = "Key Takeaways",
   bullets,
   accentColor,
   inkColor,

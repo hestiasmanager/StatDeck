@@ -130,8 +130,9 @@ export function buildCarouselSlides(
               }}
             >
               <span
-                className="text-3xl md:text-4xl font-extrabold tracking-tight font-mono tabular-nums leading-none"
+                className="text-2xl md:text-3xl xl:text-4xl font-extrabold tracking-tight font-mono tabular-nums leading-tight truncate block max-w-full"
                 style={{ color: theme.accent }}
+                title={kpi.value}
               >
                 {kpi.value}
               </span>
@@ -306,7 +307,11 @@ export function buildCarouselSlides(
                 Strategic Breakdown
               </span>
               <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-                {"title" in block && block.title ? block.title : "Core Insights"}
+                {"title" in block && block.title
+                  ? block.title
+                  : block.type === "key_takeaways"
+                  ? "Key Takeaways"
+                  : "Core Insights"}
               </h2>
             </div>
             <div className="my-auto">

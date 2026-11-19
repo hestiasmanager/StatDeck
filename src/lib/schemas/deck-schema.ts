@@ -97,7 +97,12 @@ export const DeckMetaSchema = z.object({
   category: z.string().max(35).optional().describe("Topic badge e.g. 'Fintech', 'SaaS Metrics'"),
   sourceCitations: z.array(z.string().max(100)).max(4).default([]).describe("Data sources cited"),
   readTime: z.string().optional().describe("e.g. '2 min read'"),
-  date: z.string().optional().describe("Publication or analysis date"),
+  date: z
+    .string()
+    .optional()
+    .describe(
+      "Publication or analysis date strictly from source. Leave blank or omit if no explicit year or date appears in the input - do NOT invent placeholder dates like '2023-Q3'"
+    ),
 });
 
 export const OutputFormatSchema = z.enum(["infographic", "carousel", "presentation"]);
@@ -292,9 +297,21 @@ export function normalizeExtractionDeck(
     data: chart.data,
   }));
 
+  const rawDate = raw.meta?.date?.trim();
+  const cleanDate =
+    rawDate &&
+    !/^(2023-q3|placeholder|n\/?a|unknown|none|null|undefined)$/i.test(rawDate)
+      ? rawDate
+      : undefined;
+
+  const normalizedMeta = {
+    ...raw.meta,
+    date: cleanDate,
+  };
+
   return {
     id: raw.id,
-    meta: raw.meta,
+    meta: normalizedMeta,
     kpis: normalizedKpis,
     charts: normalizedCharts,
     blocks: normalizedBlocks,

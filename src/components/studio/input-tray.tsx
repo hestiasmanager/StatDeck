@@ -16,6 +16,7 @@ import {
 import { parseCsvFileClientSide } from "@/lib/parsers/client-csv";
 import { parseExcelFileClientSide } from "@/lib/parsers/client-excel";
 import { parsePdfFileClientSide } from "@/lib/parsers/client-pdf";
+import { enrichNotesWithTableRollups } from "@/lib/parsers/notes-table-enricher";
 import { SAMPLE_PRESETS } from "@/lib/ai/presets";
 import type { DeckAST, OutputFormat } from "@/lib/schemas/deck-schema";
 
@@ -256,7 +257,16 @@ Q4-2024,225000,25%,96%,9100`;
 
     setIsLoading(true);
     setErrorMessage(null);
-    setStatusMessage("Synthesizing layout AST from notes...");
+
+    // Run computeTableRollups on pasted pipe/CSV notes
+    const { enrichedText, hasTable, tableType, rowCount } = enrichNotesWithTableRollups(textInput);
+    if (hasTable) {
+      setStatusMessage(
+        `Pre-computing exact JavaScript sums for ${tableType === "pipe" ? "markdown" : "CSV"} table (${rowCount} data rows)...`
+      );
+    } else {
+      setStatusMessage("Synthesizing layout AST from notes...");
+    }
 
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => {
@@ -268,7 +278,7 @@ Q4-2024,225000,25%,96%,9100`;
         method: "POST",
         headers: getExtractionHeaders(),
         body: JSON.stringify({
-          content: textInput,
+          content: enrichedText,
           format: currentFormat,
           templateId: currentTemplateId,
         }),

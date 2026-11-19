@@ -102,7 +102,7 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
                 }}
               >
                 <span
-                  className="text-3xl md:text-4xl font-extrabold tracking-tight font-mono tabular-nums leading-none"
+                  className="text-2xl md:text-3xl xl:text-4xl font-extrabold tracking-tight font-mono tabular-nums leading-tight truncate block max-w-full"
                   style={{ color: theme.accent }}
                   contentEditable={Boolean(onUpdateText)}
                   suppressContentEditableWarning

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import type { ChartBlock } from "@/lib/schemas/deck-schema";
+import { formatChartValue } from "./chart-format";
 
 interface SvgLineChartProps {
   chart: ChartBlock;
@@ -137,10 +138,13 @@ export function SvgLineChart({
           const showPill = isMax || isMin || isLatest || isHovered;
 
           let badgeLabel = "";
-          if (isHovered) badgeLabel = `${p.value}${chart.unit || ""}`;
-          else if (isMax) badgeLabel = `High: ${p.value}${chart.unit || ""}`;
-          else if (isMin) badgeLabel = `Low: ${p.value}${chart.unit || ""}`;
-          else if (isLatest) badgeLabel = `Latest: ${p.value}${chart.unit || ""}`;
+          const fmtVal = formatChartValue(p.value, chart.unit);
+          if (isHovered) badgeLabel = fmtVal;
+          else if (isMax) badgeLabel = `High: ${fmtVal}`;
+          else if (isMin) badgeLabel = `Low: ${fmtVal}`;
+          else if (isLatest) badgeLabel = `Latest: ${fmtVal}`;
+
+          const pillWidth = Math.max(76, badgeLabel.length * 6.5 + 16);
 
           return (
             <g
@@ -176,9 +180,9 @@ export function SvgLineChart({
               {showPill && (
                 <g className="pointer-events-none transition-all duration-200">
                   <rect
-                    x={p.x - 38}
+                    x={p.x - pillWidth / 2}
                     y={Math.max(6, p.y - 28)}
-                    width="76"
+                    width={pillWidth}
                     height="19"
                     rx="5"
                     fill={isHovered || isMax ? inkColor : `${inkColor}DD`}

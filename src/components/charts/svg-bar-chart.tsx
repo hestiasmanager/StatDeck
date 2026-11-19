@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import type { ChartBlock } from "@/lib/schemas/deck-schema";
+import { formatChartValue } from "./chart-format";
 
 interface SvgBarChartProps {
   chart: ChartBlock;
@@ -61,7 +62,7 @@ export function SvgBarChart({
                 fill={inkColor}
                 opacity="0.35"
               >
-                {gridVal}
+                {formatChartValue(gridVal, chart.unit)}
               </text>
             </g>
           );
@@ -105,8 +106,7 @@ export function SvgBarChart({
                 fill={isHovered ? accentColor : inkColor}
                 opacity={isHovered ? 1 : 0.85}
               >
-                {d.value}
-                {chart.unit ? chart.unit : ""}
+                {formatChartValue(d.value, chart.unit)}
               </text>
 
               {/* Bar rectangle with clean rounded caps */}
@@ -140,9 +140,9 @@ export function SvgBarChart({
               {isHovered && (
                 <g className="pointer-events-none transition-all duration-200">
                   <rect
-                    x={x + barWidth / 2 - 45}
+                    x={x + barWidth / 2 - Math.max(45, (formatChartValue(d.value, chart.unit).length * 8 + 24) / 2)}
                     y={Math.max(10, y - 38)}
-                    width="90"
+                    width={Math.max(90, formatChartValue(d.value, chart.unit).length * 8 + 24)}
                     height="24"
                     rx="6"
                     fill={inkColor}
@@ -158,7 +158,7 @@ export function SvgBarChart({
                     className="tabular-nums"
                     fill="#FFFFFF"
                   >
-                    {d.value} {chart.unit || ""}
+                    {formatChartValue(d.value, chart.unit)}
                   </text>
                 </g>
               )}

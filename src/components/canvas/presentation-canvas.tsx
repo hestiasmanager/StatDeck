@@ -92,7 +92,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
             {ast.kpis.map((kpi, idx) => (
               <div
                 key={idx}
-                className="p-5 md:p-6 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between shadow-2xs transition-all hover:scale-[1.02]"
+                className="p-4 md:p-5 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between shadow-2xs transition-all hover:scale-[1.02] overflow-hidden min-w-0"
                 style={{
                   backgroundColor: theme.surface,
                   borderColor: theme.surfaceBorder,
@@ -100,8 +100,15 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
                 }}
               >
                 <span
-                  className="text-3xl md:text-4xl font-extrabold tracking-tight font-mono tabular-nums leading-none"
+                  className={`font-extrabold tracking-tight font-mono tabular-nums leading-tight truncate block max-w-full ${
+                    kpi.value.length > 8
+                      ? "text-xl xl:text-2xl"
+                      : kpi.value.length > 5
+                      ? "text-2xl xl:text-3xl"
+                      : "text-3xl xl:text-4xl"
+                  }`}
                   style={{ color: theme.accent }}
+                  title={kpi.value}
                 >
                   {kpi.value}
                 </span>
@@ -267,7 +274,11 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
                   Strategic Breakdown
                 </span>
                 <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-                  {"title" in block && block.title ? block.title : "Implementation Levers"}
+                  {"title" in block && block.title
+                    ? block.title
+                    : block.type === "key_takeaways"
+                    ? "Key Takeaways"
+                    : "Strategic Breakdown"}
                 </h2>
               </div>
               <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-center">
