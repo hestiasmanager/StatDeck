@@ -216,16 +216,20 @@ ${finalContent}`;
       }
 
       // Normalize and validate strictly against DeckSchema
-      const normalizedAst = normalizeExtractionDeck(parsedJson as any, format, templateId);
+      const normalizedAst = normalizeExtractionDeck(parsedJson, format, templateId);
       const zodResult = DeckSchema.safeParse(normalizedAst);
 
       if (!zodResult.success) {
-        console.error("[API /api/extract] DeckSchema validation failed:", zodResult.error.flatten());
+        const issueDetails = zodResult.error.issues
+          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; ");
+        console.error("[API /api/extract] DeckSchema validation failed:", issueDetails);
         return NextResponse.json(
           {
-            error: "Extracted deck failed schema validation against DeckSchema",
+            error: `Extracted deck failed schema validation: ${issueDetails}`,
             statusCode: 422,
             details: zodResult.error.flatten(),
+            issues: issueDetails,
             elapsedMs,
           },
           { status: 422 }
@@ -306,11 +310,21 @@ ${finalContent}`;
         );
       }
 
-      const normalizedAst = normalizeExtractionDeck(parsedJson as any, format, templateId);
+      const normalizedAst = normalizeExtractionDeck(parsedJson, format, templateId);
       const zodResult = DeckSchema.safeParse(normalizedAst);
       if (!zodResult.success) {
+        const issueDetails = zodResult.error.issues
+          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; ");
+        console.error("[API /api/extract] DeckSchema validation failed (OpenRouter):", issueDetails);
         return NextResponse.json(
-          { error: "Extracted deck failed schema validation", statusCode: 422, details: zodResult.error.flatten(), elapsedMs },
+          {
+            error: `Extracted deck failed schema validation: ${issueDetails}`,
+            statusCode: 422,
+            details: zodResult.error.flatten(),
+            issues: issueDetails,
+            elapsedMs,
+          },
           { status: 422 }
         );
       }
@@ -381,11 +395,21 @@ ${finalContent}`;
         );
       }
 
-      const normalizedAst = normalizeExtractionDeck(parsedJson as any, format, templateId);
+      const normalizedAst = normalizeExtractionDeck(parsedJson, format, templateId);
       const zodResult = DeckSchema.safeParse(normalizedAst);
       if (!zodResult.success) {
+        const issueDetails = zodResult.error.issues
+          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; ");
+        console.error("[API /api/extract] DeckSchema validation failed (OpenRouter):", issueDetails);
         return NextResponse.json(
-          { error: "Extracted deck failed schema validation", statusCode: 422, details: zodResult.error.flatten(), elapsedMs },
+          {
+            error: `Extracted deck failed schema validation: ${issueDetails}`,
+            statusCode: 422,
+            details: zodResult.error.flatten(),
+            issues: issueDetails,
+            elapsedMs,
+          },
           { status: 422 }
         );
       }

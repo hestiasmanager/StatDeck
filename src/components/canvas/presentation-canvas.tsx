@@ -175,18 +175,18 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
           {/* KPI Analytical Narrative Callout */}
           {ast.kpiNarrative && (
             <div
-              className="mt-2.5 px-4 py-2 rounded-xl border border-black/5 dark:border-white/10 flex items-center gap-2.5 shrink-0"
+              className="mt-2.5 px-4 py-2 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
               style={{
                 backgroundColor: `${theme.accent}08`,
                 borderColor: theme.surfaceBorder,
               }}
             >
               <div
-                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
                 style={{ backgroundColor: theme.accent }}
               />
               <p
-                className="text-xs leading-relaxed opacity-85 font-medium truncate"
+                className="text-xs leading-relaxed opacity-85 font-medium"
                 style={{ color: theme.ink }}
                 contentEditable={Boolean(onUpdateText)}
                 suppressContentEditableWarning
@@ -247,20 +247,20 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
           {/* "What This Shows" Callout Strip */}
           {(chart.chartInsight || ast.chartInsight) && (
             <div
-              className="mt-2 px-3.5 py-1.5 rounded-xl border border-black/5 dark:border-white/10 flex items-center gap-2.5 shrink-0"
+              className="mt-2 px-3.5 py-1.5 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
               style={{
                 backgroundColor: `${theme.accent}0A`,
                 borderColor: theme.surfaceBorder,
               }}
             >
               <span
-                className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md text-white flex-shrink-0"
+                className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md text-white flex-shrink-0 mt-0.5"
                 style={{ backgroundColor: theme.accent }}
               >
                 What This Shows
               </span>
               <p
-                className="text-xs leading-relaxed font-medium opacity-90 truncate"
+                className="text-xs leading-relaxed font-medium opacity-90"
                 style={{ color: theme.ink }}
                 title={chart.chartInsight || ast.chartInsight}
               >

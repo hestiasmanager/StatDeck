@@ -155,7 +155,10 @@ ${rawContent.slice(0, 10000)}`;
       const validatedAst = normalizeExtractionDeck(parsedJson, format, templateId);
       const zodCheck = DeckSchema.safeParse(validatedAst);
       if (!zodCheck.success) {
-        throw new Error(`Schema validation error: ${JSON.stringify(zodCheck.error.flatten())}`);
+        const issueStr = zodCheck.error.issues
+          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; ");
+        throw new Error(`Schema validation error: ${issueStr}`);
       }
 
       await redis.set(cacheKey, zodCheck.data, { ex: 604800 }).catch(() => null);

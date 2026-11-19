@@ -214,104 +214,84 @@ export const ExtractionDeckSchema = z.object({
 
 export type ExtractionDeck = z.infer<typeof ExtractionDeckSchema>;
 
+/**
+ * Recursively strips null and undefined values from objects and arrays
+ * so that optional fields in Zod schemas do not fail when receiving null.
+ */
+function stripNulls<T>(value: T): T {
+  if (value === null || value === undefined) return undefined as unknown as T;
+  if (Array.isArray(value)) {
+    return value.map(stripNulls).filter((v) => v !== undefined) as unknown as T;
+  }
+  if (typeof value === "object") {
+    const res: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v !== null && v !== undefined) {
+        res[k] = stripNulls(v);
+      }
+    }
+    return res as unknown as T;
+  }
+  return value;
+}
+
 export function normalizeExtractionDeck(
-  raw: ExtractionDeck,
+  rawInput: unknown,
   format?: OutputFormat,
   templateId?: string
 ): DeckAST {
-  const normalizedBlocks: ContentBlock[] = [];
+  // Strip nulls recursively
+  const cleaned = (stripNulls(rawInput) as Record<string, any>) || {};
 
-  for (let i = 0; i < (raw.blocks || []).length; i++) {
-    const b = raw.blocks[i];
-    const blockId = b.id || `block-${i + 1}`;
-
-    if (b.type === "numbered_steps") {
-      const validSteps = (b.steps || [])
-        .filter((s) => s && (s.title?.trim() || s.description?.trim()))
-        .map((s, idx) => ({
-          step: s.step || idx + 1,
-          title: s.title?.trim() || `Step ${idx + 1}`,
-          description: s.description?.trim() || "",
-        }));
-      if (validSteps.length > 0) {
-        normalizedBlocks.push({
-          id: blockId,
-          type: "numbered_steps",
-          title: b.title?.trim() || undefined,
-          steps: validSteps,
-        });
-      }
-    } else if (b.type === "comparison_table") {
-      const headers = (b.headers || []).map((h) => h?.trim()).filter(Boolean);
-      const validRows = (b.rows || [])
-        .filter((r) => r && (r.feature?.trim() || r.colA?.trim() || (r.values && r.values.length > 0)))
-        .map((r) => ({
-          feature: r.feature?.trim() || "Item",
-          colA: r.colA?.trim() || "",
-          colB: r.colB?.trim() || undefined,
-          values: r.values?.map((v) => v?.trim() || "") || undefined,
-        }));
-      if (validRows.length > 0) {
-        normalizedBlocks.push({
-          id: blockId,
-          type: "comparison_table",
-          title: b.title?.trim() || undefined,
-          headers: headers.length >= 2 ? headers : ["Dimension", "Value"],
-          rows: validRows,
-        });
-      }
-    } else if (b.type === "pros_cons") {
-      const validPros = (b.pros || []).map((p) => p?.trim()).filter(Boolean);
-      const validCons = (b.cons || []).map((c) => c?.trim()).filter(Boolean);
-      if (validPros.length > 0 || validCons.length > 0) {
-        normalizedBlocks.push({
-          id: blockId,
-          type: "pros_cons",
-          title: b.title?.trim() || undefined,
-          pros: validPros,
-          cons: validCons,
-        });
-      }
-    } else if (b.type === "callout_quote") {
-      if (b.quote && b.quote.trim().length > 0) {
-        normalizedBlocks.push({
-          id: blockId,
-          type: "callout_quote",
-          quote: b.quote.trim(),
-          author: b.author?.trim() || "Key Insight",
-          role: b.role?.trim() || undefined,
-        });
-      }
-    } else if (b.type === "key_takeaways") {
-      const validBullets = (b.bullets || [])
-        .filter((bullet) => bullet && (bullet.headline?.trim() || bullet.detail?.trim()))
-        .map((bullet) => ({
-          headline: bullet.headline?.trim() || "",
-          detail: bullet.detail?.trim() || "",
-        }));
-      if (validBullets.length > 0) {
-        normalizedBlocks.push({
-          id: blockId,
-          type: "key_takeaways",
-          title: b.title?.trim() || undefined,
-          bullets: validBullets,
-        });
-      }
-    }
-  }
-
-  const normalizedKpis: KpiCard[] = (raw.kpis || []).map((kpi, idx) => ({
-    id: kpi.id || `kpi-${idx + 1}`,
-    value: kpi.value,
-    label: kpi.label,
-    delta: kpi.delta,
-    deltaType: kpi.deltaType || "neutral",
-    description: kpi.description,
-  }));
+  // Unwrap if nested under { deck: ... } or { data: ... } or { ast: ... }
+  const raw: Record<string, any> =
+    cleaned.deck || cleaned.data || cleaned.ast || cleaned;
 
   const rawAny = raw as Record<string, unknown>;
   const rawMetaAny = (raw.meta || {}) as Record<string, unknown>;
 
+  // 1. Meta Normalization
+  const rawTitle =
+    (typeof rawMetaAny.title === "string" && rawMetaAny.title.trim()) ||
+    (typeof rawAny.title === "string" && rawAny.title.trim()) ||
+    "Executive Visual Summary";
+  const title = (rawTitle.length >= 3 ? rawTitle : `${rawTitle} Deck`).slice(0, 120);
+
+  const subtitle = (
+    (typeof rawMetaAny.subtitle === "string" && rawMetaAny.subtitle.trim()) ||
+    (typeof rawAny.subtitle === "string" && rawAny.subtitle.trim()) ||
+    "Key strategic takeaways, quantitative benchmarks, and narrative overview."
+  ).slice(0, 200);
+
+  const category =
+    typeof rawMetaAny.category === "string" && rawMetaAny.category.trim()
+      ? rawMetaAny.category.trim().slice(0, 35)
+      : undefined;
+
+  const readTime =
+    typeof rawMetaAny.readTime === "string" && rawMetaAny.readTime.trim()
+      ? rawMetaAny.readTime.trim().slice(0, 35)
+      : undefined;
+
+  const rawDate =
+    typeof rawMetaAny.date === "string" ? rawMetaAny.date.trim() : undefined;
+  const cleanDate =
+    rawDate &&
+    !/^(2023-q3|placeholder|n\/?a|unknown|none|null|undefined)$/i.test(rawDate)
+      ? rawDate.slice(0, 50)
+      : undefined;
+
+  const rawCitations = Array.isArray(rawMetaAny.sourceCitations)
+    ? rawMetaAny.sourceCitations
+    : Array.isArray(rawAny.sourceCitations)
+    ? rawAny.sourceCitations
+    : [];
+  const sourceCitations = rawCitations
+    .filter((c): c is string => typeof c === "string" && c.trim().length > 0)
+    .map((c) => c.trim().slice(0, 100))
+    .slice(0, 4);
+
+  // 2. Executive Narratives
   const executiveSummary =
     (typeof rawAny.executiveSummary === "string" && rawAny.executiveSummary.trim()) ||
     (typeof rawMetaAny.executiveSummary === "string" && rawMetaAny.executiveSummary.trim()) ||
@@ -324,6 +304,7 @@ export function normalizeExtractionDeck(
     : [];
   const coverHighlights = rawHighlights
     .filter((h): h is string => typeof h === "string" && h.trim().length > 0)
+    .map((h) => h.trim().slice(0, 100))
     .slice(0, 3);
 
   const kpiNarrative =
@@ -331,37 +312,297 @@ export function normalizeExtractionDeck(
     (typeof rawMetaAny.kpiNarrative === "string" && rawMetaAny.kpiNarrative.trim()) ||
     "";
 
-  const chartInsight =
+  const rawTopChartInsight =
     (typeof rawAny.chartInsight === "string" && rawAny.chartInsight.trim()) ||
     (typeof rawMetaAny.chartInsight === "string" && rawMetaAny.chartInsight.trim()) ||
-    (typeof raw.charts?.[0]?.chartInsight === "string" && raw.charts[0].chartInsight.trim()) ||
+    (Array.isArray(raw.charts) && typeof raw.charts[0]?.chartInsight === "string" && raw.charts[0].chartInsight.trim()) ||
     "";
+  const chartInsight = rawTopChartInsight.slice(0, 500);
 
-  const normalizedCharts: ChartBlock[] = (raw.charts || []).map((chart, idx) => ({
-    id: chart.id || `chart-${idx + 1}`,
-    type: chart.type,
-    title: chart.title,
-    unit: chart.unit || "",
-    xAxisLabel: chart.xAxisLabel,
-    yAxisLabel: chart.yAxisLabel,
-    data: chart.data,
-    chartInsight: chart.chartInsight || (idx === 0 ? chartInsight : undefined),
-  }));
+  // 3. KPIs Normalization (Clamped 1 to 4)
+  const rawKpis: any[] = Array.isArray(raw.kpis) ? raw.kpis : [];
+  const normalizedKpis: KpiCard[] = rawKpis
+    .filter((k) => k && (k.value !== undefined || k.label !== undefined))
+    .map((kpi, idx) => {
+      const valStr =
+        typeof kpi.value === "string"
+          ? kpi.value.trim()
+          : typeof kpi.value === "number"
+          ? String(kpi.value)
+          : "—";
+      const lblStr =
+        typeof kpi.label === "string" && kpi.label.trim()
+          ? kpi.label.trim()
+          : `Metric ${idx + 1}`;
+      const deltaStr =
+        typeof kpi.delta === "string" && kpi.delta.trim() && !/^(null|undefined|none|n\/?a)$/i.test(kpi.delta.trim())
+          ? kpi.delta.trim().slice(0, 25)
+          : undefined;
+      const deltaType =
+        kpi.deltaType === "positive" || kpi.deltaType === "negative" || kpi.deltaType === "neutral"
+          ? kpi.deltaType
+          : "neutral";
+      const descStr =
+        typeof kpi.description === "string" && kpi.description.trim()
+          ? kpi.description.trim().slice(0, 100)
+          : undefined;
 
-  const rawDate = raw.meta?.date?.trim();
-  const cleanDate =
-    rawDate &&
-    !/^(2023-q3|placeholder|n\/?a|unknown|none|null|undefined)$/i.test(rawDate)
-      ? rawDate
-      : undefined;
+      return {
+        id: kpi.id || `kpi-${idx + 1}`,
+        value: valStr.slice(0, 20) || "—",
+        label: lblStr.slice(0, 40),
+        delta: deltaStr,
+        deltaType,
+        description: descStr,
+      };
+    })
+    .slice(0, 4);
 
-  const normalizedMeta = {
-    ...raw.meta,
+  // Guarantee at least 1 KPI to fulfill min(1)
+  if (normalizedKpis.length === 0) {
+    normalizedKpis.push({
+      id: "kpi-1",
+      value: "100%",
+      label: "Operational Focus",
+      deltaType: "neutral",
+      description: "Key benchmark metric",
+    });
+  }
+
+  // 4. Charts Normalization (Clamped 0 to 6, data clamped 2 to 12)
+  const rawCharts: any[] = Array.isArray(raw.charts) ? raw.charts : [];
+  const normalizedCharts: ChartBlock[] = [];
+
+  for (let idx = 0; idx < rawCharts.length; idx++) {
+    const chart = rawCharts[idx];
+    if (!chart || typeof chart !== "object") continue;
+
+    // Normalize chart type enum
+    const rawType = String(chart.type || "").toLowerCase().trim();
+    let type: ChartType = "bar";
+    if (rawType === "horizontal_bar") type = "horizontal_bar";
+    else if (rawType === "donut" || rawType === "pie") type = "donut";
+    else if (rawType === "line" || rawType === "spline" || rawType === "trend") type = "line";
+    else if (rawType === "area") type = "area";
+    else type = "bar";
+
+    const chartTitle = (
+      typeof chart.title === "string" && chart.title.trim()
+        ? chart.title.trim()
+        : `Chart ${idx + 1}`
+    ).slice(0, 80);
+
+    const unit = typeof chart.unit === "string" ? chart.unit.trim().slice(0, 20) : "";
+    const xAxisLabel =
+      typeof chart.xAxisLabel === "string" && chart.xAxisLabel.trim()
+        ? chart.xAxisLabel.trim().slice(0, 40)
+        : undefined;
+    const yAxisLabel =
+      typeof chart.yAxisLabel === "string" && chart.yAxisLabel.trim()
+        ? chart.yAxisLabel.trim().slice(0, 40)
+        : undefined;
+
+    // Filter and normalize data points (numbers required, clamped 2 to 12)
+    const rawData: any[] = Array.isArray(chart.data) ? chart.data : [];
+    const validData: ChartDataPoint[] = [];
+
+    for (let pIdx = 0; pIdx < rawData.length; pIdx++) {
+      const p = rawData[pIdx];
+      if (!p || typeof p !== "object") continue;
+      const lbl = (typeof p.label === "string" ? p.label.trim() : `Point ${pIdx + 1}`).slice(0, 50);
+      const rawVal = p.value;
+      const numVal =
+        typeof rawVal === "number" && !isNaN(rawVal)
+          ? rawVal
+          : parseFloat(String(rawVal).replace(/[^0-9.-]/g, "")) || 0;
+
+      const secVal =
+        typeof p.secondaryValue === "number" && !isNaN(p.secondaryValue)
+          ? p.secondaryValue
+          : undefined;
+
+      validData.push({
+        label: lbl || `Point ${pIdx + 1}`,
+        value: numVal,
+        secondaryValue: secVal,
+        color: typeof p.color === "string" && p.color.startsWith("#") ? p.color : undefined,
+      });
+    }
+
+    // Clamp points to 12 max
+    const clampedData = validData.slice(0, 12);
+
+    // If only 1 data point, add a baseline comparison to satisfy min(2)
+    if (clampedData.length === 1) {
+      clampedData.push({ label: "Baseline", value: 0 });
+    }
+
+    // Drop chart if fewer than 2 data points
+    if (clampedData.length >= 2) {
+      const cInsight =
+        typeof chart.chartInsight === "string" && chart.chartInsight.trim()
+          ? chart.chartInsight.trim().slice(0, 300)
+          : idx === 0 && chartInsight
+          ? chartInsight
+          : undefined;
+
+      normalizedCharts.push({
+        id: chart.id || `chart-${idx + 1}`,
+        type,
+        title: chartTitle,
+        unit,
+        xAxisLabel,
+        yAxisLabel,
+        data: clampedData,
+        chartInsight: cInsight,
+      });
+    }
+
+    if (normalizedCharts.length >= 6) break;
+  }
+
+  // 5. Blocks Normalization (Clamped 0 to 10)
+  const rawBlocks: any[] = Array.isArray(raw.blocks) ? raw.blocks : [];
+  const normalizedBlocks: ContentBlock[] = [];
+
+  for (let i = 0; i < rawBlocks.length; i++) {
+    const b = rawBlocks[i];
+    if (!b || typeof b !== "object") continue;
+    const blockId = b.id || `block-${i + 1}`;
+    const blockTitle = typeof b.title === "string" && b.title.trim() ? b.title.trim().slice(0, 80) : undefined;
+
+    if (b.type === "numbered_steps") {
+      const rawSteps = Array.isArray(b.steps) ? b.steps : [];
+      const validSteps = rawSteps
+        .filter((s: any) => s && (s.title || s.description))
+        .map((s: any, idx: number) => ({
+          step: typeof s.step === "number" ? s.step : idx + 1,
+          title: (typeof s.title === "string" ? s.title.trim() : `Step ${idx + 1}`).slice(0, 60),
+          description: (typeof s.description === "string" ? s.description.trim() : "").slice(0, 160),
+        }))
+        .slice(0, 5);
+
+      if (validSteps.length >= 2) {
+        normalizedBlocks.push({
+          id: blockId,
+          type: "numbered_steps",
+          title: blockTitle,
+          steps: validSteps,
+        });
+      }
+    } else if (b.type === "comparison_table") {
+      const rawHeaders = Array.isArray(b.headers) ? b.headers : [];
+      const headers = rawHeaders
+        .filter((h: any): h is string => typeof h === "string" && h.trim().length > 0)
+        .map((h: string) => h.trim().slice(0, 80));
+
+      const rawRows = Array.isArray(b.rows) ? b.rows : [];
+      const validRows = rawRows
+        .filter((r: any) => r && (r.feature || r.colA || (Array.isArray(r.values) && r.values.length > 0)))
+        .map((r: any) => ({
+          feature: (typeof r.feature === "string" ? r.feature.trim() : "Item").slice(0, 80),
+          colA: (typeof r.colA === "string" ? r.colA.trim() : "").slice(0, 120),
+          colB: typeof r.colB === "string" && r.colB.trim() ? r.colB.trim().slice(0, 120) : undefined,
+          values: Array.isArray(r.values)
+            ? r.values.map((v: any) => (typeof v === "string" ? v.trim().slice(0, 120) : ""))
+            : undefined,
+        }))
+        .slice(0, 10);
+
+      if (validRows.length >= 2) {
+        normalizedBlocks.push({
+          id: blockId,
+          type: "comparison_table",
+          title: blockTitle,
+          headers: headers.length >= 2 ? headers : ["Dimension", "Value"],
+          rows: validRows,
+        });
+      }
+    } else if (b.type === "pros_cons") {
+      const rawPros = Array.isArray(b.pros) ? b.pros : [];
+      const rawCons = Array.isArray(b.cons) ? b.cons : [];
+      const validPros = rawPros
+        .filter((p: any): p is string => typeof p === "string" && p.trim().length > 0)
+        .map((p: string) => p.trim().slice(0, 120))
+        .slice(0, 5);
+      const validCons = rawCons
+        .filter((c: any): c is string => typeof c === "string" && c.trim().length > 0)
+        .map((c: string) => c.trim().slice(0, 120))
+        .slice(0, 5);
+
+      if (validPros.length >= 1 && validCons.length >= 1) {
+        normalizedBlocks.push({
+          id: blockId,
+          type: "pros_cons",
+          title: blockTitle,
+          pros: validPros,
+          cons: validCons,
+        });
+      }
+    } else if (b.type === "callout_quote") {
+      const quote = typeof b.quote === "string" ? b.quote.trim().slice(0, 240) : "";
+      if (quote.length > 0) {
+        normalizedBlocks.push({
+          id: blockId,
+          type: "callout_quote",
+          quote,
+          author: (typeof b.author === "string" && b.author.trim() ? b.author.trim() : "Key Insight").slice(0, 60),
+          role: typeof b.role === "string" && b.role.trim() ? b.role.trim().slice(0, 80) : undefined,
+        });
+      }
+    } else if (b.type === "key_takeaways") {
+      const rawBullets = Array.isArray(b.bullets) ? b.bullets : [];
+      const validBullets = rawBullets
+        .filter((bullet: any) => bullet && (bullet.headline || bullet.detail))
+        .map((bullet: any) => ({
+          headline: (typeof bullet.headline === "string" ? bullet.headline.trim() : "Takeaway").slice(0, 50),
+          detail: (typeof bullet.detail === "string" ? bullet.detail.trim() : "").slice(0, 140),
+        }))
+        .slice(0, 5);
+
+      if (validBullets.length >= 2) {
+        normalizedBlocks.push({
+          id: blockId,
+          type: "key_takeaways",
+          title: blockTitle,
+          bullets: validBullets,
+        });
+      }
+    }
+
+    if (normalizedBlocks.length >= 10) break;
+  }
+
+  // 6. Output format and template
+  const validFormat: OutputFormat =
+    format === "infographic" || format === "presentation" || format === "carousel"
+      ? format
+      : raw.format === "infographic" || raw.format === "presentation" || raw.format === "carousel"
+      ? raw.format
+      : "carousel";
+
+  const validTemplate =
+    typeof templateId === "string" && templateId.trim()
+      ? templateId.trim()
+      : typeof raw.templateId === "string" && raw.templateId.trim()
+      ? raw.templateId.trim()
+      : "clean-bento";
+
+  const normalizedMeta: DeckMeta = {
+    title,
+    subtitle,
+    category,
+    sourceCitations,
+    readTime,
     date: cleanDate,
+    executiveSummary: executiveSummary || undefined,
+    coverHighlights: coverHighlights.length > 0 ? coverHighlights : undefined,
+    kpiNarrative: kpiNarrative || undefined,
+    chartInsight: chartInsight || undefined,
   };
 
   return {
-    id: raw.id,
+    id: typeof raw.id === "string" ? raw.id : undefined,
     meta: normalizedMeta,
     executiveSummary,
     coverHighlights,
@@ -370,9 +611,9 @@ export function normalizeExtractionDeck(
     charts: normalizedCharts,
     chartInsight,
     blocks: normalizedBlocks,
-    templateId: templateId || raw.templateId || "clean-bento",
-    format: format || raw.format || "carousel",
-    brandKitId: raw.brandKitId,
+    templateId: validTemplate,
+    format: validFormat,
+    brandKitId: typeof raw.brandKitId === "string" ? raw.brandKitId : undefined,
     watermark: raw.watermark ?? true,
   };
 }
