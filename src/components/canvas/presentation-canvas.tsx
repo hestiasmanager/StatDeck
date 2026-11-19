@@ -65,6 +65,40 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
                 {ast.meta.subtitle}
               </p>
             )}
+            {/* Executive Summary */}
+            {ast.executiveSummary && (
+              <p
+                className="text-xs md:text-sm opacity-80 leading-relaxed font-normal max-w-xl mt-2.5"
+                style={{ color: theme.ink, fontFamily: theme.fontBody }}
+                contentEditable={Boolean(onUpdateText)}
+                suppressContentEditableWarning
+                onBlur={(e) => onUpdateText?.("executiveSummary", e.currentTarget.textContent || "")}
+              >
+                {ast.executiveSummary}
+              </p>
+            )}
+            {/* Cover Takeaway Highlights */}
+            {ast.coverHighlights && ast.coverHighlights.length > 0 && (
+              <div className="flex flex-col gap-1.5 mt-2.5 max-w-xl">
+                {ast.coverHighlights.slice(0, 3).map((highlight, hIdx) => (
+                  <div
+                    key={hIdx}
+                    className="flex items-center gap-2 text-xs font-medium px-3 py-1 rounded-lg border border-black/5 dark:border-white/10"
+                    style={{
+                      backgroundColor: `${theme.accent}0A`,
+                      borderColor: theme.surfaceBorder,
+                      color: theme.ink,
+                    }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: theme.accent }}
+                    />
+                    <span className="leading-snug truncate">{highlight}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-between border-t border-black/10 dark:border-white/10 pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-mono opacity-60">
@@ -138,6 +172,31 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
               </div>
             ))}
           </div>
+          {/* KPI Analytical Narrative Callout */}
+          {ast.kpiNarrative && (
+            <div
+              className="mt-2.5 px-4 py-2 rounded-xl border border-black/5 dark:border-white/10 flex items-center gap-2.5 shrink-0"
+              style={{
+                backgroundColor: `${theme.accent}08`,
+                borderColor: theme.surfaceBorder,
+              }}
+            >
+              <div
+                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: theme.accent }}
+              />
+              <p
+                className="text-xs leading-relaxed opacity-85 font-medium truncate"
+                style={{ color: theme.ink }}
+                contentEditable={Boolean(onUpdateText)}
+                suppressContentEditableWarning
+                onBlur={(e) => onUpdateText?.("kpiNarrative", e.currentTarget.textContent || "")}
+                title={ast.kpiNarrative}
+              >
+                {ast.kpiNarrative}
+              </p>
+            </div>
+          )}
           <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-mono opacity-60">Executive Summary</span>
             <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
@@ -185,6 +244,30 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
               )}
             </div>
           </div>
+          {/* "What This Shows" Callout Strip */}
+          {(chart.chartInsight || ast.chartInsight) && (
+            <div
+              className="mt-2 px-3.5 py-1.5 rounded-xl border border-black/5 dark:border-white/10 flex items-center gap-2.5 shrink-0"
+              style={{
+                backgroundColor: `${theme.accent}0A`,
+                borderColor: theme.surfaceBorder,
+              }}
+            >
+              <span
+                className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md text-white flex-shrink-0"
+                style={{ backgroundColor: theme.accent }}
+              >
+                What This Shows
+              </span>
+              <p
+                className="text-xs leading-relaxed font-medium opacity-90 truncate"
+                style={{ color: theme.ink }}
+                title={chart.chartInsight || ast.chartInsight}
+              >
+                {chart.chartInsight || ast.chartInsight}
+              </p>
+            </div>
+          )}
           <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-mono opacity-60 truncate max-w-[400px]">{chart.title}</span>
             <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />

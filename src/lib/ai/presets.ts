@@ -10,6 +10,17 @@ export const SAMPLE_PRESETS: Record<string, DeckAST> = {
       readTime: "2 min read",
       date: "Nov 2024",
     },
+    executiveSummary:
+      "Top-performing B2B software vendors have shifted from aggressive new-logo acquisition to compounding expansion loops, driving median Net Dollar Retention above 124% while compressing logo churn to historic lows.",
+    coverHighlights: [
+      "NDR expansion of 124% offsets enterprise contraction",
+      "Monthly logo churn controlled below 0.60%",
+      "Enterprise ACVs expanded 34% via consumption tiers",
+    ],
+    kpiNarrative:
+      "Strongest growth cohorts demonstrate that multi-product adoption and automated usage gates generate 3.2x higher customer lifetime value than traditional seat-based licenses.",
+    chartInsight:
+      "Enterprise contracts over $100K ARR demonstrate 142% net expansion, outperforming SMB tiers (<$5K ARR at 96%) by 46 percentage points.",
     kpis: [
       {
         id: "kpi-1",
@@ -52,6 +63,8 @@ export const SAMPLE_PRESETS: Record<string, DeckAST> = {
         unit: "%",
         xAxisLabel: "Contract Size",
         yAxisLabel: "Net Dollar Retention",
+        chartInsight:
+          "Enterprise contracts over $100K ARR demonstrate 142% net expansion, outperforming SMB tiers (<$5K ARR at 96%) by 46 percentage points.",
         data: [
           { label: "< $5K", value: 96 },
           { label: "$5K-$20K", value: 108 },
@@ -110,6 +123,17 @@ export const SAMPLE_PRESETS: Record<string, DeckAST> = {
       readTime: "3 min read",
       date: "Nov 2024",
     },
+    executiveSummary:
+      "A structural transition toward small specialized inference models, prompt compilation, and aggressive client-side caching has compressed enterprise AI serving costs by 88% year-over-year.",
+    coverHighlights: [
+      "Inference unit costs dropped 88% down to $0.075 / 1M tokens",
+      "Time-to-first-token decreased 65% to 42ms via speculative decoding",
+      "Zero-cost caching achieved 100% savings on repeat queries",
+    ],
+    kpiNarrative:
+      "Shifting routine extraction and parsing workloads to lightweight flash models eliminates GPU cluster bloat while maintaining 99.4% structured schema compliance.",
+    chartInsight:
+      "Vector search, persistent memory, and fine-tuning consume 56% of total operational AI budgets, while raw token generation represents under 18%.",
     kpis: [
       {
         id: "kpi-ai-1",
@@ -150,6 +174,8 @@ export const SAMPLE_PRESETS: Record<string, DeckAST> = {
         type: "donut",
         title: "Breakdown of Enterprise AI Operational Spend",
         unit: "%",
+        chartInsight:
+          "Vector search, persistent memory, and fine-tuning consume 56% of total operational AI budgets, while raw token generation represents under 18%.",
         data: [
           { label: "Vector Search & DB", value: 32 },
           { label: "Model Fine-tuning", value: 24 },

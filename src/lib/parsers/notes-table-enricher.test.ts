@@ -11,6 +11,10 @@ export function runTests() {
   console.assert(formatChartValue(84.3, "%") === "84.3%", `Expected 84.3%, got ${formatChartValue(84.3, "%")}`);
   console.assert(formatChartValue(150, "users") === "150 users", `Expected 150 users, got ${formatChartValue(150, "users")}`);
   console.assert(formatChartValue(100) === "100", `Expected 100, got ${formatChartValue(100)}`);
+  // Negative currency formatting
+  console.assert(formatChartValue(-1200, "$") === "-$1,200", `Expected -$1,200, got ${formatChartValue(-1200, "$")}`);
+  console.assert(formatChartValue(-500, "€") === "-€500", `Expected -€500, got ${formatChartValue(-500, "€")}`);
+  console.assert(formatChartValue(-14.2, "%") === "-14.2%", `Expected -14.2%, got ${formatChartValue(-14.2, "%")}`);
   console.log("[PASS] formatChartValue passed all tests.");
 
   console.log("--- 2. Testing enrichNotesWithTableRollups with Pipe Table ---");
@@ -75,6 +79,21 @@ Total,2050,$267200`;
   const normalizedReal = normalizeExtractionDeck(realDateDeck);
   console.assert(normalizedReal.meta.date === "October 2024", `Real date should be preserved, got: ${normalizedReal.meta.date}`);
   console.log("[PASS] normalizeExtractionDeck date sanitization passed.");
+
+  console.log("--- 5. Testing Written Context Extraction & Normalization ---");
+  const deckWithContext = {
+    ...testDeck,
+    executiveSummary: "Executive briefing for Slide 1",
+    coverHighlights: ["Highlight 1", "Highlight 2"],
+    kpiNarrative: "KPI narrative for Slide 2",
+    chartInsight: "Chart insight for Slide 3",
+  };
+  const normContext = normalizeExtractionDeck(deckWithContext);
+  console.assert(normContext.executiveSummary === "Executive briefing for Slide 1", "Executive summary should match");
+  console.assert(normContext.coverHighlights.length === 2, "Cover highlights should have 2 items");
+  console.assert(normContext.kpiNarrative === "KPI narrative for Slide 2", "KPI narrative should match");
+  console.assert(normContext.chartInsight === "Chart insight for Slide 3", "Chart insight should match");
+  console.log("[PASS] Written context extraction and normalization passed.");
 
   console.log("ALL TESTS COMPLETED SUCCESSFULLY!");
 }

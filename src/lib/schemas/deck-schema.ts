@@ -26,6 +26,7 @@ export const ChartBlockSchema = z.object({
   xAxisLabel: z.string().optional(),
   yAxisLabel: z.string().optional(),
   data: z.array(ChartDataPointSchema).min(2).max(12),
+  chartInsight: z.string().optional().describe("1-2 sentence 'What This Shows' analytical insight"),
 });
 
 export const KpiCardSchema = z.object({
@@ -103,6 +104,10 @@ export const DeckMetaSchema = z.object({
     .describe(
       "Publication or analysis date strictly from source. Leave blank or omit if no explicit year or date appears in the input - do NOT invent placeholder dates like '2023-Q3'"
     ),
+  executiveSummary: z.string().optional(),
+  coverHighlights: z.array(z.string()).max(3).optional(),
+  kpiNarrative: z.string().optional(),
+  chartInsight: z.string().optional(),
 });
 
 export const OutputFormatSchema = z.enum(["infographic", "carousel", "presentation"]);
@@ -110,8 +115,25 @@ export const OutputFormatSchema = z.enum(["infographic", "carousel", "presentati
 export const DeckSchema = z.object({
   id: z.string().uuid().optional(),
   meta: DeckMetaSchema,
+  executiveSummary: z
+    .string()
+    .default("")
+    .describe("1-2 sentence executive briefing or narrative overview of the deck rendered on Slide 1"),
+  coverHighlights: z
+    .array(z.string().max(100))
+    .max(3)
+    .default([])
+    .describe("Up to 3 high-impact takeaway bullet points for Slide 1 (Cover)"),
   kpis: z.array(KpiCardSchema).min(1).max(4).describe("1 to 4 core high-impact metrics"),
+  kpiNarrative: z
+    .string()
+    .default("")
+    .describe("1-2 sentence analytical narrative explaining the KPI performance directly below the cards on Slide 2"),
   charts: z.array(ChartBlockSchema).max(6).describe("0 to 6 primary data charts"),
+  chartInsight: z
+    .string()
+    .default("")
+    .describe("1-2 sentence 'What This Shows' callout strip directly below the chart on Slide 3"),
   blocks: z.array(BlockSchema).max(10).describe("Structured process, comparison, or takeaway blocks"),
   templateId: z.string().default("clean-bento"),
   format: OutputFormatSchema.default("carousel"),
@@ -287,6 +309,34 @@ export function normalizeExtractionDeck(
     description: kpi.description,
   }));
 
+  const rawAny = raw as Record<string, unknown>;
+  const rawMetaAny = (raw.meta || {}) as Record<string, unknown>;
+
+  const executiveSummary =
+    (typeof rawAny.executiveSummary === "string" && rawAny.executiveSummary.trim()) ||
+    (typeof rawMetaAny.executiveSummary === "string" && rawMetaAny.executiveSummary.trim()) ||
+    "";
+
+  const rawHighlights = Array.isArray(rawAny.coverHighlights)
+    ? rawAny.coverHighlights
+    : Array.isArray(rawMetaAny.coverHighlights)
+    ? rawMetaAny.coverHighlights
+    : [];
+  const coverHighlights = rawHighlights
+    .filter((h): h is string => typeof h === "string" && h.trim().length > 0)
+    .slice(0, 3);
+
+  const kpiNarrative =
+    (typeof rawAny.kpiNarrative === "string" && rawAny.kpiNarrative.trim()) ||
+    (typeof rawMetaAny.kpiNarrative === "string" && rawMetaAny.kpiNarrative.trim()) ||
+    "";
+
+  const chartInsight =
+    (typeof rawAny.chartInsight === "string" && rawAny.chartInsight.trim()) ||
+    (typeof rawMetaAny.chartInsight === "string" && rawMetaAny.chartInsight.trim()) ||
+    (typeof raw.charts?.[0]?.chartInsight === "string" && raw.charts[0].chartInsight.trim()) ||
+    "";
+
   const normalizedCharts: ChartBlock[] = (raw.charts || []).map((chart, idx) => ({
     id: chart.id || `chart-${idx + 1}`,
     type: chart.type,
@@ -295,6 +345,7 @@ export function normalizeExtractionDeck(
     xAxisLabel: chart.xAxisLabel,
     yAxisLabel: chart.yAxisLabel,
     data: chart.data,
+    chartInsight: chart.chartInsight || (idx === 0 ? chartInsight : undefined),
   }));
 
   const rawDate = raw.meta?.date?.trim();
@@ -312,8 +363,12 @@ export function normalizeExtractionDeck(
   return {
     id: raw.id,
     meta: normalizedMeta,
+    executiveSummary,
+    coverHighlights,
     kpis: normalizedKpis,
+    kpiNarrative,
     charts: normalizedCharts,
+    chartInsight,
     blocks: normalizedBlocks,
     templateId: templateId || raw.templateId || "clean-bento",
     format: format || raw.format || "carousel",

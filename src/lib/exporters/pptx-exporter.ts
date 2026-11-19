@@ -63,12 +63,38 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
   if (ast.meta.subtitle) {
     slide1.addText(ast.meta.subtitle, {
       x: 1.0,
-      y: 4.2,
+      y: 4.0,
       w: 11.0,
-      h: 1.2,
-      fontSize: 18,
+      h: 0.9,
+      fontSize: 16,
       color: inkMutedHex,
       fontFace: "Calibri",
+    });
+  }
+
+  // Executive Summary & Highlights
+  if (ast.executiveSummary) {
+    slide1.addText(ast.executiveSummary, {
+      x: 1.0,
+      y: 4.9,
+      w: 11.0,
+      h: 0.7,
+      fontSize: 13,
+      color: inkHex,
+      fontFace: "Calibri",
+    });
+  }
+
+  if (ast.coverHighlights && ast.coverHighlights.length > 0) {
+    const highlightsText = ast.coverHighlights.map((h) => `• ${h}`).join("   |   ");
+    slide1.addText(highlightsText, {
+      x: 1.0,
+      y: 5.6,
+      w: 11.0,
+      h: 0.4,
+      fontSize: 11,
+      bold: true,
+      color: accentHex,
     });
   }
 
@@ -194,6 +220,18 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
     }
   });
 
+  if (ast.kpiNarrative) {
+    slide2.addText(ast.kpiNarrative, {
+      x: 1.0,
+      y: 5.8,
+      w: 11.3,
+      h: 0.6,
+      fontSize: 12,
+      color: inkHex,
+      italic: true,
+    });
+  }
+
   // ----------------------------------------------------
   // Dynamic Charts: Native PowerPoint Charts (0 to 6 charts)
   // ----------------------------------------------------
@@ -245,12 +283,25 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
       x: 1.0,
       y: 2.1,
       w: 11.3,
-      h: 4.4,
+      h: 4.1,
       showLegend: chart.type === "donut",
       chartColors,
       barDir: chart.type === "horizontal_bar" ? "bar" : "col",
       plotArea: { fill: { color: surfaceHex } },
     });
+
+    const insightText = chart.chartInsight || ast.chartInsight;
+    if (insightText) {
+      chartSlide.addText(`What This Shows: ${insightText}`, {
+        x: 1.0,
+        y: 6.4,
+        w: 11.3,
+        h: 0.4,
+        fontSize: 11,
+        color: inkMutedHex,
+        bold: true,
+      });
+    }
   });
 
   // ----------------------------------------------------

@@ -217,10 +217,17 @@ export function computeTableRollups(
     for (const r of numericRollups) {
       const u = r.unit;
       const isPrefix = u === "$" || u === "€" || u === "£" || u === "¥" || u === "₹";
-      const fmtTotal = isPrefix ? `${u}${r.total?.toLocaleString("en-US")}` : `${r.total?.toLocaleString("en-US")}${u}`;
-      const fmtAvg = isPrefix ? `${u}${r.average?.toLocaleString("en-US")}` : `${r.average?.toLocaleString("en-US")}${u}`;
-      const fmtMax = isPrefix ? `${u}${r.max?.toLocaleString("en-US")}` : `${r.max?.toLocaleString("en-US")}${u}`;
-      const fmtMin = isPrefix ? `${u}${r.min?.toLocaleString("en-US")}` : `${r.min?.toLocaleString("en-US")}${u}`;
+      const formatRollupValue = (v: number | undefined) => {
+        if (v === undefined) return "N/A";
+        const isNeg = v < 0;
+        const absStr = Math.abs(v).toLocaleString("en-US");
+        const sign = isNeg ? "-" : "";
+        return isPrefix ? `${sign}${u}${absStr}` : `${sign}${absStr}${u}`;
+      };
+      const fmtTotal = formatRollupValue(r.total);
+      const fmtAvg = formatRollupValue(r.average);
+      const fmtMax = formatRollupValue(r.max);
+      const fmtMin = formatRollupValue(r.min);
 
       summaryLines.push(
         `- Column "${r.header}": Total = ${fmtTotal} | Average = ${fmtAvg} | Max = ${fmtMax} (Row: "${r.maxLabel}") | Min = ${fmtMin} (Row: "${r.minLabel}")`

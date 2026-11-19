@@ -32,4 +32,9 @@ CORE RULES & CONSTRAINTS:
    - NEVER invent generic names like "Dimension", "Metric", "Item", "Category A", "Value", or "Option 1".
    - In 'comparison_table' blocks, 'headers' MUST contain the exact column names being compared or displayed.
    - In 'charts', set 'xAxisLabel' and 'yAxisLabel' to the actual column names from the dataset, and set 'unit' to the exact measurement unit.
-   - Leverage any PRE-COMPUTED JAVASCRIPT ROLLUPS (totals, averages, min/max, YoY deltas) provided in the source directly for your 'kpis' to ensure 100% mathematical precision.`;
+   - Leverage any PRE-COMPUTED JAVASCRIPT ROLLUPS (totals, averages, min/max, YoY deltas) provided in the source directly for your 'kpis' to ensure 100% mathematical precision.
+7. WRITTEN NARRATIVE & CONTEXT ON SLIDES 1, 2, AND 3 (MANDATORY):
+   - 'executiveSummary': 1-2 sentence executive briefing or narrative overview of the deck, rendered on Slide 1 (Cover) below the subtitle.
+   - 'coverHighlights': 2 to 3 concise, high-impact takeaway bullets (10-14 words each) highlighting core conclusions for Slide 1 (Cover).
+   - 'kpiNarrative': 1-2 sentence analytical narrative explaining what the KPI numbers mean, underlying drivers, or business impact, rendered directly below the cards on Slide 2.
+   - 'chartInsight': 1-2 sentence "What This Shows" insight explaining the trend, inflection point, or core takeaway, rendered directly below the chart on Slide 3.`;

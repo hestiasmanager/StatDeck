@@ -87,6 +87,38 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
                 {ast.meta.subtitle}
               </p>
             )}
+            {ast.executiveSummary && (
+              <p
+                className="text-base opacity-80 leading-relaxed font-normal max-w-2xl mt-2.5"
+                style={{ color: theme.ink, fontFamily: theme.fontBody }}
+                contentEditable={Boolean(onUpdateText)}
+                suppressContentEditableWarning
+                onBlur={(e) => onUpdateText?.("executiveSummary", e.currentTarget.textContent || "")}
+              >
+                {ast.executiveSummary}
+              </p>
+            )}
+            {ast.coverHighlights && ast.coverHighlights.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3 max-w-2xl">
+                {ast.coverHighlights.slice(0, 3).map((highlight, hIdx) => (
+                  <div
+                    key={hIdx}
+                    className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border border-black/5 dark:border-white/10"
+                    style={{
+                      backgroundColor: `${theme.accent}0A`,
+                      borderColor: theme.surfaceBorder,
+                      color: theme.ink,
+                    }}
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: theme.accent }}
+                    />
+                    <span>{highlight}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </header>
 
           {/* KPI 4-Card Strip */}
@@ -138,6 +170,31 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
             ))}
           </section>
 
+          {/* KPI Analytical Narrative Callout */}
+          {ast.kpiNarrative && (
+            <div
+              className="px-5 py-3 rounded-xl border border-black/5 dark:border-white/10 flex items-center gap-3 shadow-2xs"
+              style={{
+                backgroundColor: `${theme.accent}08`,
+                borderColor: theme.surfaceBorder,
+              }}
+            >
+              <div
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ backgroundColor: theme.accent }}
+              />
+              <p
+                className="text-xs md:text-sm leading-relaxed opacity-90 font-medium"
+                style={{ color: theme.ink }}
+                contentEditable={Boolean(onUpdateText)}
+                suppressContentEditableWarning
+                onBlur={(e) => onUpdateText?.("kpiNarrative", e.currentTarget.textContent || "")}
+              >
+                {ast.kpiNarrative}
+              </p>
+            </div>
+          )}
+
           {/* Primary Chart Section */}
           {ast.charts.map((chart) => {
             if (!chart.data || chart.data.length === 0) return null;
@@ -174,6 +231,31 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
                 )}
                 {(chart.type === "line" || chart.type === "area") && (
                   <SvgLineChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+                )}
+
+                {/* "What This Shows" Callout Strip */}
+                {(chart.chartInsight || ast.chartInsight) && (
+                  <div
+                    className="mt-2 px-4 py-2 rounded-xl border border-black/5 dark:border-white/10 flex items-center gap-2.5"
+                    style={{
+                      backgroundColor: `${theme.accent}0A`,
+                      borderColor: theme.surfaceBorder,
+                    }}
+                  >
+                    <span
+                      className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md text-white flex-shrink-0"
+                      style={{ backgroundColor: theme.accent }}
+                    >
+                      What This Shows
+                    </span>
+                    <p
+                      className="text-xs leading-relaxed font-medium opacity-90 truncate"
+                      style={{ color: theme.ink }}
+                      title={chart.chartInsight || ast.chartInsight}
+                    >
+                      {chart.chartInsight || ast.chartInsight}
+                    </p>
+                  </div>
                 )}
               </section>
             );

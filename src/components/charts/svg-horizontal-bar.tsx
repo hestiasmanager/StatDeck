@@ -22,8 +22,10 @@ export function SvgHorizontalBar({
   const maxValue = Math.max(...data.map((d) => d.value), 1);
   const rowHeight = 40;
   const chartHeight = data.length * rowHeight + 24;
-  const labelWidth = 140;
-  const barMaxAvailable = 280;
+  const maxLabelLen = Math.max(...data.map((d) => (d.label || "").trim().length), 10);
+  const labelWidth = Math.max(145, Math.min(195, Math.round(maxLabelLen * 7.5 + 15)));
+  const barMaxAvailable = 260;
+  const totalSvgWidth = labelWidth + barMaxAvailable + 85;
 
   // Vertical dashed gridlines at 25%, 50%, 75%, 100%
   const gridLevels = [0.25, 0.5, 0.75, 1.0];
@@ -31,7 +33,7 @@ export function SvgHorizontalBar({
   return (
     <div className="w-full select-none">
       <svg
-        viewBox={`0 0 520 ${chartHeight}`}
+        viewBox={`0 0 ${totalSvgWidth} ${chartHeight}`}
         className="w-full overflow-visible"
         aria-label={chart.title}
       >

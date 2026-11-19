@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import type { ChartBlock } from "@/lib/schemas/deck-schema";
 import { formatChartValue } from "./chart-format";
+import { SvgHorizontalBar } from "./svg-horizontal-bar";
 
 interface SvgBarChartProps {
   chart: ChartBlock;
@@ -18,6 +19,13 @@ export function SvgBarChart({
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const data = chart.data || [];
   if (data.length === 0) return null;
+
+  // Auto-switch to Horizontal Bar Chart whenever ANY label is longer than 10 characters
+  // so category names never overlap or collide
+  const hasLongLabels = data.some((d) => (d.label || "").trim().length > 10);
+  if (hasLongLabels) {
+    return <SvgHorizontalBar chart={chart} accentColor={accentColor} inkColor={inkColor} />;
+  }
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);
   const chartHeight = 220;
