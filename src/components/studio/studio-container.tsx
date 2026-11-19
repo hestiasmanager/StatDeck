@@ -439,8 +439,12 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
   // Keyboard shortcuts: Cmd+K, Undo/Redo, Escape for Fullscreen
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isFullscreen) {
-        setIsFullscreen(false);
+      if (e.key === "Escape") {
+        if (isCommandPaletteOpen) {
+          setIsCommandPaletteOpen(false);
+        } else if (isFullscreen) {
+          setIsFullscreen(false);
+        }
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
@@ -654,11 +658,11 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
         )}
 
         {/* Canvas & Filmstrip Column */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+        <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
           {/* Canvas Viewport (Independent Isolated Scroll Container) */}
           <div
             ref={canvasViewportRef}
-            className="flex-1 h-full overflow-auto relative p-6 flex flex-col items-center justify-start bg-slate-100/80 dark:bg-slate-950 pb-28"
+            className="flex-1 min-w-0 h-full overflow-auto relative p-6 flex flex-col items-center justify-start bg-slate-100/80 dark:bg-slate-950 pb-36"
           >
             {currentAst.format === "infographic" && (
               <InfographicCanvas
@@ -691,9 +695,16 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
                 onSlideChange={setCurrentSlideIndex}
               />
             )}
+          </div>
 
-            {/* Floating Bottom Quick Action Bar */}
-            <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-3.5 py-1.5 rounded-full border border-slate-200/90 dark:border-slate-800 shadow-2xl transition-all max-w-[95vw]">
+          {/* Floating Bottom Quick Action Bar */}
+          <div
+            className={`absolute left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-3.5 py-1.5 rounded-full border border-slate-200/90 dark:border-slate-800 shadow-2xl transition-all max-w-[95%] pointer-events-auto ${
+              !isFullscreen && (currentAst.format === "carousel" || currentAst.format === "presentation")
+                ? "bottom-16"
+                : "bottom-5"
+            }`}
+          >
               {/* Format Quick Switcher */}
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-full">
                 {(
@@ -805,7 +816,6 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
                 <span>Export</span>
               </button>
             </div>
-          </div>
 
           {/* Bottom Slide Filmstrip Navigator (Carousel & Presentation Modes) */}
           {!isFullscreen && (currentAst.format === "carousel" || currentAst.format === "presentation") && (

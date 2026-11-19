@@ -121,7 +121,7 @@ export function SlideFilmstrip({
   };
 
   return (
-    <div className="w-full flex items-center justify-between gap-3 px-4 py-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 z-30 flex-shrink-0">
+    <div className="w-full min-w-0 flex items-center justify-between gap-3 px-4 py-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 z-10 flex-shrink-0">
       {/* Filmstrip Slides Horizontal Track */}
       <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none flex-1">
         {slideItems.map((item, idx) => {
