@@ -124,60 +124,45 @@ ${rawContent.slice(0, 10000)}`;
     }
   }
 
-  // 3. Direct Google Gemini Execution (Primary: gemini-3.5-flash-lite for instant ~2s response)
+  // 3. Direct Google Gemini Execution (Primary: gemini-3.5-flash-lite for instant ~1-2s response)
   if (activeGeminiKey) {
-    const configuredModel = process.env.GEMINI_MODEL?.trim();
+    const selectedModel = options?.deepAnalysis ? "gemini-4-hydrogen" : "gemini-3.5-flash-lite";
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${activeGeminiKey}`;
 
-    // Default to gemini-3.5-flash-lite for ultra-fast structured synthesis;
-    // only prioritize gemini-4-hydrogen when explicit deepAnalysis is toggled.
-    const candidateModels = options?.deepAnalysis
-      ? [
-          configuredModel === "gemini-4-hydrogen" ? configuredModel : "gemini-4-hydrogen",
-          "gemini-3.5-flash-lite",
-          "gemini-3.1-flash-lite",
-        ]
-      : [
-          configuredModel && configuredModel !== "gemini-4-hydrogen" ? configuredModel : "gemini-3.5-flash-lite",
-          "gemini-3.5-flash-lite",
-          "gemini-3.1-flash-lite",
-          "gemini-4-hydrogen",
-          "gemini-4-neon",
-        ];
+    try {
+      const geminiRes = await fetch(geminiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: STATDECK_SYSTEM_PROMPT }] },
+          contents: [{ role: "user", parts: [{ text: promptText }] }],
+          generationConfig: { temperature: 0, responseMimeType: "application/json" },
+        }),
+        signal: options?.abortSignal,
+      });
 
-    // Deduplicate candidate models
-    const uniqueModels = Array.from(new Set(candidateModels.filter(Boolean)));
-
-    for (const modelId of uniqueModels) {
-      try {
-        const google = createGoogleGenerativeAI({ apiKey: activeGeminiKey });
-        const res = await generateObject({
-          model: google(modelId),
-          schema: ExtractionDeckSchema,
-          system: STATDECK_SYSTEM_PROMPT,
-          prompt: promptText,
-          maxTokens: 3500,
-          temperature: 0.2,
-          maxRetries: 0,
-          providerOptions: modelId.includes("hydrogen") || modelId.includes("thinking")
-            ? {
-                google: {
-                  thinkingConfig: {
-                    thinkingLevel: "low",
-                    thinkingBudget: 0,
-                  },
-                },
-              }
-            : undefined,
-          abortSignal: options?.abortSignal,
-        });
-
-        const validatedAst = normalizeExtractionDeck(res.object, format, templateId);
-        await redis.set(cacheKey, validatedAst, { ex: 604800 });
-        return { ast: validatedAst, cached: false, modelUsed: `google/${modelId}` };
-      } catch (geminiErr) {
-        console.warn(`Google Gemini with model ${modelId} failed:`, geminiErr);
-        lastError = geminiErr instanceof Error ? geminiErr : new Error(String(geminiErr));
+      if (!geminiRes.ok) {
+        const errData = await geminiRes.json().catch(() => null);
+        const errMsg = errData?.error?.message || `Google Gemini responded with HTTP ${geminiRes.status}`;
+        throw new Error(errMsg);
       }
+
+      const data = await geminiRes.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) throw new Error("Gemini returned no text candidates");
+
+      const parsedJson = JSON.parse(rawText);
+      const validatedAst = normalizeExtractionDeck(parsedJson, format, templateId);
+      const zodCheck = DeckSchema.safeParse(validatedAst);
+      if (!zodCheck.success) {
+        throw new Error(`Schema validation error: ${JSON.stringify(zodCheck.error.flatten())}`);
+      }
+
+      await redis.set(cacheKey, zodCheck.data, { ex: 604800 }).catch(() => null);
+      return { ast: zodCheck.data, cached: false, modelUsed: `google/${selectedModel}` };
+    } catch (geminiErr) {
+      console.warn("Direct Google Gemini fetch failed:", geminiErr);
+      lastError = geminiErr instanceof Error ? geminiErr : new Error(String(geminiErr));
     }
   }
 
