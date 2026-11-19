@@ -128,14 +128,58 @@ export function testDeckSchemaValidation() {
   if (compBlock.headers.length !== 4) {
     throw new Error(`Expected 4 split headers, got ${compBlock.headers.length} (${compBlock.headers.join(", ")})`);
   }
+  // Check row.cells flat array
+  if (!Array.isArray(compBlock.rows[0].cells) || compBlock.rows[0].cells.length !== 4) {
+    throw new Error(`Expected row.cells to be array of 4, got ${JSON.stringify(compBlock.rows[0].cells)}`);
+  }
+  if (
+    compBlock.rows[0].cells[0] !== "North America" ||
+    compBlock.rows[0].cells[1] !== "$42,500" ||
+    compBlock.rows[0].cells[2] !== "$48,100" ||
+    compBlock.rows[0].cells[3] !== "$51,000"
+  ) {
+    throw new Error(`Unexpected row.cells content: ${JSON.stringify(compBlock.rows[0].cells)}`);
+  }
+
   const row1Cells = resolveRowCells(compBlock.rows[0], compBlock.headers.length);
   if (row1Cells.length !== 4) {
     throw new Error(`Expected 4 resolved row cells, got ${row1Cells.length}`);
   }
-  if (row1Cells[1] !== "$42,500" || row1Cells[2] !== "$48,100" || row1Cells[3] !== "$51,000") {
+  if (row1Cells[0] !== "North America" || row1Cells[1] !== "$42,500" || row1Cells[2] !== "$48,100" || row1Cells[3] !== "$51,000") {
     throw new Error(`Unexpected resolved cell contents: ${JSON.stringify(row1Cells)}`);
   }
-  console.log("[PASS] comparison_table multi-column pipe cell splitting verified.");
+  console.log("[PASS] comparison_table flat cells array and 1-to-1 column mapping verified.");
+
+  // Test explicit cells format:
+  const explicitCellsPayload = {
+    meta: { title: "Direct Matrix" },
+    kpis: [{ value: "100%", label: "Target" }],
+    charts: [],
+    blocks: [
+      {
+        type: "comparison_table",
+        headers: ["Region", "Product", "Q1 Rev"],
+        rows: [
+          { cells: ["West", "Enterprise Suite", "$90,900"] },
+          { cells: ["East", "Pro Plan", "$54,500"] },
+        ],
+      },
+    ],
+  };
+  const normExplicit = normalizeExtractionDeck(explicitCellsPayload);
+  const explicitTable = normExplicit.blocks[0];
+  if (explicitTable.type !== "comparison_table") throw new Error("Expected comparison_table");
+  if (explicitTable.headers[0] !== "Region" || explicitTable.headers[1] !== "Product" || explicitTable.headers[2] !== "Q1 Rev") {
+    throw new Error("Headers shifted or mutated unexpectedly");
+  }
+  if (
+    explicitTable.rows[0].cells[0] !== "West" ||
+    explicitTable.rows[0].cells[1] !== "Enterprise Suite" ||
+    explicitTable.rows[0].cells[2] !== "$90,900"
+  ) {
+    throw new Error(`Column 1-to-1 mapping failed: ${JSON.stringify(explicitTable.rows[0].cells)}`);
+  }
+  console.log("[PASS] Explicit cells 1-to-1 mapping without column shift verified.");
 
   console.log("All DeckSchema tests passed!");
 }

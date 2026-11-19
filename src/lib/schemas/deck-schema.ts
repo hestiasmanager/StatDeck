@@ -45,8 +45,9 @@ export const ProcessStepSchema = z.object({
 });
 
 export const ComparisonRowSchema = z.object({
-  feature: z.string().max(80),
-  colA: z.string().max(120),
+  cells: z.array(z.string().max(120)).describe("Flat 1-to-1 array of cell values matching headers"),
+  feature: z.string().max(80).optional(),
+  colA: z.string().max(120).optional(),
   colB: z.string().max(120).optional(),
   values: z.array(z.string().max(120)).optional(),
 });
@@ -178,8 +179,9 @@ export const ExtractionBlockSchema = z.object({
   rows: z
     .array(
       z.object({
-        feature: z.string(),
-        colA: z.string(),
+        cells: z.array(z.string()).optional(),
+        feature: z.string().optional(),
+        colA: z.string().optional(),
         colB: z.string().optional(),
         values: z.array(z.string()).optional(),
       })
@@ -504,11 +506,20 @@ export function normalizeExtractionDeck(
 
       const rawRows = Array.isArray(b.rows) ? b.rows : [];
       const validRows = rawRows
-        .filter((r: any) => r && (r.feature || r.colA || (Array.isArray(r.values) && r.values.length > 0)))
+        .filter((r: any) => r && (r.cells || r.feature || r.colA || (Array.isArray(r.values) && r.values.length > 0)))
         .map((r: any) => {
           let segments: string[] = [];
-          if (Array.isArray(r.values) && r.values.length > 0) {
-            segments = r.values.map((v: any) => (typeof v === "string" ? v : String(v || "")));
+          if (Array.isArray(r.cells) && r.cells.length > 0) {
+            segments = r.cells.map((v: any) => (typeof v === "string" ? v : String(v || "")));
+          } else if (Array.isArray(r.values) && r.values.length > 0) {
+            if (r.values.length === headers.length || r.values[0] === r.feature) {
+              segments = r.values.map((v: any) => (typeof v === "string" ? v : String(v || "")));
+            } else {
+              segments = [
+                typeof r.feature === "string" ? r.feature : "",
+                ...r.values.map((v: any) => (typeof v === "string" ? v : String(v || ""))),
+              ];
+            }
           } else {
             segments = [
               typeof r.feature === "string" ? r.feature : "Item",
@@ -527,30 +538,31 @@ export function normalizeExtractionDeck(
             }
           }
 
-          const feature = (cells[0] || "Item").slice(0, 80);
-          const colA = (cells[1] || "").slice(0, 120);
-          const colB = cells[2] ? cells[2].slice(0, 120) : undefined;
-          const values = cells.length > 1 ? cells.map((c) => c.slice(0, 120)) : undefined;
+          // Clean cells to max 120 chars each
+          const finalCells = cells.map((c) => c.slice(0, 120));
 
           return {
-            feature,
-            colA,
-            colB,
-            values,
+            cells: finalCells,
+            feature: (finalCells[0] || "Item").slice(0, 80),
+            colA: (finalCells[1] || "").slice(0, 120),
+            colB: finalCells[2] ? finalCells[2].slice(0, 120) : undefined,
+            values: finalCells,
           };
         })
         .slice(0, 10);
 
       // If headers count is less than the columns discovered in rows, expand headers
       const maxRowColumns = validRows.length > 0
-        ? Math.max(...validRows.map((r: any) => (r.values ? r.values.length : 2)), 2)
+        ? Math.max(...validRows.map((r: any) => (r.cells ? r.cells.length : 2)), 2)
         : 2;
-      if (headers.length < maxRowColumns) {
-        if (headers.length === 2 && maxRowColumns >= 3) {
-          headers = ["Metric / Dimension", ...headers];
-        }
-        while (headers.length < maxRowColumns) {
-          headers.push(`Column ${headers.length + 1}`);
+      while (headers.length < maxRowColumns) {
+        headers.push(`Column ${headers.length + 1}`);
+      }
+
+      // Ensure every row's cells array has at least headers.length elements (pad with empty string)
+      for (const row of validRows) {
+        while (row.cells.length < headers.length) {
+          row.cells.push("");
         }
       }
 

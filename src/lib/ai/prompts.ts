@@ -18,7 +18,7 @@ CORE RULES & CONSTRAINTS:
    - 'charts': 0 to 6 items. 'data' must contain between 2 and 12 data points. Each data point must have a string 'label' and numerical 'value'.
    - 'blocks': 0 to 10 items:
      * 'numbered_steps': 'steps' must have 2 to 5 steps, each with 'step' (integer), 'title' (max 60 chars), 'description' (max 160 chars).
-     * 'comparison_table': 'headers' must have at least 2 strings. 'rows' must have 2 to 10 rows with 'feature' and 'colA' (and optional 'colB' / 'values').
+     * 'comparison_table': 'headers' must have at least 2 strings. 'rows' must have 2 to 10 rows, each with 'cells' as a single flat array of strings strictly matching headers length (e.g. ['Feature', 'ColA', 'ColB']).
      * 'pros_cons': 'pros' must have 1 to 5 strings; 'cons' must have 1 to 5 strings.
      * 'callout_quote': 'quote' (max 240 chars) and 'author' (max 60 chars).
      * 'key_takeaways': 'bullets' must have 2 to 5 items with 'headline' (max 50 chars) and 'detail' (max 140 chars).
@@ -32,7 +32,7 @@ CORE RULES & CONSTRAINTS:
 
 5. REAL COLUMN HEADERS & ROLLUP PRESERVATION (CRITICAL):
    - When the source contains tabular, CSV, or Excel data with EXACT COLUMN HEADERS, you MUST PRESERVE and USE those exact real column header names (e.g. "Book Title", "Series", "2025 Revenue ($)").
-   - In 'comparison_table' blocks, 'headers' MUST contain the exact column names being compared or displayed. Each column value must be placed in its own separate cell ('feature', 'colA', 'colB', and 'values' for columns beyond 3). NEVER join multiple column values into a single string with ' | ' (e.g. '$42,500 | $48,100 | $51,000' is forbidden—split them across columns so 'headers' length matches cell count).
+   - In 'comparison_table' blocks, 'headers' MUST contain the exact column names being compared or displayed. Each row MUST provide a single flat array 'cells: [col0, col1, col2, ...]' matching headers 1-to-1 (e.g. ['Region', 'Product', '$42,500']). NEVER split 'label' vs 'values', never drop leading elements, and NEVER join multiple column values into a single string with ' | '.
    - Leverage any PRE-COMPUTED JAVASCRIPT ROLLUPS (totals, averages, min/max, YoY deltas) provided in the source directly for your 'kpis' to ensure 100% mathematical precision.
 
 6. WRITTEN NARRATIVE & CONTEXT ON SLIDES 1, 2, AND 3 (MANDATORY):
@@ -104,6 +104,16 @@ Your output MUST be a valid JSON object matching this exact structure:
       "bullets": [
         { "headline": "ARM Migration", "detail": "Transitioned 60% of stateless workloads to energy-efficient ARM instances." },
         { "headline": "Dynamic Spot Fleet", "detail": "Utilized spot instances for asynchronous data pipelines with automated failover." }
+      ]
+    },
+    {
+      "id": "block-2",
+      "type": "comparison_table",
+      "title": "Architecture Comparison",
+      "headers": ["Workload Tier", "Legacy Instances", "Optimized Fleet", "Cost Delta"],
+      "rows": [
+        { "cells": ["API Gateways", "x86 c5.2xlarge", "ARM c7g.xlarge", "-42%"] },
+        { "cells": ["Batch Pipeline", "On-Demand r5.4xlarge", "Spot r7g.4xlarge", "-68%"] }
       ]
     }
   ],

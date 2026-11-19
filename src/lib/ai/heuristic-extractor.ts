@@ -218,11 +218,18 @@ function formatNumberCompact(num: number, unit: string = ""): string {
             headerCells[1]?.replace(/_/g, " ") || "Value",
           ];
 
-    const rows = dataRows.slice(0, 5).map((r) => ({
-      feature: truncateAtWordBoundary(r[categoryColumn] || "Entry", 35),
-      colA: truncateAtWordBoundary(r[headerCells[1]] || "N/A", 35),
-      colB: headerCells[2] ? truncateAtWordBoundary(r[headerCells[2]] || "N/A", 35) : "",
-    }));
+    const rows = dataRows.slice(0, 5).map((r) => {
+      const c0 = truncateAtWordBoundary(r[categoryColumn] || "Entry", 35);
+      const c1 = truncateAtWordBoundary(r[headerCells[1]] || "N/A", 35);
+      const c2 = headerCells[2] ? truncateAtWordBoundary(r[headerCells[2]] || "N/A", 35) : "";
+      const cells = headerCells[2] ? [c0, c1, c2] : [c0, c1];
+      return {
+        cells,
+        feature: c0,
+        colA: c1,
+        colB: c2,
+      };
+    });
 
     blocks.push({
       id: "block-table-1",

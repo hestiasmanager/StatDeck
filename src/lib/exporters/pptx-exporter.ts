@@ -383,12 +383,9 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
     } else if (block.type === "comparison_table") {
       const chunkSize = 5;
       const totalParts = Math.ceil(block.rows.length / chunkSize);
-      const headers = block.headers;
-      const hasColB = block.rows.some((r) => r.colB && r.colB.trim().length > 0);
-      let displayHeaders = headers;
-      if (headers.length === 2 && hasColB) {
-        displayHeaders = ["Metric / Dimension", headers[0], headers[1]];
-      }
+      const displayHeaders = block.headers.flatMap((h) =>
+        typeof h === "string" && h.includes(" | ") ? h.split(" | ").map((s) => s.trim()) : [h]
+      );
 
       for (let p = 0; p < totalParts; p++) {
         const chunkRows = block.rows.slice(p * chunkSize, (p + 1) * chunkSize);
@@ -432,16 +429,20 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
         );
 
         chunkRows.forEach((row) => {
-          const cellValues = resolveRowCells(row, displayHeaders.length);
-          const cells: pptxgen.TableCell[] = cellValues.map((val, cIdx) => ({
-            text: val,
-            options: {
-              bold: cIdx === 0 || cIdx === cellValues.length - 1,
-              fontSize: 11,
-              color: cIdx === cellValues.length - 1 ? accentHex : inkHex,
-            },
-          }));
-          tableRows.push(cells);
+          const cells = resolveRowCells(row, displayHeaders.length);
+          const tableCells: pptxgen.TableCell[] = displayHeaders.map((_, cIdx) => {
+            const raw = cells[cIdx];
+            const text = raw && raw.trim() !== "" ? raw : "—";
+            return {
+              text,
+              options: {
+                bold: cIdx === 0 || cIdx === displayHeaders.length - 1,
+                fontSize: 11,
+                color: cIdx === displayHeaders.length - 1 ? accentHex : inkHex,
+              },
+            };
+          });
+          tableRows.push(tableCells);
         });
 
         tableSlide.addTable(tableRows, {

@@ -14,41 +14,43 @@ interface ComparisonTableBlockProps {
 }
 
 /**
- * Resolves atomic cell strings for a comparison table row, ensuring
- * that any joined pipe string (e.g. "$42,500 | $48,100 | $51,000") is split
- * into its own column cells and the total cell count strictly matches headers.
+ * Resolves flat cells for a row 1-to-1 matching headers,
+ * prioritizing row.cells, with fallback to legacy row properties.
  */
-export function resolveRowCells(row: ComparisonRow, targetCount: number): string[] {
-  let rawSegments: string[] = [];
+export function getRowCells(row: ComparisonRow, targetCount: number): string[] {
+  let cells: string[] = [];
 
-  if (Array.isArray(row.values) && row.values.length > 0) {
-    if (row.values[0] === row.feature || row.values.length === targetCount) {
-      rawSegments = [...row.values];
+  if (Array.isArray(row.cells) && row.cells.length > 0) {
+    cells = [...row.cells];
+  } else if (Array.isArray(row.values) && row.values.length > 0) {
+    if (row.values.length === targetCount || row.values[0] === row.feature) {
+      cells = [...row.values];
     } else {
-      rawSegments = [row.feature, ...row.values];
+      cells = [row.feature || "", ...row.values];
     }
   } else {
-    rawSegments = [row.feature, row.colA || "", ...(row.colB ? [row.colB] : [])];
+    cells = [
+      row.feature || "",
+      row.colA || "",
+      ...(row.colB ? [row.colB] : []),
+    ];
   }
 
-  // Expand any segment that contains " | "
+  // Expand any cells that contain " | "
   const expanded: string[] = [];
-  for (const seg of rawSegments) {
-    if (typeof seg === "string" && seg.includes(" | ")) {
-      expanded.push(...seg.split(" | ").map((s) => s.trim()));
-    } else if (typeof seg === "string") {
-      expanded.push(seg.trim());
+  for (const c of cells) {
+    if (typeof c === "string" && c.includes(" | ")) {
+      expanded.push(...c.split(" | ").map((s) => s.trim()));
     } else {
-      expanded.push("");
+      expanded.push(typeof c === "string" ? c.trim() : String(c ?? ""));
     }
   }
 
-  // Guarantee exact length matching targetCount
-  while (expanded.length < targetCount) {
-    expanded.push("");
-  }
-  return expanded.slice(0, targetCount);
+  return expanded;
 }
+
+// Alias for backwards compatibility
+export const resolveRowCells = getRowCells;
 
 export function ComparisonTableBlock({
   title,
@@ -58,28 +60,10 @@ export function ComparisonTableBlock({
   surfaceBorder = "#E2E8F0",
   accentColor = "#2563EB",
 }: ComparisonTableBlockProps) {
-  const hasColB = rows.some((r) => r.colB && r.colB.trim().length > 0);
-
   // If any header contains " | ", split it into separate columns
-  let displayHeaders: string[] = [];
-  for (const h of headers) {
-    if (typeof h === "string" && h.includes(" | ")) {
-      displayHeaders.push(...h.split(" | ").map((s) => s.trim()));
-    } else if (typeof h === "string") {
-      displayHeaders.push(h.trim());
-    }
-  }
-
-  // If 2 headers are provided but rows contain 3 populated columns (feature, colA, colB),
-  // infer leading header contextually rather than hardcoding static "Dimension"
-  if (displayHeaders.length === 2 && hasColB) {
-    displayHeaders = ["Metric / Dimension", displayHeaders[0], displayHeaders[1]];
-  }
-
-  // Ensure at least 2 headers
-  if (displayHeaders.length < 2) {
-    displayHeaders = ["Metric / Feature", "Value"];
-  }
+  const displayHeaders = headers.flatMap((h) =>
+    typeof h === "string" && h.includes(" | ") ? h.split(" | ").map((s) => s.trim()) : [h]
+  );
 
   return (
     <div className="w-full flex flex-col gap-3">
@@ -113,7 +97,7 @@ export function ComparisonTableBlock({
           </thead>
           <tbody>
             {rows.map((row, idx) => {
-              const cellValues = resolveRowCells(row, displayHeaders.length);
+              const cells = getRowCells(row, displayHeaders.length);
 
               return (
                 <tr
@@ -121,21 +105,25 @@ export function ComparisonTableBlock({
                   className="border-b last:border-b-0 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                   style={{ borderColor: surfaceBorder }}
                 >
-                  {cellValues.map((val, cIdx) => (
-                    <td
-                      key={cIdx}
-                      className={`py-2.5 px-3 ${
-                        cIdx === 0
-                          ? "font-medium opacity-80"
-                          : cIdx === cellValues.length - 1
-                          ? "font-semibold"
-                          : "opacity-80"
-                      }`}
-                      style={{ color: inkColor }}
-                    >
-                      {val}
-                    </td>
-                  ))}
+                  {displayHeaders.map((_, colIdx) => {
+                    const rawVal = cells[colIdx];
+                    const val = rawVal && rawVal.trim() !== "" ? rawVal : "—";
+                    return (
+                      <td
+                        key={colIdx}
+                        className={`py-2.5 px-3 ${
+                          colIdx === 0
+                            ? "font-medium opacity-80"
+                            : colIdx === displayHeaders.length - 1
+                            ? "font-semibold"
+                            : "opacity-80"
+                        }`}
+                        style={{ color: inkColor }}
+                      >
+                        {val}
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}
