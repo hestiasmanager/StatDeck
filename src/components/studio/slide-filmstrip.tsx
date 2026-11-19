@@ -51,10 +51,10 @@ export function SlideFilmstrip({
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
 
   // Generate slide metadata sequence matching canvas builders
-  const slideItems: SlideItemMeta[] = [];
+  const allItems: SlideItemMeta[] = [];
 
   // Slide 1: Cover
-  slideItems.push({
+  allItems.push({
     id: "cover",
     index: 0,
     type: "cover",
@@ -62,47 +62,74 @@ export function SlideFilmstrip({
   });
 
   // Slide 2: KPIs (if present)
-  let currentIndex = 1;
   if (ast.kpis && ast.kpis.length > 0) {
-    slideItems.push({
+    allItems.push({
       id: "kpis",
-      index: currentIndex,
+      index: 1,
       type: "kpi",
       title: "Core Metrics",
     });
-    currentIndex++;
   }
 
   // Slide 3+: Charts
   ast.charts.forEach((chart, cIdx) => {
-    slideItems.push({
+    allItems.push({
       id: chart.id || `chart-${cIdx}`,
-      index: currentIndex,
+      index: 0,
       type: "chart",
       title: chart.title || `Chart ${cIdx + 1}`,
       subType: chart.type,
     });
-    currentIndex++;
   });
 
-  // Slide 4+: Blocks
+  // Slide 4+: Blocks (with comparison_table paginated into max 5 rows per slide)
   ast.blocks.forEach((block, bIdx) => {
-    const blockTitle =
-      "title" in block && block.title
-        ? block.title
-        : block.type === "callout_quote"
-        ? (block as { quote?: string }).quote?.slice(0, 24) || "Executive Quote"
-        : `Block ${bIdx + 1}`;
+    if (block.type === "comparison_table" && block.rows && block.rows.length > 5) {
+      const chunkSize = 5;
+      const totalParts = Math.ceil(block.rows.length / chunkSize);
+      for (let p = 0; p < totalParts; p++) {
+        const startRow = p * chunkSize + 1;
+        const endRow = Math.min(block.rows.length, (p + 1) * chunkSize);
+        allItems.push({
+          id: `block-${bIdx + 1}-table-p${p + 1}`,
+          index: 0,
+          type: "block",
+          title: `${block.title || "Comparison"} (Rows ${startRow}–${endRow})`,
+          subType: block.type,
+        });
+      }
+    } else {
+      const blockTitle =
+        "title" in block && block.title
+          ? block.title
+          : block.type === "callout_quote"
+          ? (block as { quote?: string }).quote?.slice(0, 24) || "Executive Quote"
+          : `Block ${bIdx + 1}`;
 
-    slideItems.push({
-      id: block.id || `block-${bIdx}`,
-      index: currentIndex,
-      type: "block",
-      title: blockTitle,
-      subType: block.type,
-    });
-    currentIndex++;
+      allItems.push({
+        id: block.id || `block-${bIdx + 1}`,
+        index: 0,
+        type: "block",
+        title: blockTitle,
+        subType: block.type,
+      });
+    }
   });
+
+  // Apply slideOrder if defined
+  if (ast.slideOrder && ast.slideOrder.length > 0) {
+    const orderMap = new Map(ast.slideOrder.map((id, idx) => [id, idx]));
+    allItems.sort((a, b) => {
+      const orderA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999;
+      const orderB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999;
+      return orderA - orderB;
+    });
+  }
+
+  const slideItems = allItems.map((item, idx) => ({
+    ...item,
+    index: idx,
+  }));
 
   const getSlideIcon = (item: SlideItemMeta) => {
     switch (item.type) {

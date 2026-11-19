@@ -140,6 +140,7 @@ export const DeckSchema = z.object({
   format: OutputFormatSchema.default("carousel"),
   brandKitId: z.string().optional(),
   watermark: z.boolean().default(true),
+  slideOrder: z.array(z.string()).optional(),
 });
 
 export type DeckAST = z.infer<typeof DeckSchema>;
@@ -213,6 +214,7 @@ export const ExtractionDeckSchema = z.object({
   format: OutputFormatSchema.default("carousel"),
   brandKitId: z.string().optional(),
   watermark: z.boolean().default(true),
+  slideOrder: z.array(z.string()).optional(),
 });
 
 export type ExtractionDeck = z.infer<typeof ExtractionDeckSchema>;

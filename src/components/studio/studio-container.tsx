@@ -39,6 +39,7 @@ import {
   Command,
 } from "lucide-react";
 import { StatDeckMark } from "@/components/ui/statdeck-mark";
+import { getOrderedSlideIds } from "@/lib/utils/slide-order";
 
 // --- Helper to map slide index to AST elements ---
 function getSlideTarget(
@@ -50,21 +51,22 @@ function getSlideTarget(
   | { type: "chart"; chartIndex: number }
   | { type: "block"; blockIndex: number }
   | null {
-  if (slideIndex === 0) return { type: "cover" };
-  const hasKpi = Boolean(ast.kpis && ast.kpis.length > 0);
-  let tracker = 1;
-  if (hasKpi) {
-    if (slideIndex === 1) return { type: "kpi" };
-    tracker = 2;
-  }
-  const chartIdx = slideIndex - tracker;
-  if (chartIdx >= 0 && chartIdx < ast.charts.length) {
-    return { type: "chart", chartIndex: chartIdx };
-  }
-  const blockIdx = slideIndex - tracker - ast.charts.length;
-  if (blockIdx >= 0 && blockIdx < ast.blocks.length) {
-    return { type: "block", blockIndex: blockIdx };
-  }
+  const currentIds = getOrderedSlideIds(ast);
+  const id = currentIds[slideIndex];
+  if (!id) return null;
+  if (id === "cover") return { type: "cover" };
+  if (id === "kpis") return { type: "kpi" };
+
+  const cIdx = ast.charts.findIndex((c, i) => (c.id || `chart-${i}`) === id);
+  if (cIdx !== -1) return { type: "chart", chartIndex: cIdx };
+
+  const bIdx = ast.blocks.findIndex(
+    (b, i) =>
+      (b.id || `block-${i + 1}`) === id ||
+      id.startsWith(`block-${i + 1}-table-`)
+  );
+  if (bIdx !== -1) return { type: "block", blockIndex: bIdx };
+
   return null;
 }
 
@@ -157,10 +159,28 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
 
     case "REORDER_SLIDES": {
       const { fromIndex, toIndex } = action.payload;
+      if (fromIndex === toIndex) return state;
       const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
+      const currentIds = getOrderedSlideIds(newAst);
+
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= currentIds.length ||
+        toIndex >= currentIds.length
+      ) {
+        return state;
+      }
+
+      // Perform clean array-swap of adjacent slide IDs
+      const temp = currentIds[fromIndex];
+      currentIds[fromIndex] = currentIds[toIndex];
+      currentIds[toIndex] = temp;
+      newAst.slideOrder = currentIds;
+
+      // Keep underlying arrays in sync when both elements are charts or both are blocks
       const fromTarget = getSlideTarget(newAst, fromIndex);
       const toTarget = getSlideTarget(newAst, toIndex);
-
       if (fromTarget?.type === "chart" && toTarget?.type === "chart") {
         const [moved] = newAst.charts.splice(fromTarget.chartIndex, 1);
         newAst.charts.splice(toTarget.chartIndex, 0, moved);
@@ -168,6 +188,7 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
         const [moved] = newAst.blocks.splice(fromTarget.blockIndex, 1);
         newAst.blocks.splice(toTarget.blockIndex, 0, moved);
       }
+
       return {
         past: [...state.past, state.present],
         present: newAst,
@@ -178,10 +199,14 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
     case "DUPLICATE_SLIDE": {
       const { slideIndex } = action.payload;
       const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
+      const currentIds = getOrderedSlideIds(newAst);
       const target = getSlideTarget(newAst, slideIndex);
+      let newSlideId: string | null = null;
+
       if (target?.type === "kpi") {
+        newSlideId = `block-${Date.now()}`;
         newAst.blocks.unshift({
-          id: `block-${Date.now()}`,
+          id: newSlideId,
           type: "key_takeaways",
           title: "Core Metrics Summary",
           bullets: (newAst.kpis || []).map((k) => ({
@@ -191,13 +216,21 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
         });
       } else if (target?.type === "chart") {
         const original = newAst.charts[target.chartIndex];
-        const clone = { ...original, id: `chart-${Date.now()}` };
+        newSlideId = `chart-${Date.now()}`;
+        const clone = { ...original, id: newSlideId };
         newAst.charts.splice(target.chartIndex + 1, 0, clone);
       } else if (target?.type === "block") {
         const original = newAst.blocks[target.blockIndex];
-        const clone = { ...original, id: `block-${Date.now()}` };
+        newSlideId = `block-${Date.now()}`;
+        const clone = { ...original, id: newSlideId };
         newAst.blocks.splice(target.blockIndex + 1, 0, clone);
       }
+
+      if (newSlideId) {
+        currentIds.splice(slideIndex + 1, 0, newSlideId);
+        newAst.slideOrder = currentIds;
+      }
+
       return {
         past: [...state.past, state.present],
         present: newAst,
@@ -208,7 +241,10 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
     case "DELETE_SLIDE": {
       const { slideIndex } = action.payload;
       const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
+      const currentIds = getOrderedSlideIds(newAst);
+      const deletedId = currentIds[slideIndex];
       const target = getSlideTarget(newAst, slideIndex);
+
       if (target?.type === "kpi") {
         newAst.kpis = [];
       } else if (target?.type === "chart") {
@@ -216,6 +252,11 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
       } else if (target?.type === "block") {
         newAst.blocks.splice(target.blockIndex, 1);
       }
+
+      if (deletedId) {
+        newAst.slideOrder = currentIds.filter((id) => id !== deletedId);
+      }
+
       return {
         past: [...state.past, state.present],
         present: newAst,
@@ -225,10 +266,14 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
 
     case "ADD_SLIDE": {
       const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
+      const currentIds = getOrderedSlideIds(newAst);
       const slideType = action.payload.type;
+      let newSlideId: string | null = null;
+
       if (slideType === "chart") {
+        newSlideId = `chart-${Date.now()}`;
         newAst.charts.push({
-          id: `chart-${Date.now()}`,
+          id: newSlideId,
           type: "bar",
           title: "Performance Distribution",
           unit: "%",
@@ -240,6 +285,7 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
         });
       } else if (slideType === "kpi") {
         if (!newAst.kpis || newAst.kpis.length === 0) {
+          newSlideId = "kpis";
           newAst.kpis = [
             { id: "kpi-1", label: "Annual Run Rate", value: "$4.2M", delta: "+34% YoY", deltaType: "positive" },
             { id: "kpi-2", label: "Retention Rate", value: "98.4%", delta: "+1.8%", deltaType: "positive" },
@@ -255,8 +301,9 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
           });
         }
       } else if (slideType === "takeaways") {
+        newSlideId = `block-${Date.now()}`;
         newAst.blocks.push({
-          id: `block-${Date.now()}`,
+          id: newSlideId,
           type: "key_takeaways",
           title: "Strategic Priorities & Next Steps",
           bullets: [
@@ -271,8 +318,9 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
           ],
         });
       } else if (slideType === "table") {
+        newSlideId = `block-${Date.now()}`;
         newAst.blocks.push({
-          id: `block-${Date.now()}`,
+          id: newSlideId,
           type: "comparison_table",
           title: "Quarterly Performance Benchmarks",
           headers: ["Metric", "Target", "Actual", "Status"],
@@ -283,6 +331,12 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
           ],
         });
       }
+
+      if (newSlideId && !currentIds.includes(newSlideId)) {
+        currentIds.push(newSlideId);
+        newAst.slideOrder = currentIds;
+      }
+
       return {
         past: [...state.past, state.present],
         present: newAst,
@@ -380,11 +434,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
   const theme = getThemeTokens(currentAst.templateId);
 
   // Total slides count
-  const totalSlides =
-    1 +
-    (currentAst.kpis && currentAst.kpis.length > 0 ? 1 : 0) +
-    currentAst.charts.length +
-    currentAst.blocks.length;
+  const totalSlides = getOrderedSlideIds(currentAst).length;
 
   // Reset slide index on AST synthesis switch
   useEffect(() => {
@@ -836,9 +886,10 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
               currentSlideIndex={currentSlideIndex}
               totalSlides={totalSlides}
               onSelectSlide={setCurrentSlideIndex}
-              onReorderSlide={(from, to) =>
-                dispatch({ type: "REORDER_SLIDES", payload: { fromIndex: from, toIndex: to } })
-              }
+              onReorderSlide={(from, to) => {
+                dispatch({ type: "REORDER_SLIDES", payload: { fromIndex: from, toIndex: to } });
+                setCurrentSlideIndex(to);
+              }}
               onDuplicateSlide={(idx) =>
                 dispatch({ type: "DUPLICATE_SLIDE", payload: { slideIndex: idx } })
               }

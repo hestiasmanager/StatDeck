@@ -61,16 +61,16 @@ export function PresentationCanvas({
   };
 
   // 16:9 Slides Sequence
-  const slides = [
+  const rawSlides = [
     // Slide 1: Cover (Magazine Cover Design)
     {
-      id: "deck-cover",
+      id: "cover",
       content: (
-        <div className="flex flex-col justify-between h-full px-12 py-7 relative overflow-hidden">
+        <div className="flex flex-col justify-between h-full px-12 py-6 gap-2 relative overflow-hidden">
           {ast.meta.category && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <span
-                className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-widest rounded-full border border-black/10 dark:border-white/10 shadow-2xs inline-flex items-center gap-1.5"
+                className="px-3.5 py-0.5 text-[11px] font-bold uppercase tracking-widest rounded-full border border-black/10 dark:border-white/10 shadow-2xs inline-flex items-center gap-1.5"
                 style={{ backgroundColor: theme.accentMuted, color: theme.accent }}
               >
                 <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: theme.accent }} />
@@ -78,20 +78,27 @@ export function PresentationCanvas({
               </span>
             </div>
           )}
-          <div className="my-auto flex flex-col justify-center max-w-2xl flex-1 min-h-0">
+          <div className="my-auto flex flex-col justify-center max-w-2xl flex-1 min-h-0 overflow-y-auto scrollbar-none gap-1.5">
             <h1
-              className="text-4xl md:text-5xl font-black tracking-tight leading-[1.08] mb-2"
-              style={{ color: theme.ink, fontFamily: theme.fontDisplay }}
+              className="font-black tracking-tight leading-[1.12]"
+              style={{
+                color: theme.ink,
+                fontFamily: theme.fontDisplay,
+                fontSize:
+                  (ast.meta.title || "").length > 45
+                    ? "clamp(1.4rem, 2.6vw, 1.95rem)"
+                    : "clamp(1.85rem, 3.4vw, 2.75rem)",
+              }}
               contentEditable={Boolean(onUpdateText)}
               suppressContentEditableWarning
               onBlur={(e) => onUpdateText?.("meta.title", e.currentTarget.textContent || "")}
             >
               {ast.meta.title}
             </h1>
-            <div className="w-14 h-1 rounded-full my-2" style={{ backgroundColor: theme.accent }} />
+            <div className="w-12 h-1 rounded-full my-1 shrink-0" style={{ backgroundColor: theme.accent }} />
             {ast.meta.subtitle && (
               <p
-                className="text-base md:text-lg opacity-85 leading-relaxed font-normal max-w-xl"
+                className="text-sm md:text-base opacity-85 leading-relaxed font-normal max-w-xl"
                 style={{ color: theme.ink, fontFamily: theme.fontBody }}
                 contentEditable={Boolean(onUpdateText)}
                 suppressContentEditableWarning
@@ -103,7 +110,7 @@ export function PresentationCanvas({
             {/* Executive Summary */}
             {ast.executiveSummary && (
               <p
-                className="text-xs md:text-sm opacity-80 leading-relaxed font-normal max-w-xl mt-2"
+                className="text-xs md:text-sm opacity-80 leading-relaxed font-normal max-w-xl"
                 style={{ color: theme.ink, fontFamily: theme.fontBody }}
                 contentEditable={Boolean(onUpdateText)}
                 suppressContentEditableWarning
@@ -114,7 +121,7 @@ export function PresentationCanvas({
             )}
             {/* Cover Takeaway Highlights (limit to 2 items to guarantee footer breathing room) */}
             {ast.coverHighlights && ast.coverHighlights.length > 0 && (
-              <div className="flex flex-col gap-1.5 mt-2 max-w-xl">
+              <div className="flex flex-col gap-1 mt-1 max-w-xl shrink-0">
                 {ast.coverHighlights.slice(0, 2).map((highlight, hIdx) => (
                   <div
                     key={hIdx}
@@ -126,7 +133,7 @@ export function PresentationCanvas({
                     }}
                   >
                     <span
-                      className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5"
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1"
                       style={{ backgroundColor: theme.accent }}
                     />
                     <span className="leading-snug">{highlight}</span>
@@ -135,7 +142,7 @@ export function PresentationCanvas({
               </div>
             )}
           </div>
-          <div className="flex items-center justify-between border-t border-black/10 dark:border-white/10 pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+          <div className="flex items-center justify-between border-t border-black/10 dark:border-white/10 pt-2.5 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-mono opacity-60">
               {ast.meta.date ? `${ast.meta.date} • ` : ""}Source: {ast.meta.sourceCitations[0] || "StatDeck"}
             </span>
@@ -148,7 +155,7 @@ export function PresentationCanvas({
     ...(ast.kpis && ast.kpis.length > 0
       ? [
           {
-            id: "deck-kpis",
+            id: "kpis",
             content: (
               <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
                 <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
@@ -242,7 +249,7 @@ export function PresentationCanvas({
       : []),
     // Slide 3+: Visual Charts (Dynamic 0 to 6 charts)
     ...ast.charts.map((chart, chartIdx) => ({
-      id: chart.id || `deck-chart-${chartIdx + 1}`,
+      id: chart.id || `chart-${chartIdx}`,
       content: (
         <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
           <div className="flex flex-col gap-0.5 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
@@ -261,7 +268,7 @@ export function PresentationCanvas({
               borderRadius: theme.cardRadius,
             }}
           >
-            <div className="w-full h-full max-h-[220px] flex items-center justify-center">
+            <div className="w-full h-full flex-1 min-h-0 flex items-center justify-center">
               {chart.type === "bar" && (
                 <SvgBarChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
               )}
@@ -312,77 +319,136 @@ export function PresentationCanvas({
       ),
     })),
 
-    // Slide 4+: Structured Blocks (1-to-1 matching SlideFilmstrip)
-    ...ast.blocks.map((block, bIdx) => ({
-      id: block.id || `deck-block-${bIdx + 1}`,
-      content: (
-        <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
-          <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
-              Strategic Breakdown
-            </span>
-            <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-              {"title" in block && block.title
-                ? block.title
-                : block.type === "key_takeaways"
-                ? "Key Takeaways"
-                : "Strategic Breakdown"}
-            </h2>
-          </div>
-          <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-center">
-            {block.type === "numbered_steps" && (
-              <ProcessStepsBlock
-                steps={block.steps}
-                accentColor={theme.accent}
-                inkColor={theme.ink}
-                surfaceBorder={theme.surfaceBorder}
-              />
-            )}
-            {block.type === "comparison_table" && (
-              <ComparisonTableBlock
-                headers={block.headers}
-                rows={block.rows}
-                inkColor={theme.ink}
-                surfaceBorder={theme.surfaceBorder}
-                accentColor={theme.accent}
-              />
-            )}
-            {block.type === "pros_cons" && (
-              <ProsConsBlock
-                pros={block.pros}
-                cons={block.cons}
-                inkColor={theme.ink}
-                surfaceBorder={theme.surfaceBorder}
-              />
-            )}
-            {block.type === "callout_quote" && (
-              <CalloutQuoteBlock
-                quote={block.quote}
-                author={block.author}
-                role={block.role}
-                accentColor={theme.accent}
-                inkColor={theme.ink}
-                surfaceBorder={theme.surfaceBorder}
-              />
-            )}
-            {block.type === "key_takeaways" && (
-              <KeyTakeawaysBlock
-                title={block.title}
-                bullets={block.bullets}
-                accentColor={theme.accent}
-                inkColor={theme.ink}
-                surfaceBorder={theme.surfaceBorder}
-              />
-            )}
-          </div>
-          <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-            <span className="text-xs font-mono opacity-60">{"title" in block && block.title ? block.title : "Key Takeaways"}</span>
-            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-          </div>
-        </div>
-      ),
-    })),
+    // Slide 4+: Structured Blocks (with comparison_table paginated into max 5 rows per slide)
+    ...ast.blocks.flatMap((block, bIdx) => {
+      if (block.type === "comparison_table" && block.rows && block.rows.length > 5) {
+        const chunkSize = 5;
+        const totalParts = Math.ceil(block.rows.length / chunkSize);
+        return Array.from({ length: totalParts }, (_, p) => {
+          const chunkRows = block.rows.slice(p * chunkSize, (p + 1) * chunkSize);
+          const startRow = p * chunkSize + 1;
+          const endRow = Math.min(block.rows.length, (p + 1) * chunkSize);
+          return {
+            id: `block-${bIdx + 1}-table-p${p + 1}`,
+            content: (
+              <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+                <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
+                      Comparison Table {totalParts > 1 ? `(${p + 1}/${totalParts})` : ""}
+                    </span>
+                    <span className="text-xs font-mono opacity-60">
+                      Rows {startRow}–{endRow} of {block.rows.length}
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+                    {block.title || "Comparison Matrix"}
+                  </h2>
+                </div>
+                <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-start items-start pt-2">
+                  <ComparisonTableBlock
+                    headers={block.headers}
+                    rows={chunkRows}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                    accentColor={theme.accent}
+                  />
+                </div>
+                <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                  <span className="text-xs font-mono opacity-60">Rows {startRow}–{endRow} of {block.rows.length}</span>
+                  <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+                </div>
+              </div>
+            ),
+          };
+        });
+      }
+      return [
+        {
+          id: block.id || `block-${bIdx + 1}`,
+          content: (
+            <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+              <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
+                  Strategic Breakdown
+                </span>
+                <h2 className="text-2xl font-bold truncate" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+                  {"title" in block && block.title
+                    ? block.title
+                    : block.type === "key_takeaways"
+                    ? "Key Takeaways"
+                    : "Strategic Breakdown"}
+                </h2>
+              </div>
+              <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-center">
+                {block.type === "numbered_steps" && (
+                  <ProcessStepsBlock
+                    steps={block.steps}
+                    accentColor={theme.accent}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+                {block.type === "comparison_table" && (
+                  <div className="w-full flex flex-col justify-start items-start pt-2">
+                    <ComparisonTableBlock
+                      headers={block.headers}
+                      rows={block.rows}
+                      inkColor={theme.ink}
+                      surfaceBorder={theme.surfaceBorder}
+                      accentColor={theme.accent}
+                    />
+                  </div>
+                )}
+                {block.type === "pros_cons" && (
+                  <ProsConsBlock
+                    pros={block.pros}
+                    cons={block.cons}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+                {block.type === "callout_quote" && (
+                  <CalloutQuoteBlock
+                    quote={block.quote}
+                    author={block.author}
+                    role={block.role}
+                    accentColor={theme.accent}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+                {block.type === "key_takeaways" && (
+                  <KeyTakeawaysBlock
+                    title={block.title}
+                    bullets={block.bullets}
+                    accentColor={theme.accent}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+              </div>
+              <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                <span className="text-xs font-mono opacity-60">{"title" in block && block.title ? block.title : "Key Takeaways"}</span>
+                <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+              </div>
+            </div>
+          ),
+        },
+      ];
+    }),
   ];
+
+  // Apply slideOrder if defined
+  let slides = rawSlides;
+  if (ast.slideOrder && ast.slideOrder.length > 0) {
+    const orderMap = new Map(ast.slideOrder.map((id, idx) => [id, idx]));
+    slides = [...rawSlides].sort((a, b) => {
+      const orderA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999;
+      const orderB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999;
+      return orderA - orderB;
+    });
+  }
 
   const safeSlideIndex = Math.min(Math.max(0, effectiveIndex), Math.max(0, slides.length - 1));
 

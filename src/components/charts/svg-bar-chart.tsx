@@ -36,13 +36,13 @@ export function SvgBarChart({
 
   // Horizontal dashed gridlines at 25%, 50%, 75%, 100%
   const gridLevels = [0.25, 0.5, 0.75, 1.0];
-  const topPadding = 20;
+  const topPadding = 25;
 
   return (
-    <div className="w-full flex flex-col items-center select-none">
+    <div className="w-full h-full flex flex-col items-center justify-center select-none flex-1 min-h-0">
       <svg
         viewBox={`0 -${topPadding} ${viewBoxWidth} ${chartHeight + 65 + topPadding}`}
-        className="w-full max-h-[300px] overflow-visible"
+        className="w-full h-full max-h-full overflow-visible"
         aria-label={chart.title}
       >
         {/* Subtle Horizontal Dashed Gridlines */}

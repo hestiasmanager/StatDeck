@@ -241,7 +241,7 @@ export function buildCarouselSlides(
   // Slide 3+: Visual Charts (Dynamic 0 to 6 charts)
   ast.charts.forEach((chart, chartIdx) => {
     slides.push({
-      id: chart.id || `chart-${chartIdx + 1}`,
+      id: chart.id || `chart-${chartIdx}`,
       title: chart.title || `Chart ${chartIdx + 1}`,
       content: (
         <div className="flex flex-col justify-between h-full p-10 md:p-12">
@@ -309,13 +309,58 @@ export function buildCarouselSlides(
     });
   });
 
-  // Slide 4+: Structured Blocks (1-to-1 matching SlideFilmstrip)
+  // Slide 4+: Structured Blocks (with comparison_table paginated into max 5 rows per slide)
   ast.blocks.forEach((block, bIdx) => {
-    slides.push({
-      id: block.id || `block-${bIdx + 1}`,
-      title: "title" in block && block.title ? block.title : `Insight ${bIdx + 1}`,
-      content: (
-        <div className="flex flex-col justify-between h-full p-10 md:p-12">
+    if (block.type === "comparison_table" && block.rows && block.rows.length > 5) {
+      const chunkSize = 5;
+      const totalParts = Math.ceil(block.rows.length / chunkSize);
+      for (let p = 0; p < totalParts; p++) {
+        const chunkRows = block.rows.slice(p * chunkSize, (p + 1) * chunkSize);
+        const startRow = p * chunkSize + 1;
+        const endRow = Math.min(block.rows.length, (p + 1) * chunkSize);
+        slides.push({
+          id: `block-${bIdx + 1}-table-p${p + 1}`,
+          title: `${block.title || "Comparison"} (Rows ${startRow}–${endRow})`,
+          content: (
+            <div className="flex flex-col justify-between h-full p-10 md:p-12">
+              <div className="flex flex-col gap-1 border-b pb-4" style={{ borderColor: theme.surfaceBorder }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
+                    Comparison Table {totalParts > 1 ? `(${p + 1}/${totalParts})` : ""}
+                  </span>
+                  <span className="text-xs font-mono opacity-60">
+                    Rows {startRow}–{endRow} of {block.rows.length}
+                  </span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+                  {block.title || "Comparison Matrix"}
+                </h2>
+              </div>
+              <div className="my-auto flex flex-col justify-start items-start pt-2">
+                <ComparisonTableBlock
+                  headers={block.headers}
+                  rows={chunkRows}
+                  inkColor={theme.ink}
+                  surfaceBorder={theme.surfaceBorder}
+                  accentColor={theme.accent}
+                />
+              </div>
+              <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
+                <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
+                  Rows {startRow}–{endRow} of {block.rows.length}
+                </span>
+                <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+              </div>
+            </div>
+          ),
+        });
+      }
+    } else {
+      slides.push({
+        id: block.id || `block-${bIdx + 1}`,
+        title: "title" in block && block.title ? block.title : `Insight ${bIdx + 1}`,
+        content: (
+          <div className="flex flex-col justify-between h-full p-10 md:p-12">
             <div className="flex flex-col gap-1 border-b pb-4" style={{ borderColor: theme.surfaceBorder }}>
               <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
                 Strategic Breakdown
@@ -338,13 +383,15 @@ export function buildCarouselSlides(
                 />
               )}
               {block.type === "comparison_table" && (
-                <ComparisonTableBlock
-                  headers={block.headers}
-                  rows={block.rows}
-                  inkColor={theme.ink}
-                  surfaceBorder={theme.surfaceBorder}
-                  accentColor={theme.accent}
-                />
+                <div className="flex flex-col justify-start items-start pt-2">
+                  <ComparisonTableBlock
+                    headers={block.headers}
+                    rows={block.rows}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                    accentColor={theme.accent}
+                  />
+                </div>
               )}
               {block.type === "pros_cons" && (
                 <ProsConsBlock
@@ -383,7 +430,18 @@ export function buildCarouselSlides(
           </div>
         ),
       });
+    }
   });
+
+  // Apply slideOrder if defined
+  if (ast.slideOrder && ast.slideOrder.length > 0) {
+    const orderMap = new Map(ast.slideOrder.map((id, idx) => [id, idx]));
+    slides.sort((a, b) => {
+      const orderA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999;
+      const orderB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999;
+      return orderA - orderB;
+    });
+  }
 
   // Slide 5: Outro & Citations
   slides.push({
