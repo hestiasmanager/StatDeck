@@ -125,112 +125,114 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
   }
 
   // ----------------------------------------------------
-  // Slide 2: KPIs & Executive Summary
+  // Slide 2: KPIs & Executive Summary (Optional: skipped if no KPIs)
   // ----------------------------------------------------
-  const slide2 = pptx.addSlide();
-  slide2.background = { color: bgHex };
+  if (ast.kpis && ast.kpis.length > 0) {
+    const slide2 = pptx.addSlide();
+    slide2.background = { color: bgHex };
 
-  slide2.addText("EXECUTIVE METRICS", {
-    x: 1.0,
-    y: 0.8,
-    w: 11.3,
-    h: 0.4,
-    fontSize: 14,
-    bold: true,
-    color: accentHex,
-  });
-
-  slide2.addText(ast.meta.title, {
-    x: 1.0,
-    y: 1.3,
-    w: 11.3,
-    h: 0.6,
-    fontSize: 22,
-    bold: true,
-    color: inkHex,
-  });
-
-  // Render KPI Cards (up to 4 cards)
-  const cardCount = Math.min(ast.kpis.length, 4);
-  const cardWidth = 2.6;
-  const gap = 0.3;
-  const startX = 1.0;
-
-  ast.kpis.slice(0, 4).forEach((kpi, index) => {
-    const xPos = startX + index * (cardWidth + gap);
-
-    // Card background box
-    slide2.addShape(pptx.ShapeType.roundRect, {
-      x: xPos,
-      y: 2.3,
-      w: cardWidth,
-      h: 3.2,
-      fill: { color: surfaceHex },
-      line: { color: toHex(theme.surfaceBorder), width: 1 },
-      rectRadius: 0.1,
-    });
-
-    // KPI Value
-    slide2.addText(kpi.value, {
-      x: xPos + 0.2,
-      y: 2.6,
-      w: cardWidth - 0.4,
-      h: 0.8,
-      fontSize: 32,
-      bold: true,
-      color: accentHex,
-      align: "center",
-    });
-
-    // KPI Label
-    slide2.addText(kpi.label, {
-      x: xPos + 0.2,
-      y: 3.5,
-      w: cardWidth - 0.4,
-      h: 0.6,
+    slide2.addText("EXECUTIVE METRICS", {
+      x: 1.0,
+      y: 0.8,
+      w: 11.3,
+      h: 0.4,
       fontSize: 14,
       bold: true,
-      color: inkHex,
-      align: "center",
+      color: accentHex,
     });
 
-    // KPI Delta
-    if (kpi.delta) {
-      slide2.addText(kpi.delta, {
-        x: xPos + 0.2,
-        y: 4.2,
-        w: cardWidth - 0.4,
-        h: 0.4,
-        fontSize: 12,
-        color: kpi.deltaType === "positive" ? "10B981" : "EF4444",
-        align: "center",
-      });
-    }
-
-    // Micro description
-    if (kpi.description) {
-      slide2.addText(kpi.description, {
-        x: xPos + 0.2,
-        y: 4.7,
-        w: cardWidth - 0.4,
-        h: 0.6,
-        fontSize: 10,
-        color: inkMutedHex,
-        align: "center",
-      });
-    }
-  });
-
-  if (ast.kpiNarrative) {
-    slide2.addText(ast.kpiNarrative, {
+    slide2.addText(ast.meta.title, {
       x: 1.0,
-      y: 5.8,
+      y: 1.3,
       w: 11.3,
       h: 0.6,
-      fontSize: 12,
+      fontSize: 22,
+      bold: true,
       color: inkHex,
-      italic: true,
     });
+
+    // Render KPI Cards (up to 4 cards)
+    const cardCount = Math.min(ast.kpis.length, 4);
+    const cardWidth = 2.6;
+    const gap = 0.3;
+    const startX = 1.0;
+
+    ast.kpis.slice(0, 4).forEach((kpi, index) => {
+      const xPos = startX + index * (cardWidth + gap);
+
+      // Card background box
+      slide2.addShape(pptx.ShapeType.roundRect, {
+        x: xPos,
+        y: 2.3,
+        w: cardWidth,
+        h: 3.2,
+        fill: { color: surfaceHex },
+        line: { color: toHex(theme.surfaceBorder), width: 1 },
+        rectRadius: 0.1,
+      });
+
+      // KPI Value
+      slide2.addText(kpi.value, {
+        x: xPos + 0.2,
+        y: 2.6,
+        w: cardWidth - 0.4,
+        h: 0.8,
+        fontSize: 32,
+        bold: true,
+        color: accentHex,
+        align: "center",
+      });
+
+      // KPI Label
+      slide2.addText(kpi.label, {
+        x: xPos + 0.2,
+        y: 3.5,
+        w: cardWidth - 0.4,
+        h: 0.6,
+        fontSize: 14,
+        bold: true,
+        color: inkHex,
+        align: "center",
+      });
+
+      // KPI Delta
+      if (kpi.delta) {
+        slide2.addText(kpi.delta, {
+          x: xPos + 0.2,
+          y: 4.2,
+          w: cardWidth - 0.4,
+          h: 0.4,
+          fontSize: 12,
+          color: kpi.deltaType === "positive" ? "10B981" : "EF4444",
+          align: "center",
+        });
+      }
+
+      // Micro description
+      if (kpi.description) {
+        slide2.addText(kpi.description, {
+          x: xPos + 0.2,
+          y: 4.7,
+          w: cardWidth - 0.4,
+          h: 0.6,
+          fontSize: 10,
+          color: inkMutedHex,
+          align: "center",
+        });
+      }
+    });
+
+    if (ast.kpiNarrative) {
+      slide2.addText(ast.kpiNarrative, {
+        x: 1.0,
+        y: 5.8,
+        w: 11.3,
+        h: 0.6,
+        fontSize: 12,
+        color: inkHex,
+        italic: true,
+      });
+    }
   }
 
   // ----------------------------------------------------

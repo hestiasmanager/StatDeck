@@ -121,57 +121,59 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
             )}
           </header>
 
-          {/* KPI 4-Card Strip */}
-          <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {ast.kpis.map((kpi, index) => (
-              <div
-                key={kpi.id || index}
-                className="p-6 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between shadow-2xs transition-all hover:scale-[1.02]"
-                style={{
-                  backgroundColor: theme.surface,
-                  borderColor: theme.surfaceBorder,
-                  borderRadius: theme.cardRadius,
-                }}
-              >
-                <span
-                  className="text-xl sm:text-2xl font-extrabold tracking-tight font-mono tabular-nums leading-tight block max-w-full"
-                  style={{ color: theme.accent }}
-                  contentEditable={Boolean(onUpdateText)}
-                  suppressContentEditableWarning
-                  onBlur={(e) => onUpdateText?.(`kpis.${index}.value`, e.currentTarget.textContent || "")}
+          {/* KPI 4-Card Strip (Optional: skipped for qualitative docs without KPIs) */}
+          {ast.kpis && ast.kpis.length > 0 && (
+            <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {ast.kpis.map((kpi, index) => (
+                <div
+                  key={kpi.id || index}
+                  className="p-6 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between shadow-2xs transition-all hover:scale-[1.02]"
+                  style={{
+                    backgroundColor: theme.surface,
+                    borderColor: theme.surfaceBorder,
+                    borderRadius: theme.cardRadius,
+                  }}
                 >
-                  {kpi.value}
-                </span>
-                <div className="mt-3">
                   <span
-                    className="text-xs font-semibold leading-snug block opacity-90"
-                    style={{ color: theme.ink }}
+                    className="text-xl sm:text-2xl font-extrabold tracking-tight font-mono tabular-nums leading-tight block max-w-full"
+                    style={{ color: theme.accent }}
                     contentEditable={Boolean(onUpdateText)}
                     suppressContentEditableWarning
-                    onBlur={(e) => onUpdateText?.(`kpis.${index}.label`, e.currentTarget.textContent || "")}
+                    onBlur={(e) => onUpdateText?.(`kpis.${index}.value`, e.currentTarget.textContent || "")}
                   >
-                    {kpi.label}
+                    {kpi.value}
                   </span>
-                  {kpi.delta && (
+                  <div className="mt-3">
                     <span
-                      className={`text-[11px] font-bold font-mono tabular-nums mt-1.5 block ${
-                        kpi.deltaType === "positive"
-                          ? "text-emerald-500"
-                          : kpi.deltaType === "negative"
-                          ? "text-rose-500"
-                          : "opacity-60"
-                      }`}
+                      className="text-xs font-semibold leading-snug block opacity-90"
+                      style={{ color: theme.ink }}
+                      contentEditable={Boolean(onUpdateText)}
+                      suppressContentEditableWarning
+                      onBlur={(e) => onUpdateText?.(`kpis.${index}.label`, e.currentTarget.textContent || "")}
                     >
-                      {kpi.delta}
+                      {kpi.label}
                     </span>
-                  )}
+                    {kpi.delta && (
+                      <span
+                        className={`text-[11px] font-bold font-mono tabular-nums mt-1.5 block ${
+                          kpi.deltaType === "positive"
+                            ? "text-emerald-500"
+                            : kpi.deltaType === "negative"
+                            ? "text-rose-500"
+                            : "opacity-60"
+                        }`}
+                      >
+                        {kpi.delta}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </section>
+              ))}
+            </section>
+          )}
 
           {/* KPI Analytical Narrative Callout */}
-          {ast.kpiNarrative && (
+          {ast.kpis && ast.kpis.length > 0 && ast.kpiNarrative && (
             <div
               className="px-5 py-3 rounded-xl border border-black/5 dark:border-white/10 flex items-center gap-3 shadow-2xs"
               style={{

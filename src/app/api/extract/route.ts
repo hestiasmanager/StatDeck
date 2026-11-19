@@ -23,6 +23,140 @@ const RequestBodySchema = z.object({
   deepAnalysis: z.boolean().optional().default(false),
 });
 
+// Helper to call Google Gemini API with low thinking for hydrogen
+async function callGeminiModel(
+  model: string,
+  apiKey: string,
+  promptText: string,
+  signal: AbortSignal
+): Promise<Response> {
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const generationConfig: Record<string, any> = {
+    temperature: 0,
+    responseMimeType: "application/json",
+  };
+  if (model.includes("hydrogen") || model.includes("gemini-4")) {
+    generationConfig.thinkingConfig = { thinkingLevel: "low" };
+  }
+
+  const requestBody = {
+    system_instruction: {
+      parts: [{ text: STATDECK_SYSTEM_PROMPT }],
+    },
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: promptText }],
+      },
+    ],
+    generationConfig,
+  };
+
+  return await fetch(geminiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestBody),
+    signal,
+  });
+}
+
+// Helper to call OpenAI API
+async function callOpenAiModel(
+  apiKey: string,
+  promptText: string,
+  signal: AbortSignal
+): Promise<Response> {
+  const openAiUrl = "https://api.openai.com/v1/chat/completions";
+  return await fetch(openAiUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: STATDECK_SYSTEM_PROMPT },
+        { role: "user", content: promptText },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.1,
+    }),
+    signal,
+  });
+}
+
+// Helper to call OpenRouter API
+async function callOpenRouterModel(
+  apiKey: string,
+  model: string,
+  promptText: string,
+  signal: AbortSignal
+): Promise<Response> {
+  const openRouterUrl = "https://openrouter.ai/api/v1/chat/completions";
+  return await fetch(openRouterUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://statdeck.ai",
+      "X-Title": "StatDeck Visual Deck Synthesizer",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: STATDECK_SYSTEM_PROMPT },
+        { role: "user", content: promptText },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.1,
+    }),
+    signal,
+  });
+}
+
+// Helper to validate and normalize raw JSON into DeckAST
+function validateExtractedAst(
+  rawText: string,
+  format: any,
+  templateId: string,
+  modelName: string
+): { success: true; ast: DeckAST } | { success: false; error: string; statusCode: number; details?: any } {
+  let parsedJson: unknown;
+  try {
+    parsedJson = JSON.parse(rawText);
+  } catch (parseErr) {
+    return {
+      success: false,
+      error: `Failed to parse JSON returned from ${modelName}: ${
+        parseErr instanceof Error ? parseErr.message : String(parseErr)
+      }`,
+      statusCode: 422,
+      details: rawText.slice(0, 500),
+    };
+  }
+
+  const normalizedAst = normalizeExtractionDeck(parsedJson, format, templateId);
+  const zodResult = DeckSchema.safeParse(normalizedAst);
+
+  if (!zodResult.success) {
+    const issueDetails = zodResult.error.issues
+      .map((i) => `${i.path.join(".")}: ${i.message}`)
+      .join("; ");
+    console.error(`[API /api/extract] DeckSchema validation failed for ${modelName}:`, issueDetails);
+    return {
+      success: false,
+      error: `Extracted deck failed schema validation: ${issueDetails}`,
+      statusCode: 422,
+      details: zodResult.error.flatten(),
+    };
+  }
+
+  return { success: true, ast: zodResult.data };
+}
+
 export async function POST(req: NextRequest) {
   console.time("extract");
   const startTime = Date.now();
@@ -117,309 +251,199 @@ export async function POST(req: NextRequest) {
       (clientOpenAiKey && clientOpenAiKey.length > 15 ? clientOpenAiKey : undefined) ||
       process.env.OPENAI_API_KEY?.trim();
 
-    // 5. Execute Direct Fetch to Google Gemini (Primary Default)
-    if (geminiKey) {
-      const selectedModel = deepAnalysis ? "gemini-4-hydrogen" : "gemini-3.5-flash-lite";
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${geminiKey}`;
-
-      const promptText = `Target Output Format: ${format}
+    const promptText = `Target Output Format: ${format}
 Template Style: ${templateId}
 
 Transform the following raw text or dataset into a structured JSON deck AST:
 
 ${finalContent}`;
 
-      const requestBody = {
-        system_instruction: {
-          parts: [{ text: STATDECK_SYSTEM_PROMPT }],
-        },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: promptText }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: "application/json",
-        },
-      };
+    let successfulAst: DeckAST | null = null;
+    let successfulModel: string | null = null;
+    let lastError: { error: string; statusCode: number; details?: any } | null = null;
 
-      const geminiRes = await fetch(geminiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-        signal: abortController.signal,
-      });
+    // 5. Execute Direct Fetch to Google Gemini with Automatic 503/429 Fallback
+    if (geminiKey) {
+      const geminiCandidates = deepAnalysis
+        ? ["gemini-4-hydrogen", "gemini-3.8-flash", "gemini-3.5-flash-lite"]
+        : ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-4-hydrogen"];
 
-      clearTimeout(timeoutId);
-      console.timeEnd("extract");
-      const elapsedMs = Date.now() - startTime;
+      for (const model of geminiCandidates) {
+        try {
+          const geminiRes = await callGeminiModel(model, geminiKey, promptText, abortController.signal);
 
-      // Immediately return exact Google API status code and error message if non-200
-      if (!geminiRes.ok) {
-        const errData = await geminiRes.json().catch(() => null);
-        const googleMessage =
-          errData?.error?.message ||
-          errData?.message ||
-          geminiRes.statusText ||
-          `Google Gemini API responded with HTTP ${geminiRes.status}`;
+          if (geminiRes.ok) {
+            const data = await geminiRes.json();
+            const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-        console.error(
-          `[API /api/extract] Gemini API failed with status ${geminiRes.status} in ${elapsedMs}ms:`,
-          googleMessage
-        );
+            if (!rawText) {
+              console.warn(`[API /api/extract] Gemini model ${model} returned empty candidates. Trying fallback...`);
+              lastError = {
+                error: `Gemini ${model} returned empty text candidates`,
+                statusCode: 502,
+              };
+              continue;
+            }
 
-        return NextResponse.json(
-          {
+            const validated = validateExtractedAst(rawText, format, templateId, `google/${model}`);
+            if (!validated.success) {
+              console.warn(`[API /api/extract] Gemini model ${model} schema mismatch. Trying fallback...`);
+              lastError = {
+                error: validated.error,
+                statusCode: validated.statusCode,
+                details: validated.details,
+              };
+              continue;
+            }
+
+            successfulAst = validated.ast;
+            successfulModel = `google/${model}`;
+            break;
+          }
+
+          // Handle Non-200 Google response
+          const errData = await geminiRes.json().catch(() => null);
+          const googleMessage =
+            errData?.error?.message ||
+            errData?.message ||
+            geminiRes.statusText ||
+            `Google Gemini API responded with HTTP ${geminiRes.status}`;
+
+          lastError = {
             error: googleMessage,
             statusCode: geminiRes.status,
             details: errData?.error?.details || errData,
-            elapsedMs,
-          },
-          { status: geminiRes.status }
-        );
-      }
+          };
 
-      // Parse JSON from candidates
-      const data = await geminiRes.json();
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          const isTransient =
+            geminiRes.status === 503 ||
+            geminiRes.status === 429 ||
+            geminiRes.status === 500 ||
+            geminiRes.status === 502 ||
+            geminiRes.status === 504;
 
-      if (!rawText) {
-        return NextResponse.json(
-          {
-            error: "Gemini response did not contain any text candidates",
+          if (isTransient) {
+            console.warn(
+              `[API /api/extract] Gemini model ${model} failed with HTTP ${geminiRes.status} (${googleMessage}). Immediately falling back in same request...`
+            );
+            continue;
+          }
+
+          // Non-transient error like 400 (bad key or malformed request) - stop attempting Gemini models
+          console.error(`[API /api/extract] Gemini API failed with non-transient status ${geminiRes.status}:`, googleMessage);
+          break;
+        } catch (fetchErr) {
+          if (abortController.signal.aborted) throw fetchErr;
+          console.warn(`[API /api/extract] Network error on model ${model}:`, fetchErr);
+          lastError = {
+            error: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
             statusCode: 502,
-            elapsedMs,
-          },
-          { status: 502 }
-        );
+          };
+          continue;
+        }
       }
-
-      let parsedJson: unknown;
-      try {
-        parsedJson = JSON.parse(rawText);
-      } catch (parseErr) {
-        return NextResponse.json(
-          {
-            error: `Failed to parse JSON returned from Gemini: ${
-              parseErr instanceof Error ? parseErr.message : String(parseErr)
-            }`,
-            statusCode: 422,
-            raw: rawText.slice(0, 500),
-            elapsedMs,
-          },
-          { status: 422 }
-        );
-      }
-
-      // Normalize and validate strictly against DeckSchema
-      const normalizedAst = normalizeExtractionDeck(parsedJson, format, templateId);
-      const zodResult = DeckSchema.safeParse(normalizedAst);
-
-      if (!zodResult.success) {
-        const issueDetails = zodResult.error.issues
-          .map((i) => `${i.path.join(".")}: ${i.message}`)
-          .join("; ");
-        console.error("[API /api/extract] DeckSchema validation failed:", issueDetails);
-        return NextResponse.json(
-          {
-            error: `Extracted deck failed schema validation: ${issueDetails}`,
-            statusCode: 422,
-            details: zodResult.error.flatten(),
-            issues: issueDetails,
-            elapsedMs,
-          },
-          { status: 422 }
-        );
-      }
-
-      const validatedAst = zodResult.data;
-      await redis.set(cacheKey, validatedAst, { ex: 604800 }).catch(() => null);
-
-      console.log(`[API /api/extract] Direct fetch succeeded in ${elapsedMs}ms | model: google/${selectedModel}`);
-
-      return NextResponse.json({
-        success: true,
-        ast: validatedAst,
-        cached: false,
-        modelUsed: `google/${selectedModel}`,
-        elapsedMs,
-      });
     }
 
-    // 6. Direct Fetch to OpenRouter (Secondary if OpenRouter key is provided)
-    if (openRouterKey) {
+    // 6. Direct Fetch to OpenAI (Fallback or tertiary provider)
+    if (!successfulAst && openAiKey) {
+      try {
+        console.warn("[API /api/extract] Invoking OpenAI gpt-4o-mini provider...");
+        const oaiRes = await callOpenAiModel(openAiKey, promptText, abortController.signal);
+
+        if (oaiRes.ok) {
+          const data = await oaiRes.json();
+          const rawText = data?.choices?.[0]?.message?.content;
+
+          if (rawText) {
+            const validated = validateExtractedAst(rawText, format, templateId, "openai/gpt-4o-mini");
+            if (validated.success) {
+              successfulAst = validated.ast;
+              successfulModel = "openai/gpt-4o-mini";
+            } else {
+              lastError = {
+                error: validated.error,
+                statusCode: validated.statusCode,
+                details: validated.details,
+              };
+            }
+          } else {
+            lastError = {
+              error: "OpenAI response did not contain message content",
+              statusCode: 502,
+            };
+          }
+        } else {
+          const errData = await oaiRes.json().catch(() => null);
+          const oaiMessage = errData?.error?.message || oaiRes.statusText || `OpenAI responded with HTTP ${oaiRes.status}`;
+          lastError = {
+            error: oaiMessage,
+            statusCode: oaiRes.status,
+            details: errData?.error?.details || errData,
+          };
+        }
+      } catch (oaiErr) {
+        if (abortController.signal.aborted) throw oaiErr;
+        console.warn("[API /api/extract] OpenAI fetch error:", oaiErr);
+      }
+    }
+
+    // 7. Direct Fetch to OpenRouter (Fallback if OpenRouter key is provided)
+    if (!successfulAst && openRouterKey) {
       const selectedModel = clientOpenRouterModel || "google/gemini-2.5-flash";
-      const openRouterUrl = "https://openrouter.ai/api/v1/chat/completions";
-
-      const orRes = await fetch(openRouterUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${openRouterKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://statdeck.ai",
-          "X-Title": "StatDeck Visual Deck Synthesizer",
-        },
-        body: JSON.stringify({
-          model: selectedModel,
-          messages: [
-            { role: "system", content: STATDECK_SYSTEM_PROMPT },
-            {
-              role: "user",
-              content: `Target Output Format: ${format}\nTemplate Style: ${templateId}\n\nRAW CONTENT TO SYNTHESIZE:\n${finalContent}`,
-            },
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0.1,
-        }),
-        signal: abortController.signal,
-      });
-
-      clearTimeout(timeoutId);
-      console.timeEnd("extract");
-      const elapsedMs = Date.now() - startTime;
-
-      if (!orRes.ok) {
-        const errData = await orRes.json().catch(() => null);
-        const orMessage = errData?.error?.message || orRes.statusText || `OpenRouter responded with HTTP ${orRes.status}`;
-        return NextResponse.json(
-          { error: orMessage, statusCode: orRes.status, elapsedMs },
-          { status: orRes.status }
-        );
-      }
-
-      const data = await orRes.json();
-      const rawText = data?.choices?.[0]?.message?.content;
-      if (!rawText) {
-        return NextResponse.json(
-          { error: "OpenRouter response did not contain message content", statusCode: 502, elapsedMs },
-          { status: 502 }
-        );
-      }
-
-      let parsedJson: unknown;
       try {
-        parsedJson = JSON.parse(rawText);
-      } catch (parseErr) {
-        return NextResponse.json(
-          { error: "Failed to parse JSON from OpenRouter", statusCode: 422, elapsedMs },
-          { status: 422 }
-        );
-      }
+        console.warn(`[API /api/extract] Invoking OpenRouter provider (${selectedModel})...`);
+        const orRes = await callOpenRouterModel(openRouterKey, selectedModel, promptText, abortController.signal);
 
-      const normalizedAst = normalizeExtractionDeck(parsedJson, format, templateId);
-      const zodResult = DeckSchema.safeParse(normalizedAst);
-      if (!zodResult.success) {
-        const issueDetails = zodResult.error.issues
-          .map((i) => `${i.path.join(".")}: ${i.message}`)
-          .join("; ");
-        console.error("[API /api/extract] DeckSchema validation failed (OpenRouter):", issueDetails);
-        return NextResponse.json(
-          {
-            error: `Extracted deck failed schema validation: ${issueDetails}`,
-            statusCode: 422,
-            details: zodResult.error.flatten(),
-            issues: issueDetails,
-            elapsedMs,
-          },
-          { status: 422 }
-        );
-      }
+        if (orRes.ok) {
+          const data = await orRes.json();
+          const rawText = data?.choices?.[0]?.message?.content;
 
-      await redis.set(cacheKey, zodResult.data, { ex: 604800 }).catch(() => null);
-      return NextResponse.json({
-        success: true,
-        ast: zodResult.data,
-        cached: false,
-        modelUsed: `openrouter/${selectedModel}`,
-        elapsedMs,
-      });
+          if (rawText) {
+            const validated = validateExtractedAst(rawText, format, templateId, `openrouter/${selectedModel}`);
+            if (validated.success) {
+              successfulAst = validated.ast;
+              successfulModel = `openrouter/${selectedModel}`;
+            } else {
+              lastError = {
+                error: validated.error,
+                statusCode: validated.statusCode,
+                details: validated.details,
+              };
+            }
+          } else {
+            lastError = {
+              error: "OpenRouter response did not contain message content",
+              statusCode: 502,
+            };
+          }
+        } else {
+          const errData = await orRes.json().catch(() => null);
+          const orMessage = errData?.error?.message || orRes.statusText || `OpenRouter responded with HTTP ${orRes.status}`;
+          lastError = {
+            error: orMessage,
+            statusCode: orRes.status,
+            details: errData?.error?.details || errData,
+          };
+        }
+      } catch (orErr) {
+        if (abortController.signal.aborted) throw orErr;
+        console.warn("[API /api/extract] OpenRouter fetch error:", orErr);
+      }
     }
 
-    // 7. Direct Fetch to OpenAI (Tertiary if OpenAI key is provided)
-    if (openAiKey) {
-      const openAiUrl = "https://api.openai.com/v1/chat/completions";
-      const oaiRes = await fetch(openAiUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${openAiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: STATDECK_SYSTEM_PROMPT },
-            {
-              role: "user",
-              content: `Target Output Format: ${format}\nTemplate Style: ${templateId}\n\nRAW CONTENT TO SYNTHESIZE:\n${finalContent}`,
-            },
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0.1,
-        }),
-        signal: abortController.signal,
-      });
-
+    // If any provider succeeded, cache and return validated AST
+    if (successfulAst && successfulModel) {
       clearTimeout(timeoutId);
       console.timeEnd("extract");
       const elapsedMs = Date.now() - startTime;
+      await redis.set(cacheKey, successfulAst, { ex: 604800 }).catch(() => null);
+      console.log(`[API /api/extract] Extraction succeeded in ${elapsedMs}ms | model: ${successfulModel}`);
 
-      if (!oaiRes.ok) {
-        const errData = await oaiRes.json().catch(() => null);
-        const oaiMessage = errData?.error?.message || oaiRes.statusText || `OpenAI responded with HTTP ${oaiRes.status}`;
-        return NextResponse.json(
-          { error: oaiMessage, statusCode: oaiRes.status, elapsedMs },
-          { status: oaiRes.status }
-        );
-      }
-
-      const data = await oaiRes.json();
-      const rawText = data?.choices?.[0]?.message?.content;
-      if (!rawText) {
-        return NextResponse.json(
-          { error: "OpenAI response did not contain message content", statusCode: 502, elapsedMs },
-          { status: 502 }
-        );
-      }
-
-      let parsedJson: unknown;
-      try {
-        parsedJson = JSON.parse(rawText);
-      } catch (parseErr) {
-        return NextResponse.json(
-          { error: "Failed to parse JSON from OpenAI", statusCode: 422, elapsedMs },
-          { status: 422 }
-        );
-      }
-
-      const normalizedAst = normalizeExtractionDeck(parsedJson, format, templateId);
-      const zodResult = DeckSchema.safeParse(normalizedAst);
-      if (!zodResult.success) {
-        const issueDetails = zodResult.error.issues
-          .map((i) => `${i.path.join(".")}: ${i.message}`)
-          .join("; ");
-        console.error("[API /api/extract] DeckSchema validation failed (OpenRouter):", issueDetails);
-        return NextResponse.json(
-          {
-            error: `Extracted deck failed schema validation: ${issueDetails}`,
-            statusCode: 422,
-            details: zodResult.error.flatten(),
-            issues: issueDetails,
-            elapsedMs,
-          },
-          { status: 422 }
-        );
-      }
-
-      await redis.set(cacheKey, zodResult.data, { ex: 604800 }).catch(() => null);
       return NextResponse.json({
         success: true,
-        ast: zodResult.data,
+        ast: successfulAst,
         cached: false,
-        modelUsed: "openai/gpt-4o-mini",
+        modelUsed: successfulModel,
         elapsedMs,
       });
     }
@@ -431,6 +455,7 @@ ${finalContent}`;
         clearTimeout(timeoutId);
         console.timeEnd("extract");
         const elapsedMs = Date.now() - startTime;
+        console.log(`[API /api/extract] Succeeded with deterministic parser in ${elapsedMs}ms`);
         return NextResponse.json({
           success: true,
           ast: heuristicAst,
@@ -439,13 +464,27 @@ ${finalContent}`;
           elapsedMs,
         });
       } catch {
-        // Fall through to 401
+        // Fall through to error
       }
     }
 
     clearTimeout(timeoutId);
     console.timeEnd("extract");
     const elapsedMs = Date.now() - startTime;
+
+    // Return the exact error and status code from the last provider attempted
+    if (lastError) {
+      console.error(`[API /api/extract] All providers failed after ${elapsedMs}ms:`, lastError.error);
+      return NextResponse.json(
+        {
+          error: lastError.error,
+          statusCode: lastError.statusCode,
+          details: lastError.details,
+          elapsedMs,
+        },
+        { status: lastError.statusCode }
+      );
+    }
 
     return NextResponse.json(
       {

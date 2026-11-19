@@ -14,7 +14,7 @@ CORE RULES & CONSTRAINTS:
    - 'blocks[].type': Must be one of ["numbered_steps", "comparison_table", "pros_cons", "callout_quote", "key_takeaways"].
 
 3. STRICT ARRAY BOUNDS:
-   - 'kpis': 1 to 4 items. 'value' (max 20 chars, e.g. "$14.2M", "84.3%"), 'label' (max 40 chars), 'delta' (optional, max 25 chars).
+   - 'kpis': 0 to 4 items. 'value' (max 20 chars, e.g. "$14.2M", "84.3%"), 'label' (max 40 chars), 'delta' (optional, max 25 chars). For purely qualitative documents, procedures, guides, or SOPs with no genuine quantitative metrics, output an empty array 'kpis: []' rather than inventing filler badges like "100% Ready" or "4 Steps".
    - 'charts': 0 to 6 items. 'data' must contain between 2 and 12 data points. Each data point must have a string 'label' and numerical 'value'.
    - 'blocks': 0 to 10 items:
      * 'numbered_steps': 'steps' must have 2 to 5 steps, each with 'step' (integer), 'title' (max 60 chars), 'description' (max 160 chars).
@@ -38,7 +38,7 @@ CORE RULES & CONSTRAINTS:
 6. WRITTEN NARRATIVE & CONTEXT ON SLIDES 1, 2, AND 3 (MANDATORY):
    - 'executiveSummary': 1-2 sentence executive briefing or narrative overview of the deck, rendered on Slide 1 (Cover) below the subtitle.
    - 'coverHighlights': 2 to 3 concise, high-impact takeaway bullets (10-14 words each) highlighting core conclusions for Slide 1 (Cover).
-   - 'kpiNarrative': 1-2 sentence analytical narrative explaining what the KPI numbers mean, underlying drivers, or business impact, rendered directly below the cards on Slide 2.
+   - 'kpiNarrative': 1-2 sentence analytical narrative explaining what the KPI numbers mean, underlying drivers, or business impact, rendered directly below the cards on Slide 2 (leave empty "" if kpis is empty).
    - 'chartInsight': 1-2 sentence "What This Shows" insight explaining the trend, inflection point, or core takeaway, rendered directly below the chart on Slide 3.
 
 7. CONCRETE JSON SKELETON EXAMPLE:

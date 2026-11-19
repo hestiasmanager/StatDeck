@@ -72,12 +72,16 @@ export async function POST(req: NextRequest) {
         subtitle: ast.meta.subtitle,
         category: ast.meta.category,
       },
-      {
-        slideIndex: 2,
-        type: "kpis",
-        background: theme.surface,
-        kpis: ast.kpis,
-      },
+      ...(ast.kpis && ast.kpis.length > 0
+        ? [
+            {
+              slideIndex: 2,
+              type: "kpis",
+              background: theme.surface,
+              kpis: ast.kpis,
+            },
+          ]
+        : []),
       ...(ast.charts.length > 0
         ? [
             {

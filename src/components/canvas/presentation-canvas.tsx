@@ -109,101 +109,105 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
         </div>
       ),
     },
-    // Slide 2: KPIs & Executive Summary
-    {
-      id: "deck-kpis",
-      content: (
-        <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
-          <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
-              Key Metrics
-            </span>
-            <h2 className="text-2xl font-extrabold tracking-tight" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-              Executive Performance Summary
-            </h2>
-          </div>
-          <div className="grid grid-cols-4 gap-4 my-auto flex-1 min-h-0 items-center">
-            {ast.kpis.map((kpi, idx) => (
-              <div
-                key={idx}
-                className="p-4 md:p-5 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between shadow-2xs transition-all hover:scale-[1.02] overflow-hidden min-w-0"
-                style={{
-                  backgroundColor: theme.surface,
-                  borderColor: theme.surfaceBorder,
-                  borderRadius: theme.cardRadius,
-                }}
-              >
-                <span
-                  className={`font-extrabold tracking-tight font-mono tabular-nums leading-tight truncate block max-w-full ${
-                    kpi.value.length > 8
-                      ? "text-xl xl:text-2xl"
-                      : kpi.value.length > 5
-                      ? "text-2xl xl:text-3xl"
-                      : "text-3xl xl:text-4xl"
-                  }`}
-                  style={{ color: theme.accent }}
-                  title={kpi.value}
-                >
-                  {kpi.value}
-                </span>
-                <div className="mt-3">
-                  <span className="text-xs font-semibold leading-snug block opacity-90" style={{ color: theme.ink }}>
-                    {kpi.label}
+    // Slide 2: KPIs & Executive Summary (Optional: skipped for qualitative docs without KPIs)
+    ...(ast.kpis && ast.kpis.length > 0
+      ? [
+          {
+            id: "deck-kpis",
+            content: (
+              <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+                <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
+                    Key Metrics
                   </span>
-                  {kpi.delta && (
-                    <span
-                      className={`text-[11px] font-bold font-mono tabular-nums mt-1.5 block ${
-                        kpi.deltaType === "positive" ||
-                        (!kpi.deltaType &&
-                          (kpi.delta.startsWith("+") ||
-                            kpi.delta.toLowerCase().includes("free") ||
-                            kpi.delta.toLowerCase().includes("saved")))
-                          ? "text-emerald-500"
-                          : kpi.deltaType === "negative" ||
-                            (!kpi.deltaType && kpi.delta.startsWith("-"))
-                          ? "text-rose-500"
-                          : "opacity-60"
-                      }`}
+                  <h2 className="text-2xl font-extrabold tracking-tight" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+                    Executive Performance Summary
+                  </h2>
+                </div>
+                <div className="grid grid-cols-4 gap-4 my-auto flex-1 min-h-0 items-center">
+                  {ast.kpis.map((kpi, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 md:p-5 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between shadow-2xs transition-all hover:scale-[1.02] overflow-hidden min-w-0"
+                      style={{
+                        backgroundColor: theme.surface,
+                        borderColor: theme.surfaceBorder,
+                        borderRadius: theme.cardRadius,
+                      }}
                     >
-                      {kpi.delta}
-                    </span>
-                  )}
+                      <span
+                        className={`font-extrabold tracking-tight font-mono tabular-nums leading-tight truncate block max-w-full ${
+                          kpi.value.length > 8
+                            ? "text-xl xl:text-2xl"
+                            : kpi.value.length > 5
+                            ? "text-2xl xl:text-3xl"
+                            : "text-3xl xl:text-4xl"
+                        }`}
+                        style={{ color: theme.accent }}
+                        title={kpi.value}
+                      >
+                        {kpi.value}
+                      </span>
+                      <div className="mt-3">
+                        <span className="text-xs font-semibold leading-snug block opacity-90" style={{ color: theme.ink }}>
+                          {kpi.label}
+                        </span>
+                        {kpi.delta && (
+                          <span
+                            className={`text-[11px] font-bold font-mono tabular-nums mt-1.5 block ${
+                              kpi.deltaType === "positive" ||
+                              (!kpi.deltaType &&
+                                (kpi.delta.startsWith("+") ||
+                                  kpi.delta.toLowerCase().includes("free") ||
+                                  kpi.delta.toLowerCase().includes("saved")))
+                                ? "text-emerald-500"
+                                : kpi.deltaType === "negative" ||
+                                  (!kpi.deltaType && kpi.delta.startsWith("-"))
+                                ? "text-rose-500"
+                                : "opacity-60"
+                            }`}
+                          >
+                            {kpi.delta}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* KPI Analytical Narrative Callout */}
+                {ast.kpiNarrative && (
+                  <div
+                    className="mt-2.5 px-4 py-2 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
+                    style={{
+                      backgroundColor: `${theme.accent}08`,
+                      borderColor: theme.surfaceBorder,
+                    }}
+                  >
+                    <div
+                      className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                      style={{ backgroundColor: theme.accent }}
+                    />
+                    <p
+                      className="text-xs leading-relaxed opacity-85 font-medium"
+                      style={{ color: theme.ink }}
+                      contentEditable={Boolean(onUpdateText)}
+                      suppressContentEditableWarning
+                      onBlur={(e) => onUpdateText?.("kpiNarrative", e.currentTarget.textContent || "")}
+                      title={ast.kpiNarrative}
+                    >
+                      {ast.kpiNarrative}
+                    </p>
+                  </div>
+                )}
+                <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                  <span className="text-xs font-mono opacity-60">Executive Summary</span>
+                  <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
                 </div>
               </div>
-            ))}
-          </div>
-          {/* KPI Analytical Narrative Callout */}
-          {ast.kpiNarrative && (
-            <div
-              className="mt-2.5 px-4 py-2 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
-              style={{
-                backgroundColor: `${theme.accent}08`,
-                borderColor: theme.surfaceBorder,
-              }}
-            >
-              <div
-                className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
-                style={{ backgroundColor: theme.accent }}
-              />
-              <p
-                className="text-xs leading-relaxed opacity-85 font-medium"
-                style={{ color: theme.ink }}
-                contentEditable={Boolean(onUpdateText)}
-                suppressContentEditableWarning
-                onBlur={(e) => onUpdateText?.("kpiNarrative", e.currentTarget.textContent || "")}
-                title={ast.kpiNarrative}
-              >
-                {ast.kpiNarrative}
-              </p>
-            </div>
-          )}
-          <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-            <span className="text-xs font-mono opacity-60">Executive Summary</span>
-            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-          </div>
-        </div>
-      ),
-    },
+            ),
+          },
+        ]
+      : []),
     // Slide 3+: Visual Charts (Dynamic 0 to 6 charts)
     ...ast.charts.map((chart, chartIdx) => ({
       id: chart.id || `deck-chart-${chartIdx + 1}`,

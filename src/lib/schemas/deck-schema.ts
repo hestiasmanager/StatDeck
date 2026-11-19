@@ -125,7 +125,7 @@ export const DeckSchema = z.object({
     .max(3)
     .default([])
     .describe("Up to 3 high-impact takeaway bullet points for Slide 1 (Cover)"),
-  kpis: z.array(KpiCardSchema).min(1).max(4).describe("1 to 4 core high-impact metrics"),
+  kpis: z.array(KpiCardSchema).min(0).max(4).default([]).describe("0 to 4 core high-impact metrics"),
   kpiNarrative: z
     .string()
     .default("")
@@ -205,7 +205,7 @@ export const ExtractionBlockSchema = z.object({
 export const ExtractionDeckSchema = z.object({
   id: z.string().optional(),
   meta: DeckMetaSchema,
-  kpis: z.array(KpiCardSchema).min(1).max(4).describe("1 to 4 core high-impact metrics"),
+  kpis: z.array(KpiCardSchema).min(0).max(4).default([]).describe("0 to 4 core high-impact metrics"),
   charts: z.array(ChartBlockSchema).max(6).describe("0 to 6 primary data charts"),
   blocks: z.array(ExtractionBlockSchema).max(10).describe("Structured process, comparison, or takeaway blocks"),
   templateId: z.string().default("clean-bento"),
@@ -360,16 +360,6 @@ export function normalizeExtractionDeck(
     })
     .slice(0, 4);
 
-  // Guarantee at least 1 KPI to fulfill min(1)
-  if (normalizedKpis.length === 0) {
-    normalizedKpis.push({
-      id: "kpi-1",
-      value: "100%",
-      label: "Operational Focus",
-      deltaType: "neutral",
-      description: "Key benchmark metric",
-    });
-  }
 
   // 4. Charts Normalization (Clamped 0 to 6, data clamped 2 to 12)
   const rawCharts: any[] = Array.isArray(raw.charts) ? raw.charts : [];

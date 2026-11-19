@@ -15,10 +15,10 @@ export function testDeckSchemaValidation() {
     console.log(`[PASS] Preset '${key}' validated successfully.`);
   }
 
-  // Test invalid schema catching
+  // Test invalid schema catching (e.g. title too short)
   const invalidDeck = {
     meta: { title: "No" }, // title too short (<3)
-    kpis: [], // empty KPIs
+    kpis: [],
     charts: [],
     blocks: [],
   };
@@ -28,6 +28,40 @@ export function testDeckSchemaValidation() {
     throw new Error("Invalid deck unexpectedly passed validation!");
   }
   console.log("[PASS] Invalid deck correctly rejected by DeckSchema directly.");
+
+  // Test pure qualitative deck with empty kpis: []
+  const qualitativeDeck = {
+    meta: {
+      title: "Production Incident SOP & Runbook",
+      subtitle: "Standard operating procedure for handling critical P0 infrastructure alerts.",
+    },
+    kpis: [], // pure qualitative document - no filler badges!
+    charts: [],
+    blocks: [
+      {
+        id: "step-block-1",
+        type: "numbered_steps" as const,
+        title: "Triage Protocol",
+        steps: [
+          { step: 1, title: "Acknowledge PagerDuty Alert", description: "Acknowledge within 5 minutes of page." },
+          { step: 2, title: "Open War Room", description: "Spin up incident Slack channel and video bridge." },
+        ],
+      },
+    ],
+  };
+
+  const qualResult = DeckSchema.safeParse(qualitativeDeck);
+  if (!qualResult.success) {
+    throw new Error(`Pure qualitative deck failed validation: ${qualResult.error.message}`);
+  }
+  console.log("[PASS] Qualitative deck with kpis: [] validated successfully.");
+
+  // Test that normalizer preserves empty kpis: [] without injecting filler badges
+  const normalizedQual = normalizeExtractionDeck(qualitativeDeck);
+  if (normalizedQual.kpis.length !== 0) {
+    throw new Error(`Expected 0 KPIs in normalized qualitative deck, got ${normalizedQual.kpis.length}`);
+  }
+  console.log("[PASS] normalizeExtractionDeck preserves kpis: [] for qualitative documents.");
 
   // Test resilient normalizer on messy LLM payload with nulls and out-of-bound arrays
   const messyLlmPayload = {
