@@ -9,9 +9,10 @@ interface ApiKeyModalProps {
 }
 
 const POPULAR_OPENROUTER_MODELS = [
+  { id: "google/gemini-4-hydrogen", name: "Gemini 4 Hydrogen (Primary, Fast & Deep Reasoning)" },
+  { id: "google/gemini-3.8-flash", name: "Gemini 3.8 Flash (Fast Fallback)" },
+  { id: "google/gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite (Ultra-Fast)" },
   { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash (Ultra-Fast & Production Stable)" },
-  { id: "google/gemini-2.0-flash-001", name: "Gemini 2.0 Flash (Fastest)" },
-  { id: "google/gemini-3.8-flash", name: "Gemini 3.8 Flash (Latest Preview)" },
   { id: "openai/gpt-4o-mini", name: "GPT-4o-mini (Reliable & Structured)" },
   { id: "anthropic/claude-3.5-haiku", name: "Claude 3.5 Haiku (Sharp Editorial Prose)" },
   { id: "deepseek/deepseek-chat", name: "DeepSeek V3 (Ultra-Low Cost)" },

@@ -90,11 +90,11 @@ async function callOpenAiModel(
   });
 }
 
-// Helper to call OpenRouter API
-async function callOpenRouterModel(
+// Helper to call OpenRouter API with multi-model automatic failover
+async function callOpenRouterWithFallback(
   apiKey: string,
-  model: string,
   promptText: string,
+  models: string[],
   signal: AbortSignal
 ): Promise<Response> {
   const openRouterUrl = "https://openrouter.ai/api/v1/chat/completions";
@@ -107,13 +107,14 @@ async function callOpenRouterModel(
       "X-Title": "StatDeck Visual Deck Synthesizer",
     },
     body: JSON.stringify({
-      model,
+      models,
       messages: [
         { role: "system", content: STATDECK_SYSTEM_PROMPT },
         { role: "user", content: promptText },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.1,
+      temperature: 0,
+      reasoning: { effort: "low" },
     }),
     signal,
   });
@@ -264,8 +265,104 @@ ${finalContent}`;
     let successfulModel: string | null = null;
     let lastError: { error: string; statusCode: number; details?: any } | null = null;
 
-    // 5. Execute Direct Fetch to Google Gemini with Automatic 503/429 Fallback and Per-Model 10s Timeout
-    if (geminiKey) {
+    // 5. Primary Provider: OpenRouter with Automatic Multi-Model Failover (25s timeout)
+    if (openRouterKey) {
+      const defaultOpenRouterModels = [
+        "google/gemini-4-hydrogen",
+        "google/gemini-3.8-flash",
+        "google/gemini-3.5-flash-lite",
+      ];
+      const openRouterModels = clientOpenRouterModel
+        ? [clientOpenRouterModel, ...defaultOpenRouterModels.filter((m) => m !== clientOpenRouterModel)]
+        : defaultOpenRouterModels;
+
+      const orController = new AbortController();
+      const orTimeoutId = setTimeout(() => {
+        orController.abort(new Error("OpenRouter request timed out after 25000ms"));
+      }, 25000);
+      const onOverallAbort = () => orController.abort(overallAbortController.signal.reason);
+      overallAbortController.signal.addEventListener("abort", onOverallAbort, { once: true });
+
+      try {
+        console.log(
+          `[API /api/extract] Invoking OpenRouter (Primary) with models: ${openRouterModels.join(", ")}...`
+        );
+        const orRes = await callOpenRouterWithFallback(
+          openRouterKey,
+          promptText,
+          openRouterModels,
+          orController.signal
+        );
+
+        if (orRes.ok) {
+          const data = await orRes.json();
+          const usedModel = data?.model || "google/gemini-4-hydrogen";
+          const rawText = data?.choices?.[0]?.message?.content;
+
+          if (rawText) {
+            const validated = validateExtractedAst(rawText, format, templateId, `openrouter/${usedModel}`);
+            if (validated.success) {
+              successfulAst = validated.ast;
+              successfulModel = `openrouter/${usedModel}`;
+            } else {
+              lastError = {
+                error: validated.error,
+                statusCode: validated.statusCode,
+                details: validated.details,
+              };
+            }
+          } else {
+            lastError = {
+              error: "OpenRouter response did not contain message content",
+              statusCode: 502,
+            };
+          }
+        } else {
+          const errData = await orRes.json().catch(() => null);
+          const orMessage =
+            errData?.error?.message ||
+            errData?.message ||
+            orRes.statusText ||
+            `OpenRouter responded with HTTP ${orRes.status}`;
+
+          lastError = {
+            error: orMessage,
+            statusCode: orRes.status,
+            details: errData?.error || errData,
+          };
+          console.warn(
+            `[API /api/extract] OpenRouter failed with HTTP ${orRes.status} (${orMessage}). Falling back to secondary providers...`
+          );
+        }
+      } catch (orErr) {
+        if (overallAbortController.signal.aborted) throw orErr;
+
+        const isTimeout =
+          orController.signal.aborted ||
+          (orErr instanceof Error &&
+            (orErr.name === "AbortError" || orErr.message.toLowerCase().includes("timed out")));
+
+        if (isTimeout) {
+          console.warn("[API /api/extract] OpenRouter timed out after 25000ms. Falling back to secondary providers...");
+          lastError = {
+            error: "OpenRouter request timed out after 25s",
+            statusCode: 504,
+          };
+        } else {
+          console.warn("[API /api/extract] OpenRouter fetch error:", orErr);
+          lastError = {
+            error: orErr instanceof Error ? orErr.message : String(orErr),
+            statusCode: 502,
+          };
+        }
+      } finally {
+        clearTimeout(orTimeoutId);
+        overallAbortController.signal.removeEventListener("abort", onOverallAbort);
+      }
+    }
+
+    // 6. Direct Fetch to Google Gemini (Secondary Fallback with Automatic 503/429 Fallback and Per-Model 10s Timeout)
+    if (!successfulAst && geminiKey) {
       const geminiCandidates = deepAnalysis
         ? ["gemini-4-hydrogen", "gemini-3.8-flash", "gemini-3.5-flash-lite"]
         : ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-4-hydrogen"];
@@ -377,7 +474,7 @@ ${finalContent}`;
       }
     }
 
-    // 6. Direct Fetch to OpenAI (Fallback or tertiary provider with 10s timeout)
+    // 7. Direct Fetch to OpenAI (Tertiary Fallback with 10s timeout)
     if (!successfulAst && openAiKey) {
       const oaiController = new AbortController();
       const oaiTimeoutId = setTimeout(() => {
@@ -426,60 +523,6 @@ ${finalContent}`;
         console.warn("[API /api/extract] OpenAI fetch error:", oaiErr);
       } finally {
         clearTimeout(oaiTimeoutId);
-        overallAbortController.signal.removeEventListener("abort", onOverallAbort);
-      }
-    }
-
-    // 7. Direct Fetch to OpenRouter (Fallback if OpenRouter key is provided with 10s timeout)
-    if (!successfulAst && openRouterKey) {
-      const selectedModel = clientOpenRouterModel || "google/gemini-2.5-flash";
-      const orController = new AbortController();
-      const orTimeoutId = setTimeout(() => {
-        orController.abort(new Error(`OpenRouter ${selectedModel} timed out after 10000ms`));
-      }, 10000);
-      const onOverallAbort = () => orController.abort(overallAbortController.signal.reason);
-      overallAbortController.signal.addEventListener("abort", onOverallAbort, { once: true });
-
-      try {
-        console.warn(`[API /api/extract] Invoking OpenRouter provider (${selectedModel})...`);
-        const orRes = await callOpenRouterModel(openRouterKey, selectedModel, promptText, orController.signal);
-
-        if (orRes.ok) {
-          const data = await orRes.json();
-          const rawText = data?.choices?.[0]?.message?.content;
-
-          if (rawText) {
-            const validated = validateExtractedAst(rawText, format, templateId, `openrouter/${selectedModel}`);
-            if (validated.success) {
-              successfulAst = validated.ast;
-              successfulModel = `openrouter/${selectedModel}`;
-            } else {
-              lastError = {
-                error: validated.error,
-                statusCode: validated.statusCode,
-                details: validated.details,
-              };
-            }
-          } else {
-            lastError = {
-              error: "OpenRouter response did not contain message content",
-              statusCode: 502,
-            };
-          }
-        } else {
-          const errData = await orRes.json().catch(() => null);
-          const orMessage = errData?.error?.message || orRes.statusText || `OpenRouter responded with HTTP ${orRes.status}`;
-          lastError = {
-            error: orMessage,
-            statusCode: orRes.status,
-            details: errData?.error?.details || errData,
-          };
-        }
-      } catch (orErr) {
-        if (overallAbortController.signal.aborted) throw orErr;
-        console.warn("[API /api/extract] OpenRouter fetch error:", orErr);
-      } finally {
-        clearTimeout(orTimeoutId);
         overallAbortController.signal.removeEventListener("abort", onOverallAbort);
       }
     }
@@ -542,7 +585,7 @@ ${finalContent}`;
     return NextResponse.json(
       {
         error:
-          "No AI API key configured. Please set GEMINI_API_KEY in your environment variables or provide an API key.",
+          "No AI API key configured. Please set OPENROUTER_API_KEY or GEMINI_API_KEY in your environment variables or provide an API key.",
         statusCode: 401,
         elapsedMs,
       },
