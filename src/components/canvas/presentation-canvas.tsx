@@ -25,6 +25,17 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const theme = EDITORIAL_THEMES[ast.templateId] || EDITORIAL_THEMES[DEFAULT_THEME_ID];
 
+  // Deck identity tracking to reset slide index back to 0 whenever a new deck is synthesized
+  const deckKey =
+    ast.id ||
+    `${ast.meta.title}-${ast.meta.date || ""}-${ast.kpis?.length ?? 0}-${ast.charts?.length ?? 0}-${ast.blocks?.length ?? 0}`;
+  const [prevDeckKey, setPrevDeckKey] = useState(deckKey);
+
+  if (prevDeckKey !== deckKey) {
+    setPrevDeckKey(deckKey);
+    setCurrentSlideIndex(0);
+  }
+
   // 16:9 Slides Sequence
   const slides = [
     // Slide 1: Cover (Magazine Cover Design)
@@ -426,6 +437,9 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
   ];
 
   const safeSlideIndex = Math.min(currentSlideIndex, Math.max(0, slides.length - 1));
+  if (currentSlideIndex > safeSlideIndex) {
+    setCurrentSlideIndex(safeSlideIndex);
+  }
 
   return (
     <div className="flex flex-col items-center gap-4 my-auto py-2">

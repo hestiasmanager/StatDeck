@@ -53,9 +53,17 @@ type StudioAction =
 function studioReducer(state: StudioState, action: StudioAction): StudioState {
   switch (action.type) {
     case "SET_AST": {
+      const synthesisId =
+        action.payload.id ||
+        (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `deck-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
       return {
         past: [...state.past, state.present],
-        present: action.payload,
+        present: {
+          ...action.payload,
+          id: synthesisId,
+        },
         future: [],
       };
     }
@@ -400,6 +408,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
 
           {currentAst.format === "carousel" && (
             <CarouselCanvas
+              key={currentAst.id || "carousel-canvas"}
               ast={currentAst}
               onUpdateText={handleUpdateText}
               scale={zoom}
@@ -408,6 +417,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
 
           {currentAst.format === "presentation" && (
             <PresentationCanvas
+              key={currentAst.id || "presentation-canvas"}
               ast={currentAst}
               onUpdateText={handleUpdateText}
               scale={zoom}
