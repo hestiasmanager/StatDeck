@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Instrument_Serif, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -9,6 +9,22 @@ const inter = Inter({
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
+  subsets: ["latin"],
+});
+
+const instrumentSerif = Instrument_Serif({
+  weight: "400",
+  variable: "--font-instrument-serif",
+  subsets: ["latin"],
+});
+
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
 });
 
@@ -30,8 +46,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${plusJakarta.variable}`} suppressHydrationWarning>
-      <body className="antialiased min-h-screen flex flex-col" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${inter.variable} ${plusJakarta.variable} ${instrumentSerif.variable} ${fraunces.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="antialiased min-h-screen flex flex-col font-sans" suppressHydrationWarning>
         {children}
       </body>
     </html>

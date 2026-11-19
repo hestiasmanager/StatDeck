@@ -27,22 +27,25 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
 
   // 16:9 Slides Sequence
   const slides = [
-    // Slide 1: Cover
+    // Slide 1: Cover (Magazine Cover Design)
     {
       id: "deck-cover",
       content: (
-        <div className="flex flex-col justify-between h-full px-12 pt-10 pb-6">
+        <div className="flex flex-col justify-between h-full px-12 pt-10 pb-6 relative overflow-hidden">
           {ast.meta.category && (
-            <span
-              className="self-start px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-md"
-              style={{ backgroundColor: theme.accentMuted, color: theme.accent }}
-            >
-              {ast.meta.category}
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-widest rounded-full border border-black/10 dark:border-white/10 shadow-2xs inline-flex items-center gap-1.5"
+                style={{ backgroundColor: theme.accentMuted, color: theme.accent }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: theme.accent }} />
+                {ast.meta.category}
+              </span>
+            </div>
           )}
-          <div className="my-auto flex flex-col gap-4 max-w-2xl">
+          <div className="my-auto flex flex-col justify-center max-w-2xl">
             <h1
-              className="text-4xl font-extrabold tracking-tight leading-tight"
+              className="text-4xl md:text-5xl font-black tracking-tight leading-[1.08] mb-3"
               style={{ color: theme.ink, fontFamily: theme.fontDisplay }}
               contentEditable={Boolean(onUpdateText)}
               suppressContentEditableWarning
@@ -50,10 +53,11 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
             >
               {ast.meta.title}
             </h1>
+            <div className="w-14 h-1 rounded-full my-3" style={{ backgroundColor: theme.accent }} />
             {ast.meta.subtitle && (
               <p
-                className="text-base opacity-80 leading-relaxed"
-                style={{ color: theme.ink }}
+                className="text-base md:text-lg opacity-85 leading-relaxed font-normal max-w-xl"
+                style={{ color: theme.ink, fontFamily: theme.fontBody }}
                 contentEditable={Boolean(onUpdateText)}
                 suppressContentEditableWarning
                 onBlur={(e) => onUpdateText?.("meta.subtitle", e.currentTarget.textContent || "")}
@@ -62,7 +66,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
               </p>
             )}
           </div>
-          <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+          <div className="flex items-center justify-between border-t border-black/10 dark:border-white/10 pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-mono opacity-60">
               {ast.meta.date ? `${ast.meta.date} • ` : ""}Source: {ast.meta.sourceCitations[0] || "StatDeck"}
             </span>
@@ -80,7 +84,7 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
               Key Metrics
             </span>
-            <h2 className="text-2xl font-bold" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+            <h2 className="text-2xl font-extrabold tracking-tight" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
               Executive Performance Summary
             </h2>
           </div>
@@ -88,23 +92,26 @@ export function PresentationCanvas({ ast, onUpdateText, scale = 1 }: Presentatio
             {ast.kpis.map((kpi, idx) => (
               <div
                 key={idx}
-                className="p-5 rounded-2xl border flex flex-col justify-between"
+                className="p-5 md:p-6 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between shadow-2xs transition-all hover:scale-[1.02]"
                 style={{
                   backgroundColor: theme.surface,
                   borderColor: theme.surfaceBorder,
                   borderRadius: theme.cardRadius,
                 }}
               >
-                <span className="text-3xl font-extrabold" style={{ color: theme.accent }}>
+                <span
+                  className="text-3xl md:text-4xl font-extrabold tracking-tight font-mono tabular-nums leading-none"
+                  style={{ color: theme.accent }}
+                >
                   {kpi.value}
                 </span>
                 <div className="mt-3">
-                  <span className="text-xs font-semibold block" style={{ color: theme.ink }}>
+                  <span className="text-xs font-semibold leading-snug block opacity-90" style={{ color: theme.ink }}>
                     {kpi.label}
                   </span>
                   {kpi.delta && (
                     <span
-                      className={`text-[11px] font-bold mt-1 block ${
+                      className={`text-[11px] font-bold font-mono tabular-nums mt-1.5 block ${
                         kpi.deltaType === "positive" ||
                         (!kpi.deltaType &&
                           (kpi.delta.startsWith("+") ||

@@ -46,22 +46,25 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
             marginBottom: `${(scale - 1) * 1400}px`,
           }}
         >
-        <div className="p-12 flex flex-col gap-10">
+        <div className="p-12 md:p-14 flex flex-col gap-10">
           {/* Header Banner */}
-          <header className="flex flex-col gap-3 border-b pb-8" style={{ borderColor: theme.surfaceBorder }}>
+          <header className="flex flex-col gap-3 border-b border-black/10 dark:border-white/10 pb-8" style={{ borderColor: theme.surfaceBorder }}>
             {ast.meta.category && (
-              <span
-                className="self-start px-3 py-1 text-xs font-bold uppercase tracking-wider rounded-md"
-                style={{
-                  backgroundColor: theme.accentMuted,
-                  color: theme.accent,
-                }}
-              >
-                {ast.meta.category}
-              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  className="self-start px-3.5 py-1 text-[11px] font-bold uppercase tracking-widest rounded-full border border-black/10 dark:border-white/10 shadow-2xs inline-flex items-center gap-1.5"
+                  style={{
+                    backgroundColor: theme.accentMuted,
+                    color: theme.accent,
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: theme.accent }} />
+                  {ast.meta.category}
+                </span>
+              </div>
             )}
             <h1
-              className="text-4xl font-extrabold tracking-tight leading-tight"
+              className="text-4xl md:text-5xl font-black tracking-tight leading-[1.08]"
               style={{
                 color: theme.ink,
                 fontFamily: theme.fontDisplay,
@@ -72,10 +75,11 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
             >
               {ast.meta.title}
             </h1>
+            <div className="w-14 h-1 rounded-full my-1" style={{ backgroundColor: theme.accent }} />
             {ast.meta.subtitle && (
               <p
-                className="text-lg opacity-80 leading-relaxed font-normal"
-                style={{ color: theme.ink }}
+                className="text-lg opacity-85 leading-relaxed font-normal max-w-2xl"
+                style={{ color: theme.ink, fontFamily: theme.fontBody }}
                 contentEditable={Boolean(onUpdateText)}
                 suppressContentEditableWarning
                 onBlur={(e) => onUpdateText?.("meta.subtitle", e.currentTarget.textContent || "")}
@@ -90,7 +94,7 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
             {ast.kpis.map((kpi, index) => (
               <div
                 key={kpi.id || index}
-                className="p-5 rounded-2xl border flex flex-col justify-between transition-all"
+                className="p-6 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between shadow-2xs transition-all hover:scale-[1.02]"
                 style={{
                   backgroundColor: theme.surface,
                   borderColor: theme.surfaceBorder,
@@ -98,7 +102,7 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
                 }}
               >
                 <span
-                  className="text-3xl font-extrabold tracking-tight leading-none"
+                  className="text-3xl md:text-4xl font-extrabold tracking-tight font-mono tabular-nums leading-none"
                   style={{ color: theme.accent }}
                   contentEditable={Boolean(onUpdateText)}
                   suppressContentEditableWarning
@@ -108,7 +112,7 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
                 </span>
                 <div className="mt-3">
                   <span
-                    className="text-xs font-semibold leading-tight block"
+                    className="text-xs font-semibold leading-snug block opacity-90"
                     style={{ color: theme.ink }}
                     contentEditable={Boolean(onUpdateText)}
                     suppressContentEditableWarning
@@ -118,7 +122,7 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
                   </span>
                   {kpi.delta && (
                     <span
-                      className={`text-[11px] font-bold mt-1 block ${
+                      className={`text-[11px] font-bold font-mono tabular-nums mt-1.5 block ${
                         kpi.deltaType === "positive"
                           ? "text-emerald-500"
                           : kpi.deltaType === "negative"
@@ -140,19 +144,24 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
             return (
               <section
                 key={chart.id}
-                className="p-6 rounded-2xl border flex flex-col gap-4 shadow-sm"
+                className="p-6 md:p-8 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col gap-5 shadow-2xs"
                 style={{
                   backgroundColor: theme.surface,
                   borderColor: theme.surfaceBorder,
                   borderRadius: theme.cardRadius,
                 }}
               >
-                <h3
-                  className="text-base font-bold tracking-tight"
-                  style={{ color: theme.ink, fontFamily: theme.fontDisplay }}
-                >
-                  {chart.title}
-                </h3>
+                <div className="flex flex-col gap-1 border-b border-black/10 dark:border-white/10 pb-3" style={{ borderColor: theme.surfaceBorder }}>
+                  <span className="text-[11px] font-bold uppercase tracking-wider font-mono opacity-60" style={{ color: theme.accent }}>
+                    Visual Analytics
+                  </span>
+                  <h3
+                    className="text-xl font-extrabold tracking-tight"
+                    style={{ color: theme.ink, fontFamily: theme.fontDisplay }}
+                  >
+                    {chart.title}
+                  </h3>
+                </div>
 
                 {chart.type === "bar" && (
                   <SvgBarChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
@@ -185,7 +194,7 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
             return (
               <section
                 key={block.id}
-                className="p-6 rounded-2xl border shadow-sm"
+                className="p-6 md:p-8 rounded-2xl border border-black/10 dark:border-white/10 shadow-2xs"
                 style={{
                   backgroundColor: theme.surface,
                   borderColor: theme.surfaceBorder,

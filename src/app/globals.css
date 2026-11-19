@@ -29,6 +29,25 @@ body {
   overflow-x: hidden;
 }
 
+/* Tabular numbers for clean aligned metrics */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Google Fonts helper utilities */
+.font-display-serif {
+  font-family: var(--font-instrument-serif), "Instrument Serif", Georgia, serif;
+}
+
+.font-display-fraunces {
+  font-family: var(--font-fraunces), "Fraunces", Georgia, serif;
+}
+
+.font-mono-numbers {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Content editable outline styling */
 [contenteditable="true"]:hover {
   outline: 1.5px dashed rgba(59, 130, 246, 0.4);
