@@ -44,9 +44,10 @@ export const ProcessStepSchema = z.object({
 });
 
 export const ComparisonRowSchema = z.object({
-  feature: z.string().max(40),
-  colA: z.string().max(80),
-  colB: z.string().max(80),
+  feature: z.string().max(80),
+  colA: z.string().max(120),
+  colB: z.string().max(120).optional(),
+  values: z.array(z.string().max(120)).optional(),
 });
 
 export const BlockSchema = z.discriminatedUnion("type", [
@@ -60,8 +61,8 @@ export const BlockSchema = z.discriminatedUnion("type", [
     id: z.string(),
     type: z.literal("comparison_table"),
     title: z.string().max(80).optional(),
-    headers: z.tuple([z.string().max(40), z.string().max(40)]),
-    rows: z.array(ComparisonRowSchema).min(2).max(6),
+    headers: z.array(z.string().max(80)).min(2),
+    rows: z.array(ComparisonRowSchema).min(2).max(10),
   }),
   z.object({
     id: z.string(),
@@ -152,7 +153,8 @@ export const ExtractionBlockSchema = z.object({
       z.object({
         feature: z.string(),
         colA: z.string(),
-        colB: z.string(),
+        colB: z.string().optional(),
+        values: z.array(z.string()).optional(),
       })
     )
     .optional(),
@@ -215,14 +217,17 @@ export function normalizeExtractionDeck(
         steps,
       });
     } else if (b.type === "comparison_table") {
-      const h1 = b.headers?.[0] || "Standard";
-      const h2 = b.headers?.[1] || "Optimized";
+      const headers =
+        b.headers && b.headers.length >= 2
+          ? b.headers.map((h) => h.trim())
+          : ["Dimension / Metric", "Value"];
       const rows =
         b.rows && b.rows.length >= 2
           ? b.rows.map((r) => ({
               feature: r.feature || "Metric",
               colA: r.colA || "N/A",
-              colB: r.colB || "N/A",
+              colB: r.colB || "",
+              values: r.values,
             }))
           : [
               { feature: "Latency", colA: "500ms", colB: "42ms" },
@@ -232,7 +237,7 @@ export function normalizeExtractionDeck(
         id: blockId,
         type: "comparison_table",
         title: b.title,
-        headers: [h1, h2],
+        headers,
         rows,
       });
     } else if (b.type === "pros_cons") {

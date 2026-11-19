@@ -12,6 +12,7 @@ export interface ExtractASTOptions {
   clientOpenRouterModel?: string;
   clientGeminiKey?: string;
   clientOpenAiKey?: string;
+  abortSignal?: AbortSignal;
 }
 
 export interface ExtractASTResult {
@@ -22,8 +23,8 @@ export interface ExtractASTResult {
 
 /**
  * Single-call structured LLM extraction supporting:
- * 1. OpenRouter (Access any model: Gemini 2.5 Flash, GPT-4o-mini, Claude 3.5 Haiku, DeepSeek)
- * 2. Direct Gemini 2.5 Flash API (@ai-sdk/google)
+ * 1. Direct Gemini 3.8 Flash API (@ai-sdk/google) as primary production default
+ * 2. User-provided OpenRouter key (if explicit "sk-or-..." key is entered)
  * 3. Direct OpenAI API (gpt-4o-mini via @ai-sdk/openai)
  * 4. Deterministic tabular spreadsheet parser for uploaded CSV/Excel files.
  *
@@ -54,18 +55,19 @@ TARGET TEMPLATE ID: ${templateId}
 SOURCE DATA CONTENT:
 ${rawContent.slice(0, 10000)}`;
 
-  const openRouterKey = options?.clientOpenRouterKey || process.env.OPENROUTER_API_KEY;
-  const geminiApiKey = options?.clientGeminiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  const openAiApiKey = options?.clientOpenAiKey || process.env.OPENAI_API_KEY;
+  const userOpenRouterKey = options?.clientOpenRouterKey?.trim();
+  const isUserOpenRouter = Boolean(userOpenRouterKey && userOpenRouterKey.startsWith("sk-or-"));
+  const geminiApiKey = options?.clientGeminiKey?.trim() || process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim();
+  const openAiApiKey = options?.clientOpenAiKey?.trim() || process.env.OPENAI_API_KEY?.trim();
 
   let lastError: Error | null = null;
 
-  // 2. OpenRouter Execution (Preferred Unified Gateway if provided)
-  if (openRouterKey) {
+  // 2. OpenRouter Execution (ONLY if user explicitly entered an "sk-or-..." key in the modal)
+  if (isUserOpenRouter && userOpenRouterKey) {
     try {
       const openrouter = createOpenAI({
         baseURL: "https://openrouter.ai/api/v1",
-        apiKey: openRouterKey,
+        apiKey: userOpenRouterKey,
         headers: {
           "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
           "X-Title": "StatDeck Visual Data Architect",
@@ -84,6 +86,7 @@ ${rawContent.slice(0, 10000)}`;
         prompt: promptText,
         maxTokens: 900,
         temperature: 0.2,
+        abortSignal: options?.abortSignal,
       });
 
       const validatedAst = normalizeExtractionDeck(object, format, templateId);
@@ -96,7 +99,7 @@ ${rawContent.slice(0, 10000)}`;
     }
   }
 
-  // 3. Direct Google Gemini Execution (Production gemini-3.8-flash / gemini-3.5-flash-lite)
+  // 3. Direct Google Gemini Execution (Primary Default: gemini-3.8-flash / gemini-3.5-flash-lite)
   if (geminiApiKey) {
     try {
       const google = createGoogleGenerativeAI({ apiKey: geminiApiKey });
@@ -111,6 +114,7 @@ ${rawContent.slice(0, 10000)}`;
           prompt: promptText,
           maxTokens: 900,
           temperature: 0.2,
+          abortSignal: options?.abortSignal,
         });
         objectResult = { object: res.object, used: targetModel };
       } catch (primaryModelErr) {
@@ -122,6 +126,7 @@ ${rawContent.slice(0, 10000)}`;
           prompt: promptText,
           maxTokens: 900,
           temperature: 0.2,
+          abortSignal: options?.abortSignal,
         });
         objectResult = { object: res.object, used: "gemini-3.5-flash-lite" };
       }
@@ -147,6 +152,7 @@ ${rawContent.slice(0, 10000)}`;
         prompt: promptText,
         maxTokens: 900,
         temperature: 0.2,
+        abortSignal: options?.abortSignal,
       });
 
       const validatedAst = normalizeExtractionDeck(object, format, templateId);
@@ -176,8 +182,8 @@ ${rawContent.slice(0, 10000)}`;
     };
   }
 
-  // For prose/URL/text content without an AI key, throw a clear error instead of silently returning fake mock data
+  // For unstructured text/notes/URLs without an AI key: throw clear prompt error
   throw new Error(
-    "No AI API key found. Please add your Google Gemini or OpenAI API key in the top-bar AI Settings modal (🔑) or configure GOOGLE_GENERATIVE_AI_API_KEY."
+    "No AI API key found. Please add your Google Gemini or OpenRouter API key in the top-bar AI Settings modal (🔑) or configure GOOGLE_GENERATIVE_AI_API_KEY."
   );
 }

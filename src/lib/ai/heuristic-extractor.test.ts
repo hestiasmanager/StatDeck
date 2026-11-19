@@ -30,31 +30,26 @@ export function testHeuristicExtractor() {
 
   console.log("[PASS] CSV table parsed into real KPIs and chart data points!");
 
-  // Test Article Prose
-  console.log("\nTesting Heuristic Extractor on Article text...");
+  // Test Article Prose throws clear error prompt instead of faking data
+  console.log("\nTesting Heuristic Extractor on Article text (verifying clear prompt error)...");
   const sampleArticle = `Title: AI Chip Market Expands Rapidly in 2024
 Source: TechWire Analysis
-Summary: Enterprise spending on accelerators grew 84% year over year as datacenter demand hit $45.2B.
+Summary: Enterprise spending on accelerators grew 84% year over year as datacenter demand hit $45.2B.`;
 
-The global inference chip market reached $45.2B in Q3, representing an 84% increase compared to last year.
-Operational efficiency improved by 3.4x across major hyperscalers.
-Average latency dropped to 42ms for standard embedding queries.
-
-Key Takeaways:
-- Modern clusters require high bandwidth memory architectures.
-- Liquid cooling reduces datacenter PUE down to 1.12.
-- Quantization reduces memory footprint by 75%.`;
-
-  const astFromArticle = extractHeuristicDeckAST(sampleArticle, "infographic", "executive-dark");
-  console.log("Article Title:", astFromArticle.meta.title);
-  console.log("Article KPIs:", astFromArticle.kpis.map((k) => `${k.label}: ${k.value}`));
-  console.log("Article Takeaways:", astFromArticle.blocks[0]);
-
-  if (!astFromArticle.meta.title.includes("AI Chip Market")) {
-    throw new Error("Expected title to be extracted from article");
+  let threwExpected = false;
+  try {
+    extractHeuristicDeckAST(sampleArticle, "infographic", "executive-dark");
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("No AI API key found")) {
+      threwExpected = true;
+    }
   }
 
-  console.log("[PASS] Article text parsed into real KPIs and takeaways!");
+  if (!threwExpected) {
+    throw new Error("Expected heuristic extractor to throw 'No AI API key found' for unstructured text");
+  }
+
+  console.log("[PASS] Unstructured text throws clear AI API key prompt instead of fake data!");
   console.log("All heuristic extractor tests passed!");
 }
 

@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { computeTableRollups } from "./table-rollups";
 
 export interface ParsedExcelSummary {
   sheetNames: string[];
@@ -8,7 +9,8 @@ export interface ParsedExcelSummary {
 }
 
 /**
- * Client-side Excel parser. Converts spreadsheet array buffer into clean Markdown table.
+ * Client-side Excel parser. Converts spreadsheet array buffer into clean Markdown table
+ * with pre-computed JavaScript aggregations and exact column headers.
  */
 export async function parseExcelFileClientSide(file: File): Promise<ParsedExcelSummary> {
   const arrayBuffer = await file.arrayBuffer();
@@ -32,7 +34,10 @@ export async function parseExcelFileClientSide(file: File): Promise<ParsedExcelS
   }
 
   const headers = Object.keys(jsonData[0] || {});
-  const sampleRows = jsonData.slice(0, 40);
+  const sampleRows = jsonData.slice(0, 50);
+
+  // Pre-compute JavaScript rollups
+  const rollupsSummary = computeTableRollups(headers, jsonData, `${file.name} [Sheet: "${activeSheet}"]`);
 
   const headerLine = `| ${headers.join(" | ")} |`;
   const separatorLine = `| ${headers.map(() => "---").join(" | ")} |`;
@@ -45,7 +50,9 @@ export async function parseExcelFileClientSide(file: File): Promise<ParsedExcelS
   });
 
   const markdownTable = [
-    `Excel File: ${file.name} (Sheet: "${activeSheet}", Total Rows: ${jsonData.length})`,
+    rollupsSummary.formattedSummary,
+    "",
+    "DATA ROWS (FIRST 50):",
     headerLine,
     separatorLine,
     ...rowLines,

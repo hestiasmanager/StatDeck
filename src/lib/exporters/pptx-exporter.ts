@@ -322,6 +322,58 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
           color: inkMutedHex,
         });
       });
+    } else if (block.type === "comparison_table") {
+      const headers = block.headers;
+      const hasColB = block.rows.some((r) => r.colB && r.colB.trim().length > 0);
+      let displayHeaders = headers;
+      if (headers.length === 2 && hasColB) {
+        displayHeaders = ["Metric / Dimension", headers[0], headers[1]];
+      }
+
+      // Build PowerPoint native table rows
+      const tableRows: pptxgen.TableRow[] = [];
+
+      // Dynamic header row (100% theme-styled)
+      tableRows.push(
+        displayHeaders.map((h, i) => ({
+          text: h,
+          options: {
+            bold: true,
+            fontSize: 12,
+            color: i === displayHeaders.length - 1 ? accentHex : inkHex,
+            fill: { color: surfaceHex },
+          },
+        }))
+      );
+
+      // Data rows
+      block.rows.forEach((row) => {
+        const cells: pptxgen.TableCell[] = [];
+        if (displayHeaders.length === 2) {
+          cells.push({ text: row.feature, options: { bold: true, fontSize: 11, color: inkHex } });
+          cells.push({ text: row.colA || row.colB || "", options: { fontSize: 11, color: inkHex } });
+        } else {
+          cells.push({ text: row.feature, options: { bold: true, fontSize: 11, color: inkHex } });
+          cells.push({ text: row.colA || "", options: { fontSize: 11, color: inkHex } });
+          if (displayHeaders.length >= 3) {
+            cells.push({ text: row.colB || "", options: { bold: true, fontSize: 11, color: accentHex } });
+          }
+          if (row.values && row.values.length > 3) {
+            for (let c = 3; c < displayHeaders.length; c++) {
+              cells.push({ text: row.values[c] || "", options: { fontSize: 11, color: inkHex } });
+            }
+          }
+        }
+        tableRows.push(cells);
+      });
+
+      slide4.addTable(tableRows, {
+        x: 1.0,
+        y: 2.1,
+        w: 11.3,
+        autoPage: false,
+        border: { type: "solid", pt: 1, color: "CBD5E1" },
+      });
     }
   }
 

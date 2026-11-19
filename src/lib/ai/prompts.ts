@@ -20,4 +20,10 @@ CORE RULES & CONSTRAINTS:
 4. EDITORIAL VOICE:
    - Make 'title' punchy, bold, and curiosity-inducing (max 10-12 words).
    - Make 'subtitle' a clear, concise thesis statement.
-   - Ensure high signal-to-noise ratio. Zero fluff. Keep explanations crisp.`;
+   - Ensure high signal-to-noise ratio. Zero fluff. Keep explanations crisp.
+5. REAL COLUMN HEADERS & ROLLUP PRESERVATION (CRITICAL):
+   - When the source contains tabular, CSV, or Excel data with EXACT COLUMN HEADERS, you MUST PRESERVE and USE those exact real column header names (e.g. "Book Title", "Series", "2025 Revenue ($)").
+   - NEVER invent generic names like "Dimension", "Metric", "Item", "Category A", "Value", or "Option 1".
+   - In 'comparison_table' blocks, 'headers' MUST contain the exact column names being compared or displayed (e.g. ["Book Title", "Series", "2025 Revenue ($)"] or ["Dimension / Metric", "2024", "2025"]).
+   - In 'charts', set 'xAxisLabel' and 'yAxisLabel' to the actual column names from the dataset, and set 'unit' to the exact measurement unit (e.g. "$", "%", "Copies", "Units").
+   - Leverage any PRE-COMPUTED JAVASCRIPT ROLLUPS (totals, averages, min/max, YoY deltas) provided in the source directly for your 'kpis' to ensure 100% mathematical precision.`;

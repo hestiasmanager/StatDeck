@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import { computeTableRollups } from "./table-rollups";
 
 export interface ParsedCsvSummary {
   headers: string[];
@@ -9,7 +10,8 @@ export interface ParsedCsvSummary {
 
 /**
  * Client-side CSV/TSV parser using native file.text() and synchronous Papa.parse.
- * Completely eliminates asynchronous web worker hangs and handles BOM / empty rows cleanly.
+ * Preserves exact column headers, pre-computes JavaScript aggregations & rollups,
+ * and formats a rich, structured prompt payload for the visual AST synthesizer.
  */
 export async function parseCsvFileClientSide(file: File): Promise<ParsedCsvSummary> {
   const rawText = await file.text();
@@ -43,9 +45,12 @@ export async function parseCsvFileClientSide(file: File): Promise<ParsedCsvSumma
     headers = ["Item", "Value", "Metric"];
   }
 
+  // Pre-compute JavaScript rollups across all columns
+  const rollupsSummary = computeTableRollups(headers, rawData, file.name);
+
   const previewRows = rawData.slice(0, 50);
 
-  // Build compact markdown table for the AST synthesizer
+  // Build markdown table preserving exact headers and escaped cells
   const headerLine = `| ${headers.join(" | ")} |`;
   const separatorLine = `| ${headers.map(() => "---").join(" | ")} |`;
   const rowLines = previewRows.map((row) => {
@@ -58,7 +63,9 @@ export async function parseCsvFileClientSide(file: File): Promise<ParsedCsvSumma
   });
 
   const markdownTable = [
-    `CSV Dataset: ${file.name} (Total rows: ${rawData.length})`,
+    rollupsSummary.formattedSummary,
+    "",
+    "DATA ROWS (FIRST 50):",
     headerLine,
     separatorLine,
     ...rowLines,

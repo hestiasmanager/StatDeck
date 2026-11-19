@@ -28,9 +28,9 @@ export function truncateAtWordBoundary(text: string, maxLength: number): string 
 }
 
 /**
- * Intelligent deterministic heuristic extractor.
- * Converts ANY raw CSV, Excel markdown table, or scraped article text
- * into a rich, accurate, data-backed DeckAST without requiring external LLM API calls.
+ * Deterministic tabular spreadsheet extractor.
+ * Converts uploaded CSV or Excel markdown tables into a data-backed DeckAST
+ * using verified mathematical rollups and real column headers.
  */
 export function extractHeuristicDeckAST(
   rawContent: string,
@@ -49,7 +49,10 @@ export function extractHeuristicDeckAST(
     return parseTableToAST(rawContent, format, templateId);
   }
 
-  return parseArticleTextToAST(rawContent, format, templateId);
+  // Unstructured text without an AI key: throw clear error prompt instead of hallucinating placeholder rows
+  throw new Error(
+    "No AI API key found. Please add your Google Gemini or OpenRouter API key in the top-bar AI Settings modal (🔑) or configure GOOGLE_GENERATIVE_AI_API_KEY."
+  );
 }
 
 /**
@@ -68,7 +71,9 @@ function parseTableToAST(content: string, format: OutputFormat, templateId: stri
   // Find table header and rows
   const tableLines = lines.filter((l) => l.startsWith("|") && l.endsWith("|") && !l.includes("---"));
   if (tableLines.length < 2) {
-    return parseArticleTextToAST(content, format, templateId);
+    throw new Error(
+      "Unable to parse table rows. Please add your Google Gemini or OpenRouter API key in the top-bar AI Settings modal (🔑) to synthesize visual decks."
+    );
   }
 
   const headerCells = tableLines[0]
@@ -198,18 +203,25 @@ function formatNumberCompact(num: number, unit: string = ""): string {
     });
   }
 
-  // Construct Blocks (Comparison table from rows)
+  // Construct Blocks (Comparison table preserving exact dataset headers)
   const blocks: ContentBlock[] = [];
-  if (dataRows.length >= 2 && headerCells.length >= 3) {
-    const headers: [string, string] = [
-      headerCells[1]?.replace(/_/g, " ") || "Metric A",
-      headerCells[2]?.replace(/_/g, " ") || "Metric B",
-    ];
+  if (dataRows.length >= 2 && headerCells.length >= 2) {
+    const headers: string[] =
+      headerCells.length >= 3
+        ? [
+            headerCells[0]?.replace(/_/g, " ") || "Dimension",
+            headerCells[1]?.replace(/_/g, " ") || "Metric A",
+            headerCells[2]?.replace(/_/g, " ") || "Metric B",
+          ]
+        : [
+            headerCells[0]?.replace(/_/g, " ") || "Dimension",
+            headerCells[1]?.replace(/_/g, " ") || "Value",
+          ];
 
     const rows = dataRows.slice(0, 5).map((r) => ({
       feature: truncateAtWordBoundary(r[categoryColumn] || "Entry", 35),
       colA: truncateAtWordBoundary(r[headerCells[1]] || "N/A", 35),
-      colB: truncateAtWordBoundary(r[headerCells[2]] || "N/A", 35),
+      colB: headerCells[2] ? truncateAtWordBoundary(r[headerCells[2]] || "N/A", 35) : "",
     }));
 
     blocks.push({
@@ -227,137 +239,6 @@ function formatNumberCompact(num: number, unit: string = ""): string {
       subtitle: truncateAtWordBoundary(`Analysis of ${dataRows.length} entries across ${headerCells.length} data dimensions.`, 180),
       category: "Dataset Analysis",
       sourceCitations: ["Uploaded File (Client-Side Parsed)"],
-      date: new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }),
-    },
-    kpis,
-    charts,
-    blocks,
-    templateId,
-    format,
-    watermark: true,
-  };
-}
-
-/**
- * Parses article text / URL content into real quantitative KPIs and takeaways.
- */
-function parseArticleTextToAST(content: string, format: OutputFormat, templateId: string): DeckAST {
-  const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
-
-  // 1. Title Extraction
-  let title = "Executive Overview & Insights";
-  let subtitle = "Synthesized data breakdown and strategic takeaways.";
-  let source = "StatDeck Research";
-
-  for (const line of lines) {
-    if (line.toLowerCase().startsWith("title:")) {
-      title = line.replace(/^title:/i, "").trim();
-    } else if (line.toLowerCase().startsWith("source:")) {
-      source = line.replace(/^source:/i, "").trim();
-    } else if (line.toLowerCase().startsWith("summary:") || line.toLowerCase().startsWith("excerpt:")) {
-      subtitle = line.replace(/^(summary:|excerpt:)/i, "").trim();
-    }
-  }
-
-  if (title === "Executive Overview & Insights" && lines[0] && !lines[0].startsWith("|")) {
-    title = lines[0].replace(/^[#\s]+/, "");
-  }
-
-  title = truncateAtWordBoundary(title, 80);
-  subtitle = truncateAtWordBoundary(subtitle, 180);
-
-  // 2. Scan for Numbers, Percentages, and Dollar Amounts in Prose
-  // Matches "$42.8M", "84.2%", "3.5x", "12,000", "+24%"
-  const numberMatches: Array<{ value: string; label: string; num: number }> = [];
-  const numRegex = /([+-]?\$?\d+(?:\.\d+)?(?:%|x|M|B|K|k|m|b)?)\s+([a-zA-Z\s]{3,24})/g;
-
-  let match;
-  while ((match = numRegex.exec(content)) !== null) {
-    const rawVal = match[1].trim();
-    const label = match[2].trim().replace(/\b(the|and|or|in|of|to|is|was|were)\b/gi, "").trim();
-    const cleanNum = parseFloat(rawVal.replace(/[$,%xKkMmBb]/g, ""));
-
-    if (rawVal.length >= 2 && !isNaN(cleanNum) && label.length >= 3) {
-      numberMatches.push({
-        value: rawVal,
-        label: label.charAt(0).toUpperCase() + label.slice(1),
-        num: cleanNum,
-      });
-    }
-    if (numberMatches.length >= 6) break;
-  }
-
-  // Build KPIs from real extracted numbers
-  const kpis: KpiCard[] = [];
-  if (numberMatches.length > 0) {
-    numberMatches.slice(0, 4).forEach((m, idx) => {
-      kpis.push({
-        id: `kpi-text-${idx + 1}`,
-        value: m.value,
-        label: truncateAtWordBoundary(m.label, 35),
-        deltaType: "neutral",
-        description: "Extracted from source text",
-      });
-    });
-  }
-
-  // Build Chart from extracted numbers (Never invent mock charts if no numbers exist)
-  const charts: ChartBlock[] = [];
-  if (numberMatches.length >= 2) {
-    charts.push({
-      id: "chart-text-1",
-      type: "bar",
-      title: "Extracted Quantitative Metrics",
-      unit: "",
-      data: numberMatches.slice(0, 6).map((m) => ({
-        label: truncateAtWordBoundary(m.label, 18),
-        value: Math.min(m.num, 1000),
-      })),
-    });
-  }
-
-  // Extract Process Steps or Takeaways from bullet points
-  const bullets = lines
-    .filter((l) => /^[•\-*]\s+/.test(l) || /^\d+\.\s+/.test(l))
-    .map((l) => l.replace(/^[•\-*\d.]+\s+/, "").trim())
-    .filter((l) => l.length > 10);
-
-  const blocks: ContentBlock[] = [];
-  if (bullets.length >= 2) {
-    blocks.push({
-      id: "block-steps-1",
-      type: "numbered_steps",
-      title: "Core Actionable Takeaways",
-      steps: bullets.slice(0, 4).map((b, idx) => {
-        const parts = b.split(/[:–—]/);
-        const stepTitle = parts[0] ? truncateAtWordBoundary(parts[0].trim(), 50) : `Key Step ${idx + 1}`;
-        const stepDesc = parts[1] ? truncateAtWordBoundary(parts[1].trim(), 140) : truncateAtWordBoundary(b, 140);
-        return {
-          step: idx + 1,
-          title: stepTitle,
-          description: stepDesc,
-        };
-      }),
-    });
-  } else {
-    blocks.push({
-      id: "block-quote-1",
-      type: "callout_quote",
-      quote: truncateAtWordBoundary(
-        lines.find((l) => l.length > 40 && l.length < 180) || "Data synthesized directly from source narrative.",
-        180
-      ),
-      author: truncateAtWordBoundary(source, 60),
-      role: "Key Finding",
-    });
-  }
-
-  return {
-    meta: {
-      title: truncateAtWordBoundary(title, 80),
-      subtitle: truncateAtWordBoundary(subtitle, 180),
-      category: "Intelligence Report",
-      sourceCitations: [truncateAtWordBoundary(source, 80)],
       date: new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }),
     },
     kpis,
