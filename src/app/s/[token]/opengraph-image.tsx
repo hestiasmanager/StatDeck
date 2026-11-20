@@ -1,10 +1,6 @@
 import { ImageResponse } from "next/og";
-import { redis } from "@/lib/cache/redis";
-import { db } from "@/lib/db/client";
-import { projects } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { getSharedDeck } from "@/lib/share/share-store";
 import type { DeckAST, OutputFormat } from "@/lib/schemas/deck-schema";
-import type { SharedDeckRecord } from "@/app/api/share/route";
 
 export const alt = "StatDeck Presentation Preview";
 export const size = {
@@ -23,32 +19,10 @@ export default async function OpenGraphImage({
   let ast: DeckAST | null = null;
   let format: OutputFormat = "carousel";
 
-  // 1. Try Redis cache
-  try {
-    const record = await redis.get<SharedDeckRecord>(`statdeck:share:${token}`);
-    if (record?.ast) {
-      ast = record.ast as DeckAST;
-      format = (record.format || ast.format || "carousel") as OutputFormat;
-    }
-  } catch {
-    // Redis offline
-  }
-
-  // 2. Fallback to PostgreSQL
-  if (!ast) {
-    try {
-      const [proj] = await db
-        .select()
-        .from(projects)
-        .where(eq(projects.shareToken, token))
-        .limit(1);
-      if (proj && proj.ast) {
-        ast = proj.ast as DeckAST;
-        format = (proj.format || ast.format || "carousel") as OutputFormat;
-      }
-    } catch {
-      // Database offline
-    }
+  const record = await getSharedDeck(token);
+  if (record?.ast) {
+    ast = record.ast as DeckAST;
+    format = (record.format || ast.format || "carousel") as OutputFormat;
   }
 
   const title = ast?.meta?.title || "StatDeck Presentation";

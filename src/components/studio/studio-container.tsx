@@ -954,14 +954,6 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
               onSelectTheme={(themeId) => dispatch({ type: "SET_THEME", payload: themeId })}
               onOpenGallery={() => setIsTemplateGalleryOpen(true)}
             />
-            <button
-              type="button"
-              onClick={() => setIsTemplateGalleryOpen(true)}
-              className="w-full py-2 px-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-blue-950/40 shadow-xs"
-            >
-              <LayoutGrid className="w-4 h-4 text-blue-500" />
-              <span>Browse 288+ Templates Gallery</span>
-            </button>
           </section>
 
           {/* Editorial Tip Card */}
@@ -1202,6 +1194,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
         onClose={() => setIsExportOpen(false)}
         ast={currentAst}
         initialCategory={exportCategory}
+        projectId={projectId || undefined}
         userTier={currentUser?.subscriptionTier || "free"}
         weeklyExportCount={currentUser?.weeklyExportCount || 0}
         onPromptAuth={() => {

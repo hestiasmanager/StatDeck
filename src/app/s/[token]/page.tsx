@@ -1,12 +1,8 @@
 import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { redis } from "@/lib/cache/redis";
-import { db } from "@/lib/db/client";
-import { projects } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { getSharedDeck } from "@/lib/share/share-store";
 import type { DeckAST, OutputFormat } from "@/lib/schemas/deck-schema";
-import type { SharedDeckRecord } from "@/app/api/share/route";
 import type { Metadata } from "next";
 import { CarouselCanvas } from "@/components/canvas/carousel-canvas";
 import { PresentationCanvas } from "@/components/canvas/presentation-canvas";
@@ -29,21 +25,11 @@ export async function generateMetadata({
   let description = "Interactive visual presentation created with StatDeck.";
 
   try {
-    const record = await redis.get<SharedDeckRecord>(`statdeck:share:${token}`);
+    const record = await getSharedDeck(token);
     const recordAst = record?.ast as DeckAST | undefined;
     if (recordAst?.meta?.title) {
       title = recordAst.meta.title;
       description = recordAst.meta.subtitle || recordAst.executiveSummary || description;
-    } else {
-      const [proj] = await db
-        .select()
-        .from(projects)
-        .where(eq(projects.shareToken, token))
-        .limit(1);
-      if (proj?.title) {
-        title = proj.title;
-        description = (proj.ast as DeckAST)?.meta?.subtitle || description;
-      }
     }
   } catch {
     // Fallback
@@ -77,37 +63,9 @@ export default async function SharedPresentationPage({
     notFound();
   }
 
-  // 1. Try Redis cache
-  let ast: DeckAST | null = null;
-  let format: OutputFormat = "carousel";
-
-  try {
-    const record = await redis.get<SharedDeckRecord>(`statdeck:share:${token}`);
-    if (record?.ast) {
-      ast = record.ast as DeckAST;
-      format = (record.format || ast.format || "carousel") as OutputFormat;
-    }
-  } catch {
-    // Redis offline or key missing
-  }
-
-  // 2. Fallback to Supabase PostgreSQL projects table
-  if (!ast) {
-    try {
-      const [proj] = await db
-        .select()
-        .from(projects)
-        .where(eq(projects.shareToken, token))
-        .limit(1);
-
-      if (proj && proj.ast) {
-        ast = proj.ast as DeckAST;
-        format = (proj.format || ast.format || "carousel") as OutputFormat;
-      }
-    } catch {
-      // Database query error
-    }
-  }
+  const record = await getSharedDeck(token);
+  const ast = record?.ast as DeckAST | null;
+  const format = (record?.format || ast?.format || "carousel") as OutputFormat;
 
   if (!ast) {
     return (
@@ -131,6 +89,9 @@ export default async function SharedPresentationPage({
   }
 
   const title = ast.meta?.title || "StatDeck Presentation";
+  const remixUrl = process.env.NEXT_PUBLIC_APP_URL
+    ? `${process.env.NEXT_PUBLIC_APP_URL}/studio?remix=${encodeURIComponent(token)}`
+    : `/studio?remix=${encodeURIComponent(token)}`;
 
   // EMBED MODE: Clean edge-to-edge frame for iframes
   if (isEmbed) {
@@ -144,7 +105,7 @@ export default async function SharedPresentationPage({
         <div className="absolute bottom-2 right-3 text-[10px] text-slate-500 font-sans flex items-center gap-1 bg-slate-950/80 backdrop-blur-xs px-2 py-0.5 rounded-full border border-slate-800">
           <span>Presented with</span>
           <a
-            href={`https://statdeck.ai/studio?remix=${encodeURIComponent(token)}`}
+            href={remixUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-400 font-bold hover:underline"
@@ -158,61 +119,81 @@ export default async function SharedPresentationPage({
 
   // STANDARD PUBLIC VIEWER PAGE
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Top Navigation Bar */}
-      <header className="h-14 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white">
+      {/* Top Navigation & Action Bar */}
+      <header className="h-16 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-sm shadow-md group-hover:scale-105 transition-transform">
-              S
+          <Link
+            href="/"
+            className="flex items-center gap-2 group text-slate-400 hover:text-white transition-colors"
+          >
+            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-xs shadow-md shadow-blue-600/30">
+              SD
             </div>
-            <span className="font-black text-sm tracking-tight text-white hidden sm:inline">
-              Stat<span className="text-blue-500">Deck</span>
+            <span className="font-extrabold text-sm tracking-tight text-white hidden sm:inline">
+              StatDeck
             </span>
           </Link>
-          <span className="text-slate-600">/</span>
-          <h1 className="text-xs sm:text-sm font-bold text-slate-200 truncate max-w-[160px] sm:max-w-md">
+          <span className="text-slate-600 text-sm hidden sm:inline">/</span>
+          <span className="text-xs font-semibold text-slate-300 max-w-[200px] sm:max-w-xs truncate">
             {title}
-          </h1>
+          </span>
+          <span className="text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-400 flex items-center gap-1">
+            {format === "carousel" && <Layers className="w-2.5 h-2.5 text-blue-400" />}
+            {format === "presentation" && <Monitor className="w-2.5 h-2.5 text-orange-400" />}
+            {format === "infographic" && <ScrollText className="w-2.5 h-2.5 text-emerald-400" />}
+            {format}
+          </span>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs font-semibold text-slate-300">
-            {format === "carousel" && <Layers className="w-3.5 h-3.5 text-blue-400" />}
-            {format === "presentation" && <Monitor className="w-3.5 h-3.5 text-purple-400" />}
-            {format === "infographic" && <ScrollText className="w-3.5 h-3.5 text-emerald-400" />}
-            <span className="capitalize">{format}</span>
-          </div>
-
-          <SharePageActions token={token} />
-        </div>
+        {/* Action Buttons: Embed Code + Remix */}
+        <SharePageActions token={token} />
       </header>
 
       {/* Main Presentation Viewport */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 overflow-y-auto">
-        <div className="w-full flex items-center justify-center max-w-6xl">
-          {format === "carousel" && <CarouselCanvas ast={ast} scale={1} />}
-          {format === "presentation" && <PresentationCanvas ast={ast} scale={1} />}
-          {format === "infographic" && <InfographicCanvas ast={ast} scale={1} />}
+      <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 overflow-x-auto">
+        <div className="w-full flex items-center justify-center py-6">
+          {format === "carousel" && (
+            <div className="scale-90 sm:scale-100 transition-transform origin-top">
+              <CarouselCanvas ast={ast} scale={1} />
+            </div>
+          )}
+          {format === "presentation" && (
+            <div className="scale-90 sm:scale-100 transition-transform origin-top">
+              <PresentationCanvas ast={ast} scale={1} />
+            </div>
+          )}
+          {format === "infographic" && (
+            <div className="scale-90 sm:scale-100 transition-transform origin-top">
+              <InfographicCanvas ast={ast} scale={1} />
+            </div>
+          )}
         </div>
       </main>
 
-      {/* Footer Branding & Sticky Remix CTA */}
-      <footer className="py-4 border-t border-slate-900 bg-slate-950/90 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between px-6 gap-3">
-        <div>
-          Powered by{" "}
-          <Link href="/" className="font-bold text-slate-400 hover:text-white transition-colors">
-            StatDeck Studio
-          </Link>{" "}
-          · Commercial Data Presentation Engine
+      {/* Footer Branding & Sticky Action Bar */}
+      <footer className="border-t border-slate-800/80 bg-slate-900/40 backdrop-blur-xs py-4 px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+        <div className="flex items-center gap-2">
+          <span>Generated with</span>
+          <Link href="/" className="font-bold text-white hover:text-blue-400 transition-colors">
+            StatDeck
+          </Link>
+          <span className="text-slate-600">•</span>
+          <span>Zero AI hallucination deterministic visual synthesis</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4 text-xs font-semibold">
           <Link
             href={`/studio?remix=${encodeURIComponent(token)}`}
-            className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-1"
+            className="text-blue-400 hover:text-blue-300 transition-colors flex items-center gap-1"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Remix this presentation with your data</span>
+            Remix this deck
+          </Link>
+          <Link href="/pricing" className="hover:text-slate-200 transition-colors">
+            Pricing
+          </Link>
+          <Link href="/studio" className="hover:text-slate-200 transition-colors">
+            Create Free Deck
           </Link>
         </div>
       </footer>

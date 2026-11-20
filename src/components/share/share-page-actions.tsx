@@ -12,7 +12,10 @@ export function SharePageActions({ token }: SharePageActionsProps) {
   const [hasCopiedEmbed, setHasCopiedEmbed] = useState(false);
 
   const handleCopyEmbed = async () => {
-    const origin = typeof window !== "undefined" ? window.location.origin : "https://statdeck.ai";
+    const origin =
+      typeof window !== "undefined" && window.location.origin
+        ? window.location.origin
+        : (process.env.NEXT_PUBLIC_APP_URL || "");
     const iframeSnippet = `<iframe src="${origin}/s/${token}?embed=1" width="100%" height="700" frameborder="0" style="border:none; border-radius:16px; overflow:hidden;" allow="clipboard-write"></iframe>`;
     try {
       await navigator.clipboard.writeText(iframeSnippet);

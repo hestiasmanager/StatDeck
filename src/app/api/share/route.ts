@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "node:crypto";
-import { redis } from "@/lib/cache/redis";
 import { DeckSchema } from "@/lib/schemas/deck-schema";
+import { saveSharedDeck, getSharedDeck, SharedDeckRecord } from "@/lib/share/share-store";
 
-export interface SharedDeckRecord {
-  id: string;
-  ast: unknown;
-  format: string;
-  templateId: string;
-  createdAt: number;
-}
+export type { SharedDeckRecord };
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { ast, format = "carousel", templateId } = body;
+    const { ast, format = "carousel", templateId, projectId } = body;
 
     if (!ast) {
       return NextResponse.json(
@@ -44,21 +38,30 @@ export async function POST(req: NextRequest) {
       createdAt: Date.now(),
     };
 
-    // Store in Redis with 30 days TTL (2,592,000 seconds)
-    const redisKey = `statdeck:share:${token}`;
-    await redis.set(redisKey, record, { ex: 30 * 24 * 60 * 60 });
+    // Await and persist to Redis and/or Supabase
+    const persistResult = await saveSharedDeck(record, projectId);
+    if (!persistResult.ok) {
+      return NextResponse.json(
+        { error: persistResult.error || "Failed to persist share link to storage." },
+        { status: 500 }
+      );
+    }
 
-    const origin =
+    const hostHeader =
       req.headers.get("x-forwarded-host") ||
       req.headers.get("host") ||
-      "stat-deck.vercel.app";
-    const protocol = origin.includes("localhost") ? "http" : "https";
-    const shareUrl = `${protocol}://${origin}/s/${token}`;
+      (process.env.NEXT_PUBLIC_APP_URL
+        ? process.env.NEXT_PUBLIC_APP_URL.replace(/^https?:\/\//, "")
+        : "stat-deck.vercel.app");
+
+    const protocol = hostHeader.includes("localhost") ? "http" : "https";
+    const shareUrl = `${protocol}://${hostHeader}/s/${token}`;
 
     return NextResponse.json({
       ok: true,
       token,
       shareUrl,
+      source: persistResult.source,
     });
   } catch (err) {
     console.error("Error creating share link:", err);
@@ -78,8 +81,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing token parameter." }, { status: 400 });
     }
 
-    const redisKey = `statdeck:share:${token}`;
-    const record = await redis.get<SharedDeckRecord>(redisKey);
+    const record = await getSharedDeck(token);
 
     if (!record) {
       return NextResponse.json(

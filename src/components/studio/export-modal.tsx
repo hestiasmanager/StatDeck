@@ -37,6 +37,7 @@ interface ExportModalProps {
   onPromptAuth?: () => void;
   onPromptUpgrade?: (tier: string) => void;
   activeCanvasRef?: React.RefObject<HTMLDivElement | null>;
+  projectId?: string;
 }
 
 type ExportCategory = "all" | "slides" | "image" | "web" | "share";
@@ -51,6 +52,7 @@ export function ExportModal({
   onPromptAuth,
   onPromptUpgrade,
   activeCanvasRef,
+  projectId,
 }: ExportModalProps) {
   const [selectedCategory, setSelectedCategory] = useState<ExportCategory>(initialCategory || "all");
 
@@ -276,21 +278,30 @@ export function ExportModal({
         const res = await fetch("/api/share", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ast, format: ast.format, templateId: ast.templateId }),
+          body: JSON.stringify({
+            ast,
+            format: ast.format,
+            templateId: ast.templateId,
+            projectId,
+          }),
         });
         const data = await res.json();
-        if (data.ok && data.shareUrl) {
+        if (res.ok && data.ok && data.shareUrl) {
           url = data.shareUrl;
           setShareUrl(data.shareUrl);
+        } else {
+          throw new Error(data.error || "Failed to persist share link for embed.");
         }
       } catch (e) {
-        console.error(e);
+        alert(e instanceof Error ? e.message : "Failed to generate embed link");
+        return;
       } finally {
         setIsSharing(false);
       }
     }
 
-    const embedUrl = url || "https://stat-deck.vercel.app";
+    if (!url) return;
+    const embedUrl = `${url}${url.includes("?") ? "&" : "?"}embed=1`;
     const snippet = `<iframe src="${embedUrl}" width="100%" height="640" style="border:none;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.08);" title="${ast.meta.title || "StatDeck"}"></iframe>`;
     await navigator.clipboard.writeText(snippet);
     setHasCopiedEmbed(true);
@@ -311,10 +322,15 @@ export function ExportModal({
       const res = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ast, format: ast.format, templateId: ast.templateId }),
+        body: JSON.stringify({
+          ast,
+          format: ast.format,
+          templateId: ast.templateId,
+          projectId,
+        }),
       });
       const data = await res.json();
-      if (data.ok && data.shareUrl) {
+      if (res.ok && data.ok && data.shareUrl) {
         setShareUrl(data.shareUrl);
         await navigator.clipboard.writeText(data.shareUrl);
         setHasCopiedShareUrl(true);
@@ -326,6 +342,41 @@ export function ExportModal({
       alert(err instanceof Error ? err.message : "Sharing failed");
     } finally {
       setIsSharing(false);
+    }
+  };
+
+  const handleOpenShareLink = async () => {
+    let url = shareUrl;
+    if (!url) {
+      setIsSharing(true);
+      try {
+        const res = await fetch("/api/share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ast,
+            format: ast.format,
+            templateId: ast.templateId,
+            projectId,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.ok && data.shareUrl) {
+          url = data.shareUrl;
+          setShareUrl(data.shareUrl);
+        } else {
+          throw new Error(data.error || "Failed to generate share link.");
+        }
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Sharing failed");
+        return;
+      } finally {
+        setIsSharing(false);
+      }
+    }
+
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -796,17 +847,19 @@ export function ExportModal({
                     <span>{hasCopiedEmbed ? "Embed Copied!" : "Embed Code"}</span>
                   </button>
 
-                  {shareUrl && (
-                    <a
-                      href={shareUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-                      title="Open shared page"
-                    >
+                  <button
+                    type="button"
+                    onClick={handleOpenShareLink}
+                    disabled={isSharing}
+                    className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                    title="Open shared page in new tab"
+                  >
+                    {isSharing ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
                       <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
+                    )}
+                  </button>
                 </div>
               </div>
             </>
