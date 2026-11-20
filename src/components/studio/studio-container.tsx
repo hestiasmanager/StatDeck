@@ -409,12 +409,14 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
   });
 
   // UI state for minimize / maximize & responsive layout
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth >= 1024;
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // Sync sidebar state on mount based on screen width without causing hydration mismatch
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setIsSidebarOpen(false);
     }
-    return true;
-  });
+  }, []);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoom, setZoom] = useState(1.0);
   const [isAutoFit, setIsAutoFit] = useState(true);
@@ -498,7 +500,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
     calculateAutoFit();
   };
 
-  // Keyboard shortcuts: Cmd+K, Undo/Redo, Escape for Fullscreen
+  // Keyboard shortcuts: Cmd+K, Undo/Redo, Escape for Fullscreen, Ctrl+B for Sidebar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -510,6 +512,9 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        setIsSidebarOpen((prev) => !prev);
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
         if (e.shiftKey) {
           e.preventDefault();
@@ -526,7 +531,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isFullscreen]);
+  }, [isFullscreen, isCommandPaletteOpen]);
 
   const handleUpdateText = (path: string, newText: string) => {
     dispatch({ type: "UPDATE_TEXT", payload: { path, value: newText } });

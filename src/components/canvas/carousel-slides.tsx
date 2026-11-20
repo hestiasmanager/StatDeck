@@ -32,15 +32,29 @@ export function buildCarouselSlides(
   const theme = getThemeTokens(ast.templateId);
   const slides: CarouselSlideData[] = [];
 
+  // Cover slide dynamic typography & pills calculations
+  const title = ast.meta.title || "";
+  const titleLen = title.length;
+  const summaryLen = (ast.executiveSummary || "").length;
+  const isLongCover = titleLen > 30 || summaryLen > 140;
+  const maxCoverHighlights = isLongCover ? 2 : 3;
+
+  const coverTitleClass =
+    titleLen <= 26
+      ? "text-5xl"
+      : titleLen <= 40
+      ? "text-4xl"
+      : "text-3xl leading-[1.08]";
+
   // Slide 1: Cover (Magazine Cover Design)
   slides.push({
     id: "cover",
     title: "Cover",
     content: (
-      <div className="flex flex-col justify-between h-full p-10 md:p-12 relative overflow-hidden">
+      <div className="flex flex-col h-full justify-between overflow-hidden p-10 md:p-12 relative">
         {/* Topic Category Pill Badge */}
         {ast.meta.category && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span
               className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-widest rounded-full border border-black/10 dark:border-white/10 shadow-2xs inline-flex items-center gap-1.5"
               style={{ backgroundColor: theme.accentMuted, color: theme.accent }}
@@ -52,9 +66,9 @@ export function buildCarouselSlides(
         )}
 
         {/* Magazine Editorial Headline & Accent Rule */}
-        <div className="my-auto flex flex-col justify-center">
+        <div className={`flex-1 min-h-0 flex flex-col justify-center overflow-hidden ${isLongCover ? "gap-2.5" : "gap-3"}`}>
           <h1
-            className="text-4xl md:text-5xl font-black tracking-tight leading-[1.08] mb-3"
+            className={`font-black tracking-tight ${coverTitleClass}`}
             style={{ color: theme.ink, fontFamily: theme.fontDisplay }}
             contentEditable={Boolean(onUpdateText)}
             suppressContentEditableWarning
@@ -65,14 +79,14 @@ export function buildCarouselSlides(
 
           {/* Clean Accent Rule */}
           <div
-            className="w-14 h-1 rounded-full my-3"
+            className="w-14 h-1 rounded-full shrink-0"
             style={{ backgroundColor: theme.accent }}
           />
 
           {/* 1-Line Deck Subtitle */}
           {ast.meta.subtitle && (
             <p
-              className="text-base md:text-lg opacity-85 leading-relaxed font-normal max-w-lg mt-1"
+              className="text-sm leading-snug opacity-85 font-normal max-w-lg"
               style={{ color: theme.ink, fontFamily: theme.fontBody }}
               contentEditable={Boolean(onUpdateText)}
               suppressContentEditableWarning
@@ -85,7 +99,7 @@ export function buildCarouselSlides(
           {/* Executive Summary */}
           {ast.executiveSummary && (
             <p
-              className="text-xs md:text-sm opacity-80 leading-relaxed font-normal max-w-lg mt-2.5"
+              className="text-sm leading-snug opacity-80 font-normal max-w-lg"
               style={{ color: theme.ink, fontFamily: theme.fontBody }}
               contentEditable={Boolean(onUpdateText)}
               suppressContentEditableWarning
@@ -95,13 +109,13 @@ export function buildCarouselSlides(
             </p>
           )}
 
-          {/* Cover Takeaway Highlights */}
+          {/* Cover Takeaway Highlights (dynamic max 2 or 3 pills) */}
           {ast.coverHighlights && ast.coverHighlights.length > 0 && (
-            <div className="flex flex-col gap-1.5 mt-3 max-w-lg">
-              {ast.coverHighlights.slice(0, 3).map((highlight, hIdx) => (
+            <div className={`flex flex-col ${isLongCover ? "gap-1.5" : "gap-2"} mt-1 max-w-lg shrink-0`}>
+              {ast.coverHighlights.slice(0, maxCoverHighlights).map((highlight, hIdx) => (
                 <div
                   key={hIdx}
-                  className="flex items-start gap-2 text-[11px] md:text-xs font-medium px-3 py-1.5 rounded-lg border border-black/5 dark:border-white/10"
+                  className="flex items-start gap-2 py-2 px-3 text-xs leading-snug font-medium rounded-lg border border-black/5 dark:border-white/10"
                   style={{
                     backgroundColor: `${theme.accent}0A`,
                     borderColor: theme.surfaceBorder,
@@ -109,7 +123,7 @@ export function buildCarouselSlides(
                   }}
                 >
                   <span
-                    className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5"
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1"
                     style={{ backgroundColor: theme.accent }}
                   />
                   <span className="leading-snug">{highlight}</span>
@@ -120,8 +134,8 @@ export function buildCarouselSlides(
         </div>
 
         {/* Magazine Footer */}
-        <div
-          className="border-t border-black/10 dark:border-white/10 pt-4 flex items-center justify-between gap-3 mt-auto shrink-0"
+        <footer
+          className="shrink-0 pt-3 mt-2 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-3"
           style={{ borderColor: theme.surfaceBorder }}
         >
           <div className="flex items-center gap-2 text-xs font-mono opacity-65" style={{ color: theme.ink }}>
@@ -136,7 +150,7 @@ export function buildCarouselSlides(
             )}
           </div>
           <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-        </div>
+        </footer>
       </div>
     ),
   });
@@ -147,8 +161,8 @@ export function buildCarouselSlides(
       id: "kpis",
       title: "Core Metrics",
       content: (
-        <div className="flex flex-col justify-between h-full p-10 md:p-12">
-          <div className="flex flex-col gap-1 border-b pb-4" style={{ borderColor: theme.surfaceBorder }}>
+        <div className="flex flex-col h-full justify-between overflow-hidden p-10 md:p-12">
+          <div className="flex flex-col gap-1 border-b pb-4 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
               Key Performance Indicators
             </span>
@@ -156,83 +170,85 @@ export function buildCarouselSlides(
               The Hard Numbers
             </h2>
           </div>
-          <div className="grid grid-cols-2 gap-4 items-stretch my-auto">
-            {ast.kpis.map((kpi, idx) => (
+          <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden">
+            <div className="grid grid-cols-2 gap-4 items-stretch my-auto">
+              {ast.kpis.map((kpi, idx) => (
+                <div
+                  key={idx}
+                  className="p-6 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between h-full min-h-[140px] shadow-2xs transition-all hover:scale-[1.02]"
+                  style={{
+                    backgroundColor: theme.surface,
+                    borderColor: theme.surfaceBorder,
+                    borderRadius: theme.cardRadius,
+                  }}
+                >
+                  <span
+                    className={`${getKpiValueSizeClass(
+                      kpi.value,
+                      "carousel"
+                    )} font-extrabold tracking-tight font-mono tabular-nums leading-tight block max-w-full break-normal`}
+                    style={{ color: theme.accent }}
+                    title={kpi.value}
+                  >
+                    {kpi.value}
+                  </span>
+                  <div className="mt-3">
+                    <span className="text-xs font-semibold leading-snug block opacity-90" style={{ color: theme.ink }}>
+                      {kpi.label}
+                    </span>
+                    {kpi.delta && (
+                      <span
+                        className={`text-[11px] font-bold font-mono tabular-nums mt-1.5 block ${
+                          kpi.deltaType === "positive" ||
+                          (!kpi.deltaType &&
+                            (kpi.delta.startsWith("+") ||
+                              kpi.delta.toLowerCase().includes("free") ||
+                              kpi.delta.toLowerCase().includes("saved")))
+                            ? "text-emerald-500"
+                            : kpi.deltaType === "negative" ||
+                              (!kpi.deltaType && kpi.delta.startsWith("-"))
+                            ? "text-rose-500"
+                            : "opacity-60"
+                        }`}
+                      >
+                        {kpi.delta}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* KPI Analytical Narrative Callout */}
+            {ast.kpiNarrative && (
               <div
-                key={idx}
-                className="p-6 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between h-full min-h-[140px] shadow-2xs transition-all hover:scale-[1.02]"
+                className="p-3 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
                 style={{
-                  backgroundColor: theme.surface,
+                  backgroundColor: `${theme.accent}08`,
                   borderColor: theme.surfaceBorder,
-                  borderRadius: theme.cardRadius,
                 }}
               >
-                <span
-                  className={`${getKpiValueSizeClass(
-                    kpi.value,
-                    "carousel"
-                  )} font-extrabold tracking-tight font-mono tabular-nums leading-tight block max-w-full break-normal`}
-                  style={{ color: theme.accent }}
-                  title={kpi.value}
+                <div
+                  className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                  style={{ backgroundColor: theme.accent }}
+                />
+                <p
+                  className="text-xs leading-relaxed opacity-85 font-medium"
+                  style={{ color: theme.ink }}
+                  contentEditable={Boolean(onUpdateText)}
+                  suppressContentEditableWarning
+                  onBlur={(e) => onUpdateText?.("kpiNarrative", e.currentTarget.textContent || "")}
                 >
-                  {kpi.value}
-                </span>
-                <div className="mt-3">
-                  <span className="text-xs font-semibold leading-snug block opacity-90" style={{ color: theme.ink }}>
-                    {kpi.label}
-                  </span>
-                  {kpi.delta && (
-                    <span
-                      className={`text-[11px] font-bold font-mono tabular-nums mt-1.5 block ${
-                        kpi.deltaType === "positive" ||
-                        (!kpi.deltaType &&
-                          (kpi.delta.startsWith("+") ||
-                            kpi.delta.toLowerCase().includes("free") ||
-                            kpi.delta.toLowerCase().includes("saved")))
-                          ? "text-emerald-500"
-                          : kpi.deltaType === "negative" ||
-                            (!kpi.deltaType && kpi.delta.startsWith("-"))
-                          ? "text-rose-500"
-                          : "opacity-60"
-                      }`}
-                    >
-                      {kpi.delta}
-                    </span>
-                  )}
-                </div>
+                  {ast.kpiNarrative}
+                </p>
               </div>
-            ))}
+            )}
           </div>
-          {/* KPI Analytical Narrative Callout */}
-          {ast.kpiNarrative && (
-            <div
-              className="mt-2.5 p-3 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
-              style={{
-                backgroundColor: `${theme.accent}08`,
-                borderColor: theme.surfaceBorder,
-              }}
-            >
-              <div
-                className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
-                style={{ backgroundColor: theme.accent }}
-              />
-              <p
-                className="text-xs leading-relaxed opacity-85 font-medium"
-                style={{ color: theme.ink }}
-                contentEditable={Boolean(onUpdateText)}
-                suppressContentEditableWarning
-                onBlur={(e) => onUpdateText?.("kpiNarrative", e.currentTarget.textContent || "")}
-              >
-                {ast.kpiNarrative}
-              </p>
-            </div>
-          )}
-          <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
+          <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
               Core Metrics
             </span>
             <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-          </div>
+          </footer>
         </div>
       ),
     });
@@ -244,8 +260,8 @@ export function buildCarouselSlides(
       id: chart.id || `chart-${chartIdx}`,
       title: chart.title || `Chart ${chartIdx + 1}`,
       content: (
-        <div className="flex flex-col justify-between h-full p-10 md:p-12">
-          <div className="flex flex-col gap-1 border-b pb-4" style={{ borderColor: theme.surfaceBorder }}>
+        <div className="flex flex-col h-full justify-between overflow-hidden p-10 md:p-12">
+          <div className="flex flex-col gap-1 border-b pb-4 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
               Visual Analytics {ast.charts.length > 1 ? `(${chartIdx + 1}/${ast.charts.length})` : ""}
             </span>
@@ -253,57 +269,59 @@ export function buildCarouselSlides(
               {chart.title}
             </h2>
           </div>
-          <div
-            className="p-6 md:p-8 rounded-2xl border border-black/10 dark:border-white/10 my-auto shadow-2xs"
-            style={{
-              backgroundColor: theme.surface,
-              borderColor: theme.surfaceBorder,
-              borderRadius: theme.cardRadius,
-            }}
-          >
-            {chart.type === "bar" && (
-              <SvgBarChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
-            )}
-            {chart.type === "horizontal_bar" && (
-              <SvgHorizontalBar chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
-            )}
-            {chart.type === "donut" && (
-              <SvgDonutChart chart={chart} colorPalette={theme.chartColors} inkColor={theme.ink} />
-            )}
-            {(chart.type === "line" || chart.type === "area") && (
-              <SvgLineChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
-            )}
-          </div>
-          {/* "What This Shows" Callout Strip */}
-          {(chart.chartInsight || ast.chartInsight) && (
+          <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden">
             <div
-              className="mt-2.5 px-3.5 py-2 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
+              className="p-6 md:p-8 rounded-2xl border border-black/10 dark:border-white/10 my-auto shadow-2xs"
               style={{
-                backgroundColor: `${theme.accent}0A`,
+                backgroundColor: theme.surface,
                 borderColor: theme.surfaceBorder,
+                borderRadius: theme.cardRadius,
               }}
             >
-              <span
-                className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md text-white flex-shrink-0 mt-0.5"
-                style={{ backgroundColor: theme.accent }}
-              >
-                What This Shows
-              </span>
-              <p
-                className="text-xs leading-relaxed font-medium opacity-90"
-                style={{ color: theme.ink }}
-                title={chart.chartInsight || ast.chartInsight}
-              >
-                {chart.chartInsight || ast.chartInsight}
-              </p>
+              {chart.type === "bar" && (
+                <SvgBarChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+              )}
+              {chart.type === "horizontal_bar" && (
+                <SvgHorizontalBar chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+              )}
+              {chart.type === "donut" && (
+                <SvgDonutChart chart={chart} colorPalette={theme.chartColors} inkColor={theme.ink} />
+              )}
+              {(chart.type === "line" || chart.type === "area") && (
+                <SvgLineChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+              )}
             </div>
-          )}
-          <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
+            {/* "What This Shows" Callout Strip */}
+            {(chart.chartInsight || ast.chartInsight) && (
+              <div
+                className="px-3.5 py-2 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
+                style={{
+                  backgroundColor: `${theme.accent}0A`,
+                  borderColor: theme.surfaceBorder,
+                }}
+              >
+                <span
+                  className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md text-white flex-shrink-0 mt-0.5"
+                  style={{ backgroundColor: theme.accent }}
+                >
+                  What This Shows
+                </span>
+                <p
+                  className="text-xs leading-relaxed font-medium opacity-90"
+                  style={{ color: theme.ink }}
+                  title={chart.chartInsight || ast.chartInsight}
+                >
+                  {chart.chartInsight || ast.chartInsight}
+                </p>
+              </div>
+            )}
+          </div>
+          <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
               {chart.title || "Data Breakdown"}
             </span>
             <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-          </div>
+          </footer>
         </div>
       ),
     });
@@ -322,8 +340,8 @@ export function buildCarouselSlides(
           id: `block-${bIdx + 1}-table-p${p + 1}`,
           title: `${block.title || "Comparison"} (Rows ${startRow}–${endRow})`,
           content: (
-            <div className="flex flex-col justify-between h-full p-10 md:p-12">
-              <div className="flex flex-col gap-1 border-b pb-4" style={{ borderColor: theme.surfaceBorder }}>
+            <div className="flex flex-col h-full justify-between overflow-hidden p-10 md:p-12">
+              <div className="flex flex-col gap-1 border-b pb-4 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
                     Comparison Table {totalParts > 1 ? `(${p + 1}/${totalParts})` : ""}
@@ -336,21 +354,23 @@ export function buildCarouselSlides(
                   {block.title || "Comparison Matrix"}
                 </h2>
               </div>
-              <div className="my-auto flex flex-col justify-start items-start pt-2">
-                <ComparisonTableBlock
-                  headers={block.headers}
-                  rows={chunkRows}
-                  inkColor={theme.ink}
-                  surfaceBorder={theme.surfaceBorder}
-                  accentColor={theme.accent}
-                />
+              <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden">
+                <div className="my-auto flex flex-col justify-start items-start pt-2">
+                  <ComparisonTableBlock
+                    headers={block.headers}
+                    rows={chunkRows}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                    accentColor={theme.accent}
+                  />
+                </div>
               </div>
-              <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
+              <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
                 <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
                   Rows {startRow}–{endRow} of {block.rows.length}
                 </span>
                 <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-              </div>
+              </footer>
             </div>
           ),
         });
@@ -360,8 +380,8 @@ export function buildCarouselSlides(
         id: block.id || `block-${bIdx + 1}`,
         title: "title" in block && block.title ? block.title : `Insight ${bIdx + 1}`,
         content: (
-          <div className="flex flex-col justify-between h-full p-10 md:p-12">
-            <div className="flex flex-col gap-1 border-b pb-4" style={{ borderColor: theme.surfaceBorder }}>
+          <div className="flex flex-col h-full justify-between overflow-hidden p-10 md:p-12">
+            <div className="flex flex-col gap-1 border-b pb-4 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
               <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
                 Strategic Breakdown
               </span>
@@ -373,60 +393,62 @@ export function buildCarouselSlides(
                   : "Core Insights"}
               </h2>
             </div>
-            <div className="my-auto">
-              {block.type === "numbered_steps" && (
-                <ProcessStepsBlock
-                  steps={block.steps}
-                  accentColor={theme.accent}
-                  inkColor={theme.ink}
-                  surfaceBorder={theme.surfaceBorder}
-                />
-              )}
-              {block.type === "comparison_table" && (
-                <div className="flex flex-col justify-start items-start pt-2">
-                  <ComparisonTableBlock
-                    headers={block.headers}
-                    rows={block.rows}
+            <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden">
+              <div className="my-auto">
+                {block.type === "numbered_steps" && (
+                  <ProcessStepsBlock
+                    steps={block.steps}
+                    accentColor={theme.accent}
                     inkColor={theme.ink}
                     surfaceBorder={theme.surfaceBorder}
-                    accentColor={theme.accent}
                   />
-                </div>
-              )}
-              {block.type === "pros_cons" && (
-                <ProsConsBlock
-                  pros={block.pros}
-                  cons={block.cons}
-                  inkColor={theme.ink}
-                  surfaceBorder={theme.surfaceBorder}
-                />
-              )}
-              {block.type === "callout_quote" && (
-                <CalloutQuoteBlock
-                  quote={block.quote}
-                  author={block.author}
-                  role={block.role}
-                  accentColor={theme.accent}
-                  inkColor={theme.ink}
-                  surfaceBorder={theme.surfaceBorder}
-                />
-              )}
-              {block.type === "key_takeaways" && (
-                <KeyTakeawaysBlock
-                  title={block.title}
-                  bullets={block.bullets}
-                  accentColor={theme.accent}
-                  inkColor={theme.ink}
-                  surfaceBorder={theme.surfaceBorder}
-                />
-              )}
+                )}
+                {block.type === "comparison_table" && (
+                  <div className="flex flex-col justify-start items-start pt-2">
+                    <ComparisonTableBlock
+                      headers={block.headers}
+                      rows={block.rows}
+                      inkColor={theme.ink}
+                      surfaceBorder={theme.surfaceBorder}
+                      accentColor={theme.accent}
+                    />
+                  </div>
+                )}
+                {block.type === "pros_cons" && (
+                  <ProsConsBlock
+                    pros={block.pros}
+                    cons={block.cons}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+                {block.type === "callout_quote" && (
+                  <CalloutQuoteBlock
+                    quote={block.quote}
+                    author={block.author}
+                    role={block.role}
+                    accentColor={theme.accent}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+                {block.type === "key_takeaways" && (
+                  <KeyTakeawaysBlock
+                    title={block.title}
+                    bullets={block.bullets}
+                    accentColor={theme.accent}
+                    inkColor={theme.ink}
+                    surfaceBorder={theme.surfaceBorder}
+                  />
+                )}
+              </div>
             </div>
-            <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
+            <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
               <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
                 {"title" in block && block.title ? block.title : "Strategic Insights"}
               </span>
               <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-            </div>
+            </footer>
           </div>
         ),
       });
@@ -448,32 +470,34 @@ export function buildCarouselSlides(
     id: "outro",
     title: "Conclusion",
     content: (
-      <div className="flex flex-col justify-between h-full p-10 md:p-12 text-center">
+      <div className="flex flex-col h-full justify-between overflow-hidden p-10 md:p-12 text-center">
         <span
-          className="self-center px-3.5 py-1 text-[11px] font-bold uppercase tracking-widest rounded-full border border-black/10 dark:border-white/10"
+          className="self-center px-3.5 py-1 text-[11px] font-bold uppercase tracking-widest rounded-full border border-black/10 dark:border-white/10 shrink-0"
           style={{ backgroundColor: theme.accentMuted, color: theme.accent }}
         >
           Summary & Next Steps
         </span>
-        <div className="my-auto flex flex-col gap-4 max-w-sm mx-auto">
-          <h2 className="text-3xl font-extrabold tracking-tight" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-            Key Takeaways
-          </h2>
-          <p className="text-sm opacity-85 leading-relaxed font-normal" style={{ color: theme.ink }}>
-            {ast.meta.subtitle || "Data synthesized deterministically from source report."}
-          </p>
-          {ast.meta.sourceCitations.length > 0 && (
-            <div className="text-xs opacity-60 font-mono mt-4">
-              Sources: {ast.meta.sourceCitations.join(", ")}
-            </div>
-          )}
+        <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden">
+          <div className="my-auto flex flex-col gap-4 max-w-sm mx-auto">
+            <h2 className="text-3xl font-extrabold tracking-tight" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+              Key Takeaways
+            </h2>
+            <p className="text-sm opacity-85 leading-relaxed font-normal" style={{ color: theme.ink }}>
+              {ast.meta.subtitle || "Data synthesized deterministically from source report."}
+            </p>
+            {ast.meta.sourceCitations.length > 0 && (
+              <div className="text-xs opacity-60 font-mono mt-4">
+                Sources: {ast.meta.sourceCitations.join(", ")}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="border-t pt-4 flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
+        <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
           <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
             Summary
           </span>
           <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-        </div>
+        </footer>
       </div>
     ),
   });

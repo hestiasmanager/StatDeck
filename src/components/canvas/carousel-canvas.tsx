@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import type { DeckAST } from "@/lib/schemas/deck-schema";
 import { getThemeTokens } from "@/lib/themes/registry";
 import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import { buildCarouselSlides } from "@/components/canvas/carousel-slides";
+export { buildCarouselSlides } from "@/components/canvas/carousel-slides";
 
 interface CarouselCanvasProps {
   ast: DeckAST;
@@ -31,16 +32,18 @@ export function CarouselCanvas({
   const deckKey =
     ast.id ||
     `${ast.meta.title}-${ast.meta.date || ""}-${ast.kpis?.length ?? 0}-${ast.charts?.length ?? 0}-${ast.blocks?.length ?? 0}`;
-  const [prevDeckKey, setPrevDeckKey] = useState(deckKey);
+  const prevDeckKeyRef = useRef(deckKey);
 
-  if (prevDeckKey !== deckKey) {
-    setPrevDeckKey(deckKey);
-    if (onSlideChange) {
-      onSlideChange(0);
-    } else {
-      setInternalSlideIndex(0);
+  useEffect(() => {
+    if (prevDeckKeyRef.current !== deckKey) {
+      prevDeckKeyRef.current = deckKey;
+      if (onSlideChange) {
+        onSlideChange(0);
+      } else {
+        setInternalSlideIndex(0);
+      }
     }
-  }
+  }, [deckKey, onSlideChange]);
 
   const effectiveIndex = controlledIndex !== undefined ? controlledIndex : internalSlideIndex;
 

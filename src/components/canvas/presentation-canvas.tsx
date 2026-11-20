@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import type { DeckAST } from "@/lib/schemas/deck-schema";
 import { getThemeTokens } from "@/lib/themes/registry";
 import { ChevronLeft, ChevronRight, Monitor } from "lucide-react";
@@ -38,16 +38,18 @@ export function PresentationCanvas({
   const deckKey =
     ast.id ||
     `${ast.meta.title}-${ast.meta.date || ""}-${ast.kpis?.length ?? 0}-${ast.charts?.length ?? 0}-${ast.blocks?.length ?? 0}`;
-  const [prevDeckKey, setPrevDeckKey] = useState(deckKey);
+  const prevDeckKeyRef = useRef(deckKey);
 
-  if (prevDeckKey !== deckKey) {
-    setPrevDeckKey(deckKey);
-    if (onSlideChange) {
-      onSlideChange(0);
-    } else {
-      setInternalSlideIndex(0);
+  useEffect(() => {
+    if (prevDeckKeyRef.current !== deckKey) {
+      prevDeckKeyRef.current = deckKey;
+      if (onSlideChange) {
+        onSlideChange(0);
+      } else {
+        setInternalSlideIndex(0);
+      }
     }
-  }
+  }, [deckKey, onSlideChange]);
 
   const effectiveIndex = controlledIndex !== undefined ? controlledIndex : internalSlideIndex;
 
@@ -60,13 +62,27 @@ export function PresentationCanvas({
     }
   };
 
+  // Cover slide dynamic typography & pills calculations
+  const title = ast.meta.title || "";
+  const titleLen = title.length;
+  const summaryLen = (ast.executiveSummary || "").length;
+  const isLongCover = titleLen > 30 || summaryLen > 140;
+  const maxCoverHighlights = isLongCover ? 2 : 3;
+
+  const coverTitleClass =
+    titleLen <= 26
+      ? "text-5xl"
+      : titleLen <= 40
+      ? "text-4xl"
+      : "text-3xl leading-[1.08]";
+
   // 16:9 Slides Sequence
   const rawSlides = [
     // Slide 1: Cover (Magazine Cover Design)
     {
       id: "cover",
       content: (
-        <div className="flex flex-col justify-between h-full px-12 py-6 gap-2 relative overflow-hidden">
+        <div className="flex flex-col h-full justify-between overflow-hidden px-12 py-6 relative">
           {ast.meta.category && (
             <div className="flex items-center gap-2 shrink-0">
               <span
@@ -78,16 +94,12 @@ export function PresentationCanvas({
               </span>
             </div>
           )}
-          <div className="my-auto flex flex-col justify-center max-w-2xl flex-1 min-h-0 overflow-y-auto scrollbar-none gap-1.5">
+          <div className={`flex-1 min-h-0 flex flex-col justify-center overflow-hidden max-w-2xl ${isLongCover ? "gap-2.5" : "gap-3"}`}>
             <h1
-              className="font-black tracking-tight leading-[1.12]"
+              className={`font-black tracking-tight ${coverTitleClass}`}
               style={{
                 color: theme.ink,
                 fontFamily: theme.fontDisplay,
-                fontSize:
-                  (ast.meta.title || "").length > 45
-                    ? "clamp(1.4rem, 2.6vw, 1.95rem)"
-                    : "clamp(1.85rem, 3.4vw, 2.75rem)",
               }}
               contentEditable={Boolean(onUpdateText)}
               suppressContentEditableWarning
@@ -95,10 +107,10 @@ export function PresentationCanvas({
             >
               {ast.meta.title}
             </h1>
-            <div className="w-12 h-1 rounded-full my-1 shrink-0" style={{ backgroundColor: theme.accent }} />
+            <div className="w-12 h-1 rounded-full shrink-0" style={{ backgroundColor: theme.accent }} />
             {ast.meta.subtitle && (
               <p
-                className="text-sm md:text-base opacity-85 leading-relaxed font-normal max-w-xl"
+                className="text-sm leading-snug opacity-85 font-normal max-w-xl"
                 style={{ color: theme.ink, fontFamily: theme.fontBody }}
                 contentEditable={Boolean(onUpdateText)}
                 suppressContentEditableWarning
@@ -110,7 +122,7 @@ export function PresentationCanvas({
             {/* Executive Summary */}
             {ast.executiveSummary && (
               <p
-                className="text-xs md:text-sm opacity-80 leading-relaxed font-normal max-w-xl"
+                className="text-sm leading-snug opacity-80 font-normal max-w-xl"
                 style={{ color: theme.ink, fontFamily: theme.fontBody }}
                 contentEditable={Boolean(onUpdateText)}
                 suppressContentEditableWarning
@@ -119,13 +131,13 @@ export function PresentationCanvas({
                 {ast.executiveSummary}
               </p>
             )}
-            {/* Cover Takeaway Highlights (limit to 2 items to guarantee footer breathing room) */}
+            {/* Cover Takeaway Highlights (dynamic max 2 or 3 pills) */}
             {ast.coverHighlights && ast.coverHighlights.length > 0 && (
-              <div className="flex flex-col gap-1 mt-1 max-w-xl shrink-0">
-                {ast.coverHighlights.slice(0, 2).map((highlight, hIdx) => (
+              <div className={`flex flex-col ${isLongCover ? "gap-1.5" : "gap-2"} mt-1 max-w-xl shrink-0`}>
+                {ast.coverHighlights.slice(0, maxCoverHighlights).map((highlight, hIdx) => (
                   <div
                     key={hIdx}
-                    className="flex items-start gap-2 text-xs font-medium px-3 py-1 rounded-lg border border-black/5 dark:border-white/10"
+                    className="flex items-start gap-2 py-2 px-3 text-xs leading-snug font-medium rounded-lg border border-black/5 dark:border-white/10"
                     style={{
                       backgroundColor: `${theme.accent}0A`,
                       borderColor: theme.surfaceBorder,
@@ -142,12 +154,15 @@ export function PresentationCanvas({
               </div>
             )}
           </div>
-          <div className="flex items-center justify-between border-t border-black/10 dark:border-white/10 pt-2.5 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+          <footer
+            className="shrink-0 pt-3 mt-2 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-3"
+            style={{ borderColor: theme.surfaceBorder }}
+          >
             <span className="text-xs font-mono opacity-60">
               {ast.meta.date ? `${ast.meta.date} • ` : ""}Source: {ast.meta.sourceCitations[0] || "StatDeck"}
             </span>
             <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-          </div>
+          </footer>
         </div>
       ),
     },
@@ -157,7 +172,7 @@ export function PresentationCanvas({
           {
             id: "kpis",
             content: (
-              <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+              <div className="flex flex-col h-full justify-between overflow-hidden px-12 pt-8 pb-5">
                 <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
                   <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
                     Key Metrics
@@ -166,82 +181,84 @@ export function PresentationCanvas({
                     Executive Performance Summary
                   </h2>
                 </div>
-                <div className="grid grid-cols-4 gap-4 my-auto flex-1 min-h-0 items-stretch">
-                  {ast.kpis.map((kpi, idx) => (
+                <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden">
+                  <div className="grid grid-cols-4 gap-4 my-auto items-stretch">
+                    {ast.kpis.map((kpi, idx) => (
+                      <div
+                        key={idx}
+                        className="p-4 md:p-5 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between h-full min-h-[110px] shadow-2xs transition-all hover:scale-[1.02] overflow-hidden min-w-0"
+                        style={{
+                          backgroundColor: theme.surface,
+                          borderColor: theme.surfaceBorder,
+                          borderRadius: theme.cardRadius,
+                        }}
+                      >
+                        <span
+                          className={`${getKpiValueSizeClass(
+                            kpi.value,
+                            "presentation"
+                          )} font-extrabold tracking-tight font-mono tabular-nums leading-tight block max-w-full break-normal`}
+                          style={{ color: theme.accent }}
+                          title={kpi.value}
+                        >
+                          {kpi.value}
+                        </span>
+                        <div className="mt-3">
+                          <span className="text-xs font-semibold leading-snug block opacity-90" style={{ color: theme.ink }}>
+                            {kpi.label}
+                          </span>
+                          {kpi.delta && (
+                            <span
+                              className={`text-[11px] font-bold font-mono tabular-nums mt-1.5 block ${
+                                kpi.deltaType === "positive" ||
+                                (!kpi.deltaType &&
+                                  (kpi.delta.startsWith("+") ||
+                                    kpi.delta.toLowerCase().includes("free") ||
+                                    kpi.delta.toLowerCase().includes("saved")))
+                                  ? "text-emerald-500"
+                                  : kpi.deltaType === "negative" ||
+                                    (!kpi.deltaType && kpi.delta.startsWith("-"))
+                                  ? "text-rose-500"
+                                  : "opacity-60"
+                              }`}
+                            >
+                              {kpi.delta}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* KPI Analytical Narrative Callout */}
+                  {ast.kpiNarrative && (
                     <div
-                      key={idx}
-                      className="p-4 md:p-5 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between h-full min-h-[110px] shadow-2xs transition-all hover:scale-[1.02] overflow-hidden min-w-0"
+                      className="px-4 py-2 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
                       style={{
-                        backgroundColor: theme.surface,
+                        backgroundColor: `${theme.accent}08`,
                         borderColor: theme.surfaceBorder,
-                        borderRadius: theme.cardRadius,
                       }}
                     >
-                      <span
-                        className={`${getKpiValueSizeClass(
-                          kpi.value,
-                          "presentation"
-                        )} font-extrabold tracking-tight font-mono tabular-nums leading-tight block max-w-full break-normal`}
-                        style={{ color: theme.accent }}
-                        title={kpi.value}
+                      <div
+                        className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                        style={{ backgroundColor: theme.accent }}
+                      />
+                      <p
+                        className="text-xs leading-relaxed opacity-85 font-medium"
+                        style={{ color: theme.ink }}
+                        contentEditable={Boolean(onUpdateText)}
+                        suppressContentEditableWarning
+                        onBlur={(e) => onUpdateText?.("kpiNarrative", e.currentTarget.textContent || "")}
+                        title={ast.kpiNarrative}
                       >
-                        {kpi.value}
-                      </span>
-                      <div className="mt-3">
-                        <span className="text-xs font-semibold leading-snug block opacity-90" style={{ color: theme.ink }}>
-                          {kpi.label}
-                        </span>
-                        {kpi.delta && (
-                          <span
-                            className={`text-[11px] font-bold font-mono tabular-nums mt-1.5 block ${
-                              kpi.deltaType === "positive" ||
-                              (!kpi.deltaType &&
-                                (kpi.delta.startsWith("+") ||
-                                  kpi.delta.toLowerCase().includes("free") ||
-                                  kpi.delta.toLowerCase().includes("saved")))
-                                ? "text-emerald-500"
-                                : kpi.deltaType === "negative" ||
-                                  (!kpi.deltaType && kpi.delta.startsWith("-"))
-                                ? "text-rose-500"
-                                : "opacity-60"
-                            }`}
-                          >
-                            {kpi.delta}
-                          </span>
-                        )}
-                      </div>
+                        {ast.kpiNarrative}
+                      </p>
                     </div>
-                  ))}
+                  )}
                 </div>
-                {/* KPI Analytical Narrative Callout */}
-                {ast.kpiNarrative && (
-                  <div
-                    className="mt-2.5 px-4 py-2 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
-                    style={{
-                      backgroundColor: `${theme.accent}08`,
-                      borderColor: theme.surfaceBorder,
-                    }}
-                  >
-                    <div
-                      className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
-                      style={{ backgroundColor: theme.accent }}
-                    />
-                    <p
-                      className="text-xs leading-relaxed opacity-85 font-medium"
-                      style={{ color: theme.ink }}
-                      contentEditable={Boolean(onUpdateText)}
-                      suppressContentEditableWarning
-                      onBlur={(e) => onUpdateText?.("kpiNarrative", e.currentTarget.textContent || "")}
-                      title={ast.kpiNarrative}
-                    >
-                      {ast.kpiNarrative}
-                    </p>
-                  </div>
-                )}
-                <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
                   <span className="text-xs font-mono opacity-60">Executive Summary</span>
                   <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-                </div>
+                </footer>
               </div>
             ),
           },
@@ -251,7 +268,7 @@ export function PresentationCanvas({
     ...ast.charts.map((chart, chartIdx) => ({
       id: chart.id || `chart-${chartIdx}`,
       content: (
-        <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+        <div className="flex flex-col h-full justify-between overflow-hidden px-12 pt-8 pb-5">
           <div className="flex flex-col gap-0.5 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
               Visual Analytics {ast.charts.length > 1 ? `(${chartIdx + 1}/${ast.charts.length})` : ""}
@@ -260,61 +277,63 @@ export function PresentationCanvas({
               {chart.title}
             </h2>
           </div>
-          <div
-            className="flex-1 min-h-0 my-2 p-3 rounded-2xl border max-w-3xl mx-auto w-full flex items-center justify-center overflow-hidden"
-            style={{
-              backgroundColor: theme.surface,
-              borderColor: theme.surfaceBorder,
-              borderRadius: theme.cardRadius,
-            }}
-          >
-            <div className="w-full h-full flex-1 min-h-0 flex items-center justify-center">
-              {chart.type === "bar" && (
-                <SvgBarChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
-              )}
-              {chart.type === "horizontal_bar" && (
-                <SvgHorizontalBar chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
-              )}
-              {chart.type === "donut" && (
-                <SvgDonutChart
-                  chart={chart}
-                  colorPalette={theme.chartColors}
-                  inkColor={theme.ink}
-                />
-              )}
-              {(chart.type === "line" || chart.type === "area") && (
-                <SvgLineChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
-              )}
-            </div>
-          </div>
-          {/* "What This Shows" Callout Strip */}
-          {(chart.chartInsight || ast.chartInsight) && (
+          <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden">
             <div
-              className="mt-2 px-3.5 py-1.5 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
+              className="p-3 rounded-2xl border max-w-3xl mx-auto w-full flex items-center justify-center overflow-hidden flex-1 min-h-0"
               style={{
-                backgroundColor: `${theme.accent}0A`,
+                backgroundColor: theme.surface,
                 borderColor: theme.surfaceBorder,
+                borderRadius: theme.cardRadius,
               }}
             >
-              <span
-                className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md text-white flex-shrink-0 mt-0.5"
-                style={{ backgroundColor: theme.accent }}
-              >
-                What This Shows
-              </span>
-              <p
-                className="text-xs leading-relaxed font-medium opacity-90"
-                style={{ color: theme.ink }}
-                title={chart.chartInsight || ast.chartInsight}
-              >
-                {chart.chartInsight || ast.chartInsight}
-              </p>
+              <div className="w-full h-full flex items-center justify-center">
+                {chart.type === "bar" && (
+                  <SvgBarChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+                )}
+                {chart.type === "horizontal_bar" && (
+                  <SvgHorizontalBar chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+                )}
+                {chart.type === "donut" && (
+                  <SvgDonutChart
+                    chart={chart}
+                    colorPalette={theme.chartColors}
+                    inkColor={theme.ink}
+                  />
+                )}
+                {(chart.type === "line" || chart.type === "area") && (
+                  <SvgLineChart chart={chart} accentColor={theme.accent} inkColor={theme.ink} />
+                )}
+              </div>
             </div>
-          )}
-          <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+            {/* "What This Shows" Callout Strip */}
+            {(chart.chartInsight || ast.chartInsight) && (
+              <div
+                className="px-3.5 py-1.5 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
+                style={{
+                  backgroundColor: `${theme.accent}0A`,
+                  borderColor: theme.surfaceBorder,
+                }}
+              >
+                <span
+                  className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md text-white flex-shrink-0 mt-0.5"
+                  style={{ backgroundColor: theme.accent }}
+                >
+                  What This Shows
+                </span>
+                <p
+                  className="text-xs leading-relaxed font-medium opacity-90"
+                  style={{ color: theme.ink }}
+                  title={chart.chartInsight || ast.chartInsight}
+                >
+                  {chart.chartInsight || ast.chartInsight}
+                </p>
+              </div>
+            )}
+          </div>
+          <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-mono opacity-60 truncate max-w-[400px]">{chart.title}</span>
             <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-          </div>
+          </footer>
         </div>
       ),
     })),
@@ -331,7 +350,7 @@ export function PresentationCanvas({
           return {
             id: `block-${bIdx + 1}-table-p${p + 1}`,
             content: (
-              <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+              <div className="flex flex-col h-full justify-between overflow-hidden px-12 pt-8 pb-5">
                 <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
@@ -345,19 +364,21 @@ export function PresentationCanvas({
                     {block.title || "Comparison Matrix"}
                   </h2>
                 </div>
-                <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-start items-start pt-2">
-                  <ComparisonTableBlock
-                    headers={block.headers}
-                    rows={chunkRows}
-                    inkColor={theme.ink}
-                    surfaceBorder={theme.surfaceBorder}
-                    accentColor={theme.accent}
-                  />
+                <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden max-w-3xl mx-auto w-full">
+                  <div className="my-auto flex flex-col justify-start items-start pt-2">
+                    <ComparisonTableBlock
+                      headers={block.headers}
+                      rows={chunkRows}
+                      inkColor={theme.ink}
+                      surfaceBorder={theme.surfaceBorder}
+                      accentColor={theme.accent}
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+                <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
                   <span className="text-xs font-mono opacity-60">Rows {startRow}–{endRow} of {block.rows.length}</span>
                   <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-                </div>
+                </footer>
               </div>
             ),
           };
@@ -367,7 +388,7 @@ export function PresentationCanvas({
         {
           id: block.id || `block-${bIdx + 1}`,
           content: (
-            <div className="flex flex-col justify-between h-full px-12 pt-8 pb-5">
+            <div className="flex flex-col h-full justify-between overflow-hidden px-12 pt-8 pb-5">
               <div className="flex flex-col gap-1 border-b pb-3 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
                 <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
                   Strategic Breakdown
@@ -380,58 +401,60 @@ export function PresentationCanvas({
                     : "Strategic Breakdown"}
                 </h2>
               </div>
-              <div className="my-auto max-w-3xl mx-auto w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-center">
-                {block.type === "numbered_steps" && (
-                  <ProcessStepsBlock
-                    steps={block.steps}
-                    accentColor={theme.accent}
-                    inkColor={theme.ink}
-                    surfaceBorder={theme.surfaceBorder}
-                  />
-                )}
-                {block.type === "comparison_table" && (
-                  <div className="w-full flex flex-col justify-start items-start pt-2">
-                    <ComparisonTableBlock
-                      headers={block.headers}
-                      rows={block.rows}
+              <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden max-w-3xl mx-auto w-full">
+                <div className="my-auto">
+                  {block.type === "numbered_steps" && (
+                    <ProcessStepsBlock
+                      steps={block.steps}
+                      accentColor={theme.accent}
                       inkColor={theme.ink}
                       surfaceBorder={theme.surfaceBorder}
-                      accentColor={theme.accent}
                     />
-                  </div>
-                )}
-                {block.type === "pros_cons" && (
-                  <ProsConsBlock
-                    pros={block.pros}
-                    cons={block.cons}
-                    inkColor={theme.ink}
-                    surfaceBorder={theme.surfaceBorder}
-                  />
-                )}
-                {block.type === "callout_quote" && (
-                  <CalloutQuoteBlock
-                    quote={block.quote}
-                    author={block.author}
-                    role={block.role}
-                    accentColor={theme.accent}
-                    inkColor={theme.ink}
-                    surfaceBorder={theme.surfaceBorder}
-                  />
-                )}
-                {block.type === "key_takeaways" && (
-                  <KeyTakeawaysBlock
-                    title={block.title}
-                    bullets={block.bullets}
-                    accentColor={theme.accent}
-                    inkColor={theme.ink}
-                    surfaceBorder={theme.surfaceBorder}
-                  />
-                )}
+                  )}
+                  {block.type === "comparison_table" && (
+                    <div className="w-full flex flex-col justify-start items-start pt-2">
+                      <ComparisonTableBlock
+                        headers={block.headers}
+                        rows={block.rows}
+                        inkColor={theme.ink}
+                        surfaceBorder={theme.surfaceBorder}
+                        accentColor={theme.accent}
+                      />
+                    </div>
+                  )}
+                  {block.type === "pros_cons" && (
+                    <ProsConsBlock
+                      pros={block.pros}
+                      cons={block.cons}
+                      inkColor={theme.ink}
+                      surfaceBorder={theme.surfaceBorder}
+                    />
+                  )}
+                  {block.type === "callout_quote" && (
+                    <CalloutQuoteBlock
+                      quote={block.quote}
+                      author={block.author}
+                      role={block.role}
+                      accentColor={theme.accent}
+                      inkColor={theme.ink}
+                      surfaceBorder={theme.surfaceBorder}
+                    />
+                  )}
+                  {block.type === "key_takeaways" && (
+                    <KeyTakeawaysBlock
+                      title={block.title}
+                      bullets={block.bullets}
+                      accentColor={theme.accent}
+                      inkColor={theme.ink}
+                      surfaceBorder={theme.surfaceBorder}
+                    />
+                  )}
+                </div>
               </div>
-              <div className="flex items-center justify-between border-t pt-3 mt-auto shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+              <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
                 <span className="text-xs font-mono opacity-60">{"title" in block && block.title ? block.title : "Key Takeaways"}</span>
                 <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
-              </div>
+              </footer>
             </div>
           ),
         },
