@@ -469,6 +469,9 @@ export default function LandingPage() {
             <Link href="/tools/csv-to-carousel" className="hover:text-blue-600">
               CSV to Carousel
             </Link>
+            <Link href="/tools/csv-to-infographic" className="hover:text-blue-600">
+              CSV to Infographic
+            </Link>
             <Link href="/tools/survey-to-slides" className="hover:text-blue-600">
               Survey to Slides
             </Link>

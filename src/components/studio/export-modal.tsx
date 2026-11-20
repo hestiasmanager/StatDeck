@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import type { DeckAST } from "@/lib/schemas/deck-schema";
 import { getThemeTokens } from "@/lib/themes/registry";
 import { exportDeckToPptx } from "@/lib/exporters/pptx-exporter";
@@ -31,6 +31,7 @@ interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   ast: DeckAST;
+  initialCategory?: ExportCategory;
   userTier?: "free" | "creator" | "agency";
   weeklyExportCount?: number;
   onPromptAuth?: () => void;
@@ -38,19 +39,26 @@ interface ExportModalProps {
   activeCanvasRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-type ExportCategory = "all" | "slides" | "image" | "web";
+type ExportCategory = "all" | "slides" | "image" | "web" | "share";
 
 export function ExportModal({
   isOpen,
   onClose,
   ast,
+  initialCategory = "all",
   userTier = "free",
   weeklyExportCount = 0,
   onPromptAuth,
   onPromptUpgrade,
   activeCanvasRef,
 }: ExportModalProps) {
-  const [selectedCategory, setSelectedCategory] = useState<ExportCategory>("all");
+  const [selectedCategory, setSelectedCategory] = useState<ExportCategory>(initialCategory || "all");
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedCategory(initialCategory || "all");
+    }
+  }, [isOpen, initialCategory]);
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -426,19 +434,26 @@ export function ExportModal({
               { id: "image", label: "Images & Vectors" },
               { id: "web", label: "Share & Embed" },
             ] as const
-          ).map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                selectedCategory === cat.id
-                  ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
+          ).map((cat) => {
+            const isTabActive =
+              selectedCategory === cat.id ||
+              (cat.id === "web" && (selectedCategory === "share" || (selectedCategory as string) === "embed"));
+
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  isTabActive
+                    ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-2xs"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                }`}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Free Tier Notice */}
@@ -706,7 +721,7 @@ export function ExportModal({
           )}
 
           {/* SECTION 3: WEB & EMBED */}
-          {(selectedCategory === "all" || selectedCategory === "web") && (
+          {(selectedCategory === "all" || selectedCategory === "web" || selectedCategory === "share" || (selectedCategory as string) === "embed") && (
             <>
               {/* Standalone HTML File */}
               <button
@@ -805,36 +820,6 @@ export function ExportModal({
             <span>{exportMessage}</span>
           </div>
         )}
-
-        {/* Hidden offscreen container rendering all slides for high-res PDF and ZIP export */}
-        <div
-          ref={offscreenContainerRef}
-          aria-hidden="true"
-          style={{
-            position: "fixed",
-            left: "-9999px",
-            top: "-9999px",
-            width: "540px",
-            opacity: 0,
-            pointerEvents: "none",
-            zIndex: -999,
-          }}
-        >
-          {carouselSlides.map((slide, idx) => (
-            <div
-              key={`offscreen-slide-${slide.id || idx}`}
-              data-carousel-slide="true"
-              className="relative w-[540px] h-[675px] rounded-2xl overflow-hidden border flex-shrink-0 mb-4"
-              style={{
-                backgroundColor: theme.bg,
-                borderColor: theme.surfaceBorder,
-                color: theme.ink,
-              }}
-            >
-              {slide.content}
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

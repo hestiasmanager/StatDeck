@@ -103,6 +103,36 @@ export const PSEO_WORKFLOWS: Record<string, PseoConfig> = {
       "Native editable PowerPoint export",
     ],
   },
+  "csv-to-carousel": {
+    slug: "csv-to-carousel",
+    title: "CSV to LinkedIn Carousel Generator — Convert Data into 4:5 PDF Slides",
+    metaDescription: "Transform spreadsheet CSV metrics and tabular data into swipeable LinkedIn carousels in seconds.",
+    h1: "Convert CSV Spreadsheets into Swipeable LinkedIn Carousels",
+    subtitle: "Turn row-and-column data into high-engagement 4:5 PDF slide carousels ready to upload directly to LinkedIn.",
+    targetFormat: "carousel",
+    defaultTemplateId: "clean-bento",
+    samplePresetKey: "saas-churn-metrics",
+    features: [
+      "Automatic 4:5 LinkedIn carousel pagination (1080×1350)",
+      "Instant KPI cards, trend detection & data-driven charts",
+      "100% client-side parsing with zero data stored",
+    ],
+  },
+  "survey-to-slides": {
+    slug: "survey-to-slides",
+    title: "Survey to Slides — Convert Customer Survey Responses to Executive Presentations",
+    metaDescription: "Transform customer survey responses, feedback polls, and NPS scores into executive PowerPoint slides.",
+    h1: "Convert Survey Results into Boardroom Presentation Slides",
+    subtitle: "Synthesize quantitative ratings, sentiment distributions, and customer feedback into clean 16:9 widescreen slides.",
+    targetFormat: "presentation",
+    defaultTemplateId: "executive-dark",
+    samplePresetKey: "saas-churn-metrics",
+    features: [
+      "NPS and customer sentiment distribution charts",
+      "Native .pptx PowerPoint and PDF export",
+      "Automated executive summary and key takeaway extraction",
+    ],
+  },
 };
 
 export const PSEO_SLUGS = Object.keys(PSEO_WORKFLOWS);

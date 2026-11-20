@@ -171,19 +171,19 @@ export function buildCarouselSlides(
               The Hard Numbers
             </h2>
           </div>
-          <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-visible relative z-10">
             <div className="grid grid-cols-2 gap-4 items-stretch my-auto">
               {ast.kpis.map((kpi, idx) => (
                 <div
                   key={idx}
-                  className="p-6 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between h-full min-h-[140px] shadow-2xs transition-all hover:scale-[1.02]"
+                  className="p-6 rounded-2xl border border-black/10 dark:border-white/10 flex flex-col justify-between h-full min-h-[140px] shadow-2xs transition-all hover:scale-[1.02] overflow-visible"
                   style={{
                     backgroundColor: theme.surface,
                     borderColor: theme.surfaceBorder,
                     borderRadius: theme.cardRadius,
                   }}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2 overflow-visible">
                     <span
                       className={`${getKpiValueSizeClass(
                         kpi.value,
@@ -198,6 +198,7 @@ export function buildCarouselSlides(
                       quote={kpi.sourceQuote}
                       page={kpi.sourcePage}
                       row={kpi.sourceRow}
+                      side="bottom"
                       accentColor={theme.accent}
                       onUpdateCitation={(quote, ref) => {
                         onUpdateText?.(`kpis.${idx}.sourceQuote`, quote);

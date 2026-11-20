@@ -48,6 +48,7 @@ import {
   LayoutDashboard,
   Check,
   CheckCircle2,
+  Share2,
 } from "lucide-react";
 import { StatDeckMark } from "@/components/ui/statdeck-mark";
 import { getOrderedSlideIds } from "@/lib/utils/slide-order";
@@ -451,6 +452,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
 
   // Modals state
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [exportCategory, setExportCategory] = useState<"all" | "slides" | "image" | "web">("all");
   const [isBrandKitOpen, setIsBrandKitOpen] = useState(false);
   const [isTemplateGalleryOpen, setIsTemplateGalleryOpen] = useState(false);
   const [isSlideLayoutOpen, setIsSlideLayoutOpen] = useState(false);
@@ -868,9 +870,27 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
               </button>
             )}
 
+            {/* Share & Embed Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setExportCategory("web");
+                setIsExportOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+              title="Share & Embed Presentation"
+            >
+              <Share2 className="w-3.5 h-3.5 text-blue-500" />
+              <span className="hidden sm:inline">Share</span>
+            </button>
+
             {/* Export Assets Button */}
             <button
-              onClick={() => setIsExportOpen(true)}
+              type="button"
+              onClick={() => {
+                setExportCategory("all");
+                setIsExportOpen(true);
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-102 cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
@@ -928,12 +948,20 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
           </section>
 
           {/* Editorial Themes Picker */}
-          <section>
+          <section className="flex flex-col gap-2">
             <ThemePicker
               currentThemeId={currentAst.templateId}
               onSelectTheme={(themeId) => dispatch({ type: "SET_THEME", payload: themeId })}
               onOpenGallery={() => setIsTemplateGalleryOpen(true)}
             />
+            <button
+              type="button"
+              onClick={() => setIsTemplateGalleryOpen(true)}
+              className="w-full py-2 px-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer bg-slate-50 dark:bg-slate-800/60 hover:bg-blue-50 dark:hover:bg-blue-950/40 shadow-xs"
+            >
+              <LayoutGrid className="w-4 h-4 text-blue-500" />
+              <span>Browse 288+ Templates Gallery</span>
+            </button>
           </section>
 
           {/* Editorial Tip Card */}
@@ -1173,6 +1201,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
         ast={currentAst}
+        initialCategory={exportCategory}
         userTier={currentUser?.subscriptionTier || "free"}
         weeklyExportCount={currentUser?.weeklyExportCount || 0}
         onPromptAuth={() => {
@@ -1197,6 +1226,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
         onClose={() => setIsChartDrawerOpen(false)}
         chart={selectedChartIndex !== null ? currentAst.charts[selectedChartIndex] : null}
         chartIndex={selectedChartIndex ?? 0}
+        slideNumber={currentSlideIndex + 1}
         onUpdateChart={(cIdx, updated) =>
           dispatch({ type: "UPDATE_CHART_BLOCK", payload: { chartIndex: cIdx, chart: updated } })
         }

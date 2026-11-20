@@ -21,6 +21,7 @@ interface ChartDataDrawerProps {
   onClose: () => void;
   chart: ChartBlock | null;
   chartIndex: number;
+  slideNumber?: number;
   onUpdateChart: (chartIndex: number, updatedChart: ChartBlock) => void;
 }
 
@@ -29,6 +30,7 @@ export function ChartDataDrawer({
   onClose,
   chart,
   chartIndex,
+  slideNumber,
   onUpdateChart,
 }: ChartDataDrawerProps) {
   const [title, setTitle] = useState("");
@@ -110,7 +112,7 @@ export function ChartDataDrawer({
             Chart Data Grid
           </h3>
           <span className="text-[10px] font-mono uppercase bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded font-bold">
-            Slide {chartIndex + 1}
+            Slide {slideNumber ?? (chartIndex + 1)}
           </span>
         </div>
         <button

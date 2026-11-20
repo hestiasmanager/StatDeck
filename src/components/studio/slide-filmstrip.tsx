@@ -148,7 +148,7 @@ export function SlideFilmstrip({
   };
 
   return (
-    <div className="w-full min-w-0 flex items-center justify-between gap-3 px-4 py-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 z-10 flex-shrink-0">
+    <div className="w-full min-w-0 flex items-center justify-between gap-3 px-4 py-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 relative z-30 flex-shrink-0">
       {/* Filmstrip Slides Horizontal Track */}
       <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none flex-1">
         {slideItems.map((item, idx) => {
@@ -263,10 +263,10 @@ export function SlideFilmstrip({
         {isAddMenuOpen && (
           <>
             <div
-              className="fixed inset-0 z-30"
+              className="fixed inset-0 z-40"
               onClick={() => setIsAddMenuOpen(false)}
             />
-            <div className="absolute bottom-full right-0 mb-2 w-48 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-1 z-40 text-xs animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div className="absolute bottom-full right-0 mb-3 w-52 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-1.5 z-50 text-xs animate-in fade-in slide-in-from-bottom-2 duration-150">
               <span className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                 Choose Slide Type
               </span>
