@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Sparkles, Code2, Check, ArrowUpRight } from "lucide-react";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 interface SharePageActionsProps {
   token: string;
@@ -28,6 +29,8 @@ export function SharePageActions({ token }: SharePageActionsProps) {
 
   return (
     <div className="flex items-center gap-2">
+      <ThemeToggle size="sm" />
+
       {/* Copy Embed Code */}
       <button
         onClick={handleCopyEmbed}

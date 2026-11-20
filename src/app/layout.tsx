@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans, Instrument_Serif, Fraunces, JetBrains_Mono } from "next/font/google";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -77,8 +78,15 @@ export default function RootLayout({
       className={`${inter.variable} ${plusJakarta.variable} ${instrumentSerif.variable} ${fraunces.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem("statdeck-app-theme")||"system";var m=window.matchMedia("(prefers-color-scheme: dark)").matches;var r=s==="system"?(m?"dark":"light"):s;var d=document.documentElement;if(r==="dark"||r==="cyber"){d.classList.add("dark")}else{d.classList.remove("dark")}d.setAttribute("data-theme",r)}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body className="antialiased min-h-screen flex flex-col font-sans" suppressHydrationWarning>
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

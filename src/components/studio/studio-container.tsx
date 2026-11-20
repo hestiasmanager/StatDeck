@@ -18,6 +18,7 @@ import { ChartDataDrawer } from "@/components/studio/chart-data-drawer";
 import { SlideFloatingToolbar } from "@/components/studio/slide-floating-toolbar";
 import { GoogleSheetsSyncModal } from "@/components/studio/google-sheets-sync-modal";
 import { AuthModal } from "@/components/auth/auth-modal";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { refreshDeckWithCsvData } from "@/lib/parsers/live-sync";
 import Link from "next/link";
 import { InfographicCanvas } from "@/components/canvas/infographic-canvas";
@@ -766,6 +767,8 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
 
           {/* Right Action Controls */}
           <div className="flex items-center gap-2">
+            <ThemeToggle size="sm" />
+
             {/* Command Palette Trigger */}
             <button
               onClick={() => setIsCommandPaletteOpen(true)}

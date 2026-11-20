@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { StatDeckMark } from "@/components/ui/statdeck-mark";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { BrandKitModal } from "@/components/studio/brand-kit-modal";
 import {
   Layers,
@@ -249,6 +250,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Link
             href="/studio"
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-102"

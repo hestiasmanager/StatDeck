@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StatDeckMark } from "@/components/ui/statdeck-mark";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import {
   Sparkles,
   ArrowRight,
@@ -88,6 +89,7 @@ export default function LandingPage() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Link
             href="/studio"
             className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all hover:scale-102"

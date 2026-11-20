@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StatDeckMark } from "@/components/ui/statdeck-mark";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import {
   Check,
   Sparkles,
@@ -68,6 +69,7 @@ export default function PricingPage() {
         </Link>
 
         <div className="flex items-center gap-4">
+          <ThemeToggle />
           <Link
             href="/studio"
             className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400"

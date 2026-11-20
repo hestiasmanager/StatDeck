@@ -2,24 +2,126 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* 1. Theme Color Tokens */
+:root,
+[data-theme="light"] {
   --background: #f8fafc;
   --foreground: #0f172a;
   --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --border: #e2e8f0;
   --ink: #0f172a;
   --accent: #2563eb;
   --font-display: "Inter", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #090d16;
-    --foreground: #f8fafc;
-    --surface: #0f172a;
-    --ink: #f8fafc;
-    --accent: #38bdf8;
-  }
+.dark,
+[data-theme="dark"] {
+  --background: #090d16;
+  --foreground: #f8fafc;
+  --surface: #0f172a;
+  --surface-muted: #1e293b;
+  --border: #1e293b;
+  --ink: #f8fafc;
+  --accent: #38bdf8;
+  color-scheme: dark;
+}
+
+/* 2. Cyber OLED (Pitch Black & Neon Glow) */
+[data-theme="cyber"] {
+  --background: #000000;
+  --foreground: #f4f4f5;
+  --surface: #09090b;
+  --surface-muted: #18181b;
+  --border: #27272a;
+  --ink: #ffffff;
+  --accent: #10b981;
+  color-scheme: dark;
+}
+
+html[data-theme="cyber"] body {
+  background-color: #000000 !important;
+}
+
+html[data-theme="cyber"] .bg-slate-50,
+html[data-theme="cyber"] .dark\:bg-slate-950 {
+  background-color: #000000 !important;
+}
+
+html[data-theme="cyber"] .bg-white,
+html[data-theme="cyber"] .bg-white\/90,
+html[data-theme="cyber"] .dark\:bg-slate-900,
+html[data-theme="cyber"] .dark\:bg-slate-900\/90 {
+  background-color: #09090b !important;
+}
+
+html[data-theme="cyber"] .dark\:border-slate-800,
+html[data-theme="cyber"] .border-slate-200 {
+  border-color: #1f242d !important;
+}
+
+html[data-theme="cyber"] .selection\:bg-blue-500,
+html[data-theme="cyber"] .selection\:bg-blue-600 {
+  background-color: #10b981 !important;
+  color: #000000 !important;
+}
+
+/* 3. Warm Sepia (Paper Editorial & Espresso Ink) */
+[data-theme="sepia"] {
+  --background: #fbf8f3;
+  --foreground: #292524;
+  --surface: #f5efe6;
+  --surface-muted: #ede4d5;
+  --border: #e2d7c5;
+  --ink: #1c1917;
+  --accent: #d97706;
+  color-scheme: light;
+}
+
+html[data-theme="sepia"] body {
+  background-color: #fbf8f3 !important;
+  color: #292524 !important;
+}
+
+html[data-theme="sepia"] .bg-slate-50,
+html[data-theme="sepia"] .dark\:bg-slate-950 {
+  background-color: #fbf8f3 !important;
+}
+
+html[data-theme="sepia"] .bg-white,
+html[data-theme="sepia"] .bg-white\/90,
+html[data-theme="sepia"] .dark\:bg-slate-900,
+html[data-theme="sepia"] .dark\:bg-slate-900\/90 {
+  background-color: #f5efe6 !important;
+}
+
+html[data-theme="sepia"] .border-slate-200,
+html[data-theme="sepia"] .dark\:border-slate-800 {
+  border-color: #e2d7c5 !important;
+}
+
+html[data-theme="sepia"] .text-slate-900,
+html[data-theme="sepia"] .dark\:text-slate-100 {
+  color: #292524 !important;
+}
+
+html[data-theme="sepia"] .text-slate-600,
+html[data-theme="sepia"] .text-slate-700,
+html[data-theme="sepia"] .dark\:text-slate-300,
+html[data-theme="sepia"] .dark\:text-slate-400 {
+  color: #57534e !important;
+}
+
+html[data-theme="sepia"] .text-slate-500 {
+  color: #78716c !important;
+}
+
+html[data-theme="sepia"] .selection\:bg-blue-500,
+html[data-theme="sepia"] .selection\:bg-blue-600 {
+  background-color: #d97706 !important;
+  color: #ffffff !important;
 }
 
 body {
@@ -27,6 +129,7 @@ body {
   background: var(--background);
   font-family: var(--font-body);
   overflow-x: hidden;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease;
 }
 
 /* Tabular numbers for clean aligned metrics */
