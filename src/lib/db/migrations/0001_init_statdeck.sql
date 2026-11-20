@@ -65,6 +65,8 @@ CREATE TABLE IF NOT EXISTS projects (
     ast JSONB NOT NULL,
     input_source_type TEXT CHECK (input_source_type IN ('url', 'csv', 'excel', 'pdf', 'text', 'preset', 'mcp')),
     input_hash TEXT,
+    data_source_url TEXT,
+    last_synced_at TIMESTAMPTZ,
     is_public BOOLEAN NOT NULL DEFAULT FALSE,
     share_token TEXT UNIQUE,
     view_count INT NOT NULL DEFAULT 0,
