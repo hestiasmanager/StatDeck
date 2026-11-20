@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "worker:dev": "wrangler dev"
   },
   "dependencies": {
     "@ai-sdk/google": "^1.1.18",
@@ -43,6 +44,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.17",
+    "@swc/helpers": "^0.5.24",
     "@types/jszip": "^3.4.1",
     "@types/node": "^22.13.4",
     "@types/papaparse": "^5.3.15",
@@ -50,14 +53,23 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "autoprefixer": "^10.4.20",
+    "client-only": "^0.0.1",
     "drizzle-kit": "^0.30.4",
+    "pg-connection-string": "^2.14.1",
+    "pg-pool": "^3.14.0",
+    "pg-protocol": "^1.16.1",
+    "pg-types": "^4.1.0",
     "postcss": "^8.5.2",
+    "styled-jsx": "^5.1.7",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.23.15",
     "typescript": "^5.7.3",
-    "vercel": "^65.17.0"
+    "vercel": "^65.17.0",
+    "wrangler": "^4.165.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": []
+    "overrides": {
+      "esbuild": "^0.28.2"
+    }
   }
 }
