@@ -44,7 +44,7 @@ Voice: Scroll-stopping, contrarian, single-line rhythm, designed for maximum sav
 
     const promptText = `
 You are the world's highest-converting B2B LinkedIn creator, ghostwriting for top tech founders and venture partners.
-Write a high-engagement LinkedIn carousel companion post based on the following presentation data.
+Write a high-engagement LinkedIn carousel companion post based strictly on the following presentation data.
 
 ${toneInstructions}
 
@@ -55,10 +55,16 @@ CORE METRICS & DATA:
 ${kpiSummary || "• Key strategic takeaways in attached carousel."}
 ${chartSummary ? `CHART INSIGHT: ${chartSummary}` : ""}
 
+STRICT METRIC GROUNDING & ANTI-HALLUCINATION RULES (CRITICAL):
+1. ZERO HALLUCINATED NUMBERS: You must ONLY cite exact numbers, percentages, currencies, and comparisons explicitly present in CORE METRICS & DATA or CHART INSIGHT above.
+2. NEVER INVENT YOY / BASELINE GROWTH CLAIMS: NEVER invent hypothetical growth percentages (e.g., NEVER say "+651% vs baseline", "+300% YoY", or "doubled revenue") unless an exact delta or percentage is explicitly stated in the data above. If no growth rate is in the slides, frame the hook around the verified totals, benchmarks, or operational findings instead.
+3. PRESERVE CURRENCY & UNITS: If a metric is in EUR (€), USD ($), GBP (£), or %, never alter, convert, or mix the currency symbols.
+4. EXACT CITATIONS: Weave any source quotes or references naturally into your points. Do not extrapolate beyond what the data proves.
+
 POST STRUCTURE (MUST FOLLOW EXACTLY):
-1. HOOK: 1-2 lines that challenge conventional wisdom or state a surprising metric. Never start with "I'm excited to share" or "In today's fast-paced world".
+1. HOOK: 1-2 lines that challenge conventional wisdom or state a surprising verified metric. Never start with "I'm excited to share" or "In today's fast-paced world".
 2. THE TENSION / WHY THIS MATTERS: 2 short lines setting up the business reality.
-3. THE 3-4 KEY DATA POINTS: Bullet points directly citing the numbers above with an actionable takeaway for each.
+3. THE 3-4 KEY DATA POINTS: Bullet points directly citing the verified numbers above with an actionable takeaway for each.
 4. THE STRATEGIC LESSON: What smart leaders do with this information.
 5. CLOSING CTA: A conversational question prompting comments, reminding them to swipe through the attached PDF carousel.
 6. 3-4 relevant hashtags at the very bottom (#b2b #strategy #metrics etc.)
@@ -92,7 +98,7 @@ OUTPUT ONLY THE FINAL LINKEDIN POST TEXT. NO INTRODUCTORY REMARKS, NO CODE BLOCK
               "google/gemini-2.5-flash",
             ],
             messages: [{ role: "user", content: promptText }],
-            temperature: 0.7,
+            temperature: 0.2,
             reasoning: { effort: "low" },
             max_tokens: 1500,
           }),
@@ -117,7 +123,7 @@ OUTPUT ONLY THE FINAL LINKEDIN POST TEXT. NO INTRODUCTORY REMARKS, NO CODE BLOCK
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [{ role: "user", parts: [{ text: promptText }] }],
-            generationConfig: { temperature: 0.7 },
+            generationConfig: { temperature: 0.2 },
           }),
           signal: AbortSignal.timeout(15000),
         });

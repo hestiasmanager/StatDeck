@@ -615,6 +615,56 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
     }
   });
 
+  // Outro Slide (Conclusion & Sources)
+  const outroSlide = pptx.addSlide();
+  outroSlide.background = { color: bgHex };
+
+  outroSlide.addText("SUMMARY & NEXT STEPS", {
+    x: 1.0,
+    y: 1.2,
+    w: 11.3,
+    h: 0.4,
+    fontSize: 13,
+    bold: true,
+    color: accentHex,
+    align: "center",
+  });
+
+  outroSlide.addText("Key Takeaways", {
+    x: 1.0,
+    y: 1.8,
+    w: 11.3,
+    h: 0.8,
+    fontSize: 28,
+    bold: true,
+    color: inkHex,
+    align: "center",
+  });
+
+  outroSlide.addText(ast.meta.subtitle || "Data synthesized deterministically from source report.", {
+    x: 2.0,
+    y: 2.8,
+    w: 9.3,
+    h: 1.0,
+    fontSize: 15,
+    color: inkMutedHex,
+    align: "center",
+  });
+
+  if (ast.meta.sourceCitations && ast.meta.sourceCitations.length > 0) {
+    outroSlide.addText(`Sources: ${ast.meta.sourceCitations.join(", ")}`, {
+      x: 1.0,
+      y: 4.5,
+      w: 11.3,
+      h: 0.5,
+      fontSize: 12,
+      color: inkMutedHex,
+      align: "center",
+    });
+  }
+
+  addWatermarkBadge(outroSlide);
+
   const safeTitle = (ast.meta.title || "statdeck-presentation")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")

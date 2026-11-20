@@ -460,6 +460,42 @@ export function PresentationCanvas({
         },
       ];
     }),
+
+    // Slide 5: Outro & Citations (Conclusion Slide)
+    {
+      id: "outro",
+      content: (
+        <div className="flex flex-col h-full justify-between overflow-hidden px-12 pt-8 pb-5 text-center">
+          <div className="flex justify-center shrink-0">
+            <span
+              className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-widest rounded-full border border-black/10 dark:border-white/10"
+              style={{ backgroundColor: theme.accentMuted, color: theme.accent }}
+            >
+              Summary & Next Steps
+            </span>
+          </div>
+          <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden">
+            <div className="my-auto flex flex-col gap-3 max-w-lg mx-auto">
+              <h2 className="text-3xl font-extrabold tracking-tight" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+                Key Takeaways
+              </h2>
+              <p className="text-sm opacity-85 leading-relaxed font-normal" style={{ color: theme.ink, fontFamily: theme.fontBody }}>
+                {ast.meta.subtitle || "Data synthesized deterministically from source report."}
+              </p>
+              {ast.meta.sourceCitations && ast.meta.sourceCitations.length > 0 && (
+                <div className="text-xs opacity-60 font-mono mt-3">
+                  Sources: {ast.meta.sourceCitations.join(", ")}
+                </div>
+              )}
+            </div>
+          </div>
+          <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
+            <span className="text-xs font-mono opacity-60">Summary</span>
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
+          </footer>
+        </div>
+      ),
+    },
   ];
 
   // Apply slideOrder if defined

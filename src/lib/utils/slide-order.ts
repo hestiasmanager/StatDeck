@@ -24,6 +24,8 @@ export function getOrderedSlideIds(ast: DeckAST): string[] {
     }
   });
 
+  defaultIds.push("outro");
+
   if (ast.slideOrder && ast.slideOrder.length > 0) {
     const defaultSet = new Set(defaultIds);
     // Keep only valid existing IDs in their ordered position

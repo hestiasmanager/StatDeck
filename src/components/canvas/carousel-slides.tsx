@@ -305,9 +305,9 @@ export function buildCarouselSlides(
               />
             )}
           </div>
-          <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col justify-between gap-2.5 overflow-hidden py-1">
             <div
-              className="p-6 md:p-8 rounded-2xl border border-black/10 dark:border-white/10 my-auto shadow-2xs"
+              className="p-4 sm:p-5 rounded-2xl border border-black/10 dark:border-white/10 flex-1 min-h-0 flex flex-col items-center justify-center shadow-2xs overflow-hidden"
               style={{
                 backgroundColor: theme.surface,
                 borderColor: theme.surfaceBorder,
@@ -330,20 +330,20 @@ export function buildCarouselSlides(
             {/* "What This Shows" Callout Strip */}
             {(chart.chartInsight || ast.chartInsight) && (
               <div
-                className="px-3.5 py-2 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0"
+                className="px-3 py-2 rounded-xl border border-black/5 dark:border-white/10 flex items-start gap-2.5 shrink-0 overflow-hidden"
                 style={{
                   backgroundColor: `${theme.accent}0A`,
                   borderColor: theme.surfaceBorder,
                 }}
               >
                 <span
-                  className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md text-white flex-shrink-0 mt-0.5"
+                  className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md text-white shrink-0 mt-0.5"
                   style={{ backgroundColor: theme.accent }}
                 >
                   What This Shows
                 </span>
                 <p
-                  className="text-xs leading-relaxed font-medium opacity-90"
+                  className="text-xs leading-snug font-medium opacity-90 line-clamp-2"
                   style={{ color: theme.ink }}
                   title={chart.chartInsight || ast.chartInsight}
                 >
@@ -491,16 +491,6 @@ export function buildCarouselSlides(
     }
   });
 
-  // Apply slideOrder if defined
-  if (ast.slideOrder && ast.slideOrder.length > 0) {
-    const orderMap = new Map(ast.slideOrder.map((id, idx) => [id, idx]));
-    slides.sort((a, b) => {
-      const orderA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999;
-      const orderB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999;
-      return orderA - orderB;
-    });
-  }
-
   // Slide 5: Outro & Citations
   slides.push({
     id: "outro",
@@ -537,6 +527,16 @@ export function buildCarouselSlides(
       </div>
     ),
   });
+
+  // Apply slideOrder if defined
+  if (ast.slideOrder && ast.slideOrder.length > 0) {
+    const orderMap = new Map(ast.slideOrder.map((id, idx) => [id, idx]));
+    slides.sort((a, b) => {
+      const orderA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999;
+      const orderB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999;
+      return orderA - orderB;
+    });
+  }
 
   return slides;
 }

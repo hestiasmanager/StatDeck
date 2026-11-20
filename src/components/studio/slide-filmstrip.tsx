@@ -116,6 +116,15 @@ export function SlideFilmstrip({
     }
   });
 
+  // Slide 5: Outro & Citations
+  allItems.push({
+    id: "outro",
+    index: 0,
+    type: "block",
+    title: "Summary & Outro",
+    subType: "outro",
+  });
+
   // Apply slideOrder if defined
   if (ast.slideOrder && ast.slideOrder.length > 0) {
     const orderMap = new Map(ast.slideOrder.map((id, idx) => [id, idx]));
