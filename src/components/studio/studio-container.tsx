@@ -766,7 +766,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
           </div>
 
           {/* Right Action Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             <ThemeToggle size="sm" />
 
             {/* Command Palette Trigger */}
@@ -806,16 +806,17 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
               title="Open Template Gallery (288+ Combinations)"
             >
               <LayoutGrid className="w-3.5 h-3.5 text-blue-500" />
-              <span className="hidden sm:inline">Templates</span>
+              <span className="hidden xl:inline">Templates</span>
             </button>
 
             {/* Brand Kit Button */}
             <button
               onClick={() => setIsBrandKitOpen(true)}
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+              title="Brand Kit Settings"
             >
               <Globe className="w-3.5 h-3.5 text-blue-500" />
-              <span className="hidden md:inline">Brand Kit</span>
+              <span className="hidden xl:inline">Brand Kit</span>
             </button>
 
             {/* Google Sheets Sync Button */}
@@ -829,7 +830,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
               title="Connect & Refresh Live Google Sheets / CSV URL"
             >
               <FileSpreadsheet className={`w-3.5 h-3.5 ${dataSourceUrl ? "text-emerald-500" : "text-slate-500"}`} />
-              <span className="hidden lg:inline">{dataSourceUrl ? "Sheets Synced" : "Sheets Sync"}</span>
+              <span className="hidden 2xl:inline">{dataSourceUrl ? "Sheets Synced" : "Sheets Sync"}</span>
             </button>
 
             {/* Save Deck Button */}
@@ -846,7 +847,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
               ) : (
                 <>
                   <Save className="w-3.5 h-3.5 text-blue-500" />
-                  <span className="hidden sm:inline">Save</span>
+                  <span className="hidden lg:inline">Save</span>
                 </>
               )}
             </button>
@@ -859,7 +860,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
                 title="Open Workspace Dashboard"
               >
                 <LayoutDashboard className="w-3.5 h-3.5 text-blue-500" />
-                <span className="hidden lg:inline">Dashboard</span>
+                <span className="hidden xl:inline">Dashboard</span>
               </Link>
             ) : (
               <button
@@ -884,20 +885,21 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
               title="Share & Embed Presentation"
             >
               <Share2 className="w-3.5 h-3.5 text-blue-500" />
-              <span className="hidden sm:inline">Share</span>
+              <span className="hidden xl:inline">Share</span>
             </button>
 
-            {/* Export Assets Button */}
+            {/* Export Assets Button (Protected against clipping at standard desktop widths) */}
             <button
               type="button"
               onClick={() => {
                 setExportCategory("all");
                 setIsExportOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-102 cursor-pointer"
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all hover:scale-102 cursor-pointer"
+              title="Export Presentation Assets"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export</span>
+              <Download className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="whitespace-nowrap">Export</span>
             </button>
           </div>
         </header>
@@ -916,6 +918,7 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
 
         {/* Collapsible Left Sidebar (Slide-over Drawer on Mobile/Tablet < 1024px) */}
         <aside
+          data-studio-sidebar
           className={`h-full border-r border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex flex-col gap-5 p-4 overflow-y-auto transition-all duration-300 ease-in-out lg:relative fixed inset-y-0 left-0 z-50 lg:z-20 flex-shrink-0 ${
             isFullscreen
               ? "hidden"

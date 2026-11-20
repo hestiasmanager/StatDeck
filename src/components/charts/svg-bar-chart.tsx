@@ -38,6 +38,12 @@ export function SvgBarChart({
   const gridLevels = [0.25, 0.5, 0.75, 1.0];
   const topPadding = 25;
 
+  const isLightInk =
+    inkColor === "#F9FAFB" ||
+    inkColor === "#FFFFFF" ||
+    inkColor.toLowerCase().startsWith("#f") ||
+    inkColor.toLowerCase().startsWith("#e");
+
   return (
     <div className="w-full h-full flex flex-col items-center justify-center select-none flex-1 min-h-0">
       <svg
@@ -57,7 +63,7 @@ export function SvgBarChart({
                 x2={viewBoxWidth - 24}
                 y2={y}
                 stroke={inkColor}
-                strokeOpacity="0.08"
+                strokeOpacity={isLightInk ? "0.18" : "0.08"}
                 strokeDasharray="3 3"
                 strokeWidth="1"
               />
@@ -67,9 +73,9 @@ export function SvgBarChart({
                 textAnchor="end"
                 fontSize="9"
                 fontFamily="var(--font-jetbrains-mono), monospace"
-                className="tabular-nums"
-                fill={inkColor}
-                opacity="0.35"
+                className="tabular-nums font-medium"
+                fill={isLightInk ? "#E2E8F0" : inkColor}
+                opacity={isLightInk ? "0.9" : "0.6"}
               >
                 {formatChartValue(gridVal, chart.unit)}
               </text>

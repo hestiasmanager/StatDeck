@@ -31,6 +31,10 @@ export function buildCarouselSlides(
   onUpdateText?: (path: string, newText: string) => void
 ): CarouselSlideData[] {
   const theme = getThemeTokens(ast.templateId);
+  const isDarkTheme =
+    theme.category === "dark" ||
+    theme.bg.toLowerCase().startsWith("#0") ||
+    theme.bg.toLowerCase().startsWith("#1");
   const slides: CarouselSlideData[] = [];
 
   // Cover slide dynamic typography & pills calculations
@@ -200,6 +204,8 @@ export function buildCarouselSlides(
                       row={kpi.sourceRow}
                       side="bottom"
                       accentColor={theme.accent}
+                      inkColor={theme.ink}
+                      isDark={isDarkTheme}
                       onUpdateCitation={(quote, ref) => {
                         onUpdateText?.(`kpis.${idx}.sourceQuote`, quote);
                         onUpdateText?.(`kpis.${idx}.sourcePage`, ref);
@@ -290,6 +296,8 @@ export function buildCarouselSlides(
                 page={chart.data[0].sourcePage}
                 row={chart.data[0].sourceRow}
                 accentColor={theme.accent}
+                inkColor={theme.ink}
+                isDark={isDarkTheme}
                 onUpdateCitation={(quote, ref) => {
                   onUpdateText?.(`charts.${chartIdx}.data.0.sourceQuote`, quote);
                   onUpdateText?.(`charts.${chartIdx}.data.0.sourcePage`, ref);

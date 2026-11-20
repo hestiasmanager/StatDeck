@@ -34,7 +34,7 @@ export interface TableRollupSummary {
   formattedSummary: string;
 }
 
-const SUMMARY_ROW_REGEX = /^(grand\s*)?(sub)?total\b|\bsummary\b/i;
+const SUMMARY_ROW_REGEX = /^(grand\s*)?(sub[\s-]*)?totals?\b|\bsummary\b|\ball\s+totals?\b/i;
 
 /**
  * Detects whether a row represents an aggregation or summary row (e.g. Total, Grand Total, Subtotal).
@@ -44,8 +44,8 @@ export function isSummaryOrTotalRow(
   headers: string[]
 ): boolean {
   if (!row) return false;
-  // Inspect the first 3 columns (typically identifier/category columns)
-  const colsToCheck = Math.min(headers.length, 3);
+  // Inspect the first 4 columns (typically identifier/category columns)
+  const colsToCheck = Math.min(headers.length, 4);
   for (let c = 0; c < colsToCheck; c++) {
     const val = row[headers[c]];
     if (val !== null && val !== undefined) {
@@ -226,16 +226,24 @@ export function computeTableRollups(
       if (presentCurrencies.length > 1) {
         const currencyBreakdowns: CurrencySubtotal[] = presentCurrencies.map((curr) => {
           const currItems = itemsWithUnit.filter((it) => it.unit === curr);
-          const currNums = currItems.map((it) => it.num);
+          const currNums = currItems.map((it) => it.num).filter((n) => !isNaN(n) && isFinite(n));
           const currTotal = currNums.reduce((acc, c) => acc + c, 0);
-          const currAvg = currTotal / currNums.length;
+          const currAvg = currNums.length > 0 ? currTotal / currNums.length : 0;
+
+          let min = currNums[0] ?? 0;
+          let max = currNums[0] ?? 0;
+          for (let j = 1; j < currNums.length; j++) {
+            if (currNums[j] < min) min = currNums[j];
+            if (currNums[j] > max) max = currNums[j];
+          }
+
           return {
             currency: curr,
             count: currItems.length,
             total: Math.round(currTotal * 100) / 100,
             average: Math.round(currAvg * 100) / 100,
-            min: Math.round(Math.min(...currNums) * 100) / 100,
-            max: Math.round(Math.max(...currNums) * 100) / 100,
+            min: Math.round(min * 100) / 100,
+            max: Math.round(max * 100) / 100,
           };
         });
 

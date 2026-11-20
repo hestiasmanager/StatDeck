@@ -75,24 +75,44 @@ export function SvgLineChart({
   // Grid levels
   const gridLevels = [0.25, 0.5, 0.75, 1.0];
 
+  const isLightInk =
+    inkColor === "#F9FAFB" ||
+    inkColor === "#FFFFFF" ||
+    inkColor.toLowerCase().startsWith("#f") ||
+    inkColor.toLowerCase().startsWith("#e");
+
   return (
     <div className="w-full flex flex-col items-center select-none">
       <svg viewBox={`0 0 ${width} ${height + 20}`} className="w-full max-h-[290px] overflow-visible">
-        {/* Subtle Horizontal Dashed Gridlines */}
+        {/* Subtle Horizontal Dashed Gridlines & Tick Labels */}
         {gridLevels.map((lvl) => {
           const y = height - paddingY - lvl * (height - 2 * paddingY);
+          const gridVal = Math.round(minValue + range * lvl);
           return (
-            <line
-              key={lvl}
-              x1={paddingX}
-              y1={y}
-              x2={width - paddingX}
-              y2={y}
-              stroke={inkColor}
-              strokeOpacity="0.08"
-              strokeDasharray="3 3"
-              strokeWidth="1"
-            />
+            <g key={lvl}>
+              <line
+                x1={paddingX}
+                y1={y}
+                x2={width - paddingX}
+                y2={y}
+                stroke={inkColor}
+                strokeOpacity={isLightInk ? "0.15" : "0.08"}
+                strokeDasharray="3 3"
+                strokeWidth="1"
+              />
+              <text
+                x={paddingX - 6}
+                y={y + 3}
+                textAnchor="end"
+                fontSize="8.5"
+                fontFamily="var(--font-jetbrains-mono), monospace"
+                className="tabular-nums font-medium"
+                fill={isLightInk ? "#CBD5E1" : inkColor}
+                opacity={isLightInk ? "0.85" : "0.55"}
+              >
+                {formatChartValue(gridVal, chart.unit)}
+              </text>
+            </g>
           );
         })}
 

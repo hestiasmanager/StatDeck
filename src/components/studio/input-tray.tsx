@@ -101,7 +101,7 @@ export function InputTray({ onAstLoaded, currentFormat, currentTemplateId }: Inp
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => {
         abortController.abort();
-      }, 60000);
+      }, 55000);
 
       try {
         const extractRes = await fetch("/api/extract", {
@@ -115,7 +115,7 @@ export function InputTray({ onAstLoaded, currentFormat, currentTemplateId }: Inp
           signal: abortController.signal,
         });
 
-        const extractData = await extractRes.json();
+        const extractData = await extractRes.json().catch(() => ({}));
         if (!extractRes.ok) {
           throw new Error(extractData.error || "Failed to synthesize visual deck AST");
         }
@@ -139,7 +139,7 @@ export function InputTray({ onAstLoaded, currentFormat, currentTemplateId }: Inp
       console.error("File processing error:", err);
       if (err instanceof DOMException && err.name === "AbortError") {
         setErrorMessage(
-          "File extraction timed out after 60 seconds. Please try again with a smaller dataset."
+          "File extraction timed out after 55 seconds. Please try again with a smaller dataset."
         );
       } else {
         setErrorMessage(err instanceof Error ? err.message : "Error processing file.");
@@ -212,7 +212,7 @@ Q4-2024,225000,25%,96%,9100`;
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => {
       abortController.abort();
-    }, 60000);
+    }, 55000);
 
     try {
       const urlRes = await fetch("/api/extract-url", {
@@ -221,7 +221,7 @@ Q4-2024,225000,25%,96%,9100`;
         body: JSON.stringify({ url: targetUrl }),
         signal: abortController.signal,
       });
-      const urlData = await urlRes.json();
+      const urlData = await urlRes.json().catch(() => ({}));
       if (!urlRes.ok) throw new Error(urlData.error || "Failed to parse URL content");
 
       setStatusMessage("Creating visual layout...");
@@ -235,14 +235,14 @@ Q4-2024,225000,25%,96%,9100`;
         }),
         signal: abortController.signal,
       });
-      const extractData = await extractRes.json();
+      const extractData = await extractRes.json().catch(() => ({}));
       if (!extractRes.ok) throw new Error(extractData.error || "Failed to extract visual AST");
 
       onAstLoaded(extractData.ast, `Extracted from ${urlData.siteName || targetUrl}`);
       setUrlInput("");
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setErrorMessage("URL extraction timed out after 60 seconds. Please try again or check the URL.");
+        setErrorMessage("URL extraction timed out after 55 seconds. Please try again or check the URL.");
       } else {
         setErrorMessage(err instanceof Error ? err.message : "Error processing URL");
       }
@@ -253,48 +253,63 @@ Q4-2024,225000,25%,96%,9100`;
     }
   };
 
-  // 3. Raw Text Extraction Flow
+  // 3. Raw Text Extraction Flow (Safely wrapped with local pre-computation & 55s timeout)
   const handleExtractText = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!textInput.trim()) return;
+    if (!textInput.trim() || isLoading) return;
 
     setIsLoading(true);
     setErrorMessage(null);
-
-    // Run computeTableRollups on pasted pipe/CSV notes
-    const { enrichedText, hasTable, tableType, rowCount } = enrichNotesWithTableRollups(textInput);
-    if (hasTable) {
-      setStatusMessage(
-        `Pre-computing exact JavaScript sums for ${tableType === "pipe" ? "markdown" : "CSV"} table (${rowCount} data rows)...`
-      );
-    } else {
-      setStatusMessage("Creating visuals from notes...");
-    }
+    setStatusMessage("Analyzing input notes...");
 
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => {
       abortController.abort();
-    }, 60000);
+    }, 55000);
 
     try {
+      // Step 1: Pre-compute rollups safely inside the try block
+      let enrichedContent = textInput;
+      try {
+        const { enrichedText, hasTable, tableType, rowCount } = enrichNotesWithTableRollups(textInput);
+        enrichedContent = enrichedText;
+        if (hasTable) {
+          setStatusMessage(
+            `Synthesizing deck with pre-computed ${tableType === "pipe" ? "markdown" : "CSV"} rollups (${rowCount} rows)...`
+          );
+        } else {
+          setStatusMessage("Designing visual deck with AI...");
+        }
+      } catch (enrichErr) {
+        console.warn("Table enrichment fallback:", enrichErr);
+        setStatusMessage("Designing visual deck with AI...");
+      }
+
+      // Yield briefly so React paints the updated status message before the heavy network request
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Step 2: Call /api/extract with 55s timeout
       const extractRes = await fetch("/api/extract", {
         method: "POST",
         headers: getExtractionHeaders(),
         body: JSON.stringify({
-          content: enrichedText,
+          content: enrichedContent,
           format: currentFormat,
           templateId: currentTemplateId,
         }),
         signal: abortController.signal,
       });
-      const extractData = await extractRes.json();
-      if (!extractRes.ok) throw new Error(extractData.error || "Failed to extract AST");
+
+      const extractData = await extractRes.json().catch(() => ({}));
+      if (!extractRes.ok) {
+        throw new Error(extractData.error || `Server error during visual deck synthesis (${extractRes.status})`);
+      }
 
       onAstLoaded(extractData.ast, "Extracted from raw notes");
       setTextInput("");
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setErrorMessage("Extraction timed out after 60 seconds. Please try again with shorter text.");
+        setErrorMessage("Generation timed out after 55 seconds. Please try again with a smaller dataset or fewer rows.");
       } else {
         setErrorMessage(err instanceof Error ? err.message : "Error processing text");
       }

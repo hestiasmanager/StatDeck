@@ -11,6 +11,8 @@ interface SourceProvenancePopoverProps {
   side?: "top" | "bottom" | "auto";
   onUpdateCitation?: (newQuote: string, newPageOrRow: string) => void;
   accentColor?: string;
+  inkColor?: string;
+  isDark?: boolean;
 }
 
 export function SourceProvenancePopover({
@@ -20,6 +22,8 @@ export function SourceProvenancePopover({
   side = "bottom",
   onUpdateCitation,
   accentColor = "#2563EB",
+  inkColor,
+  isDark,
 }: SourceProvenancePopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -217,6 +221,22 @@ export function SourceProvenancePopover({
     </div>
   );
 
+  const isDarkSlide =
+    isDark ||
+    (inkColor &&
+      (inkColor === "#F9FAFB" ||
+        inkColor === "#FFFFFF" ||
+        inkColor.toLowerCase().startsWith("#f") ||
+        inkColor.toLowerCase().startsWith("#e")));
+
+  const triggerClasses = isDarkSlide
+    ? hasCitation
+      ? "bg-slate-800/95 hover:bg-slate-700 text-slate-100 hover:text-white border border-slate-600/80 shadow-xs"
+      : "bg-slate-900/80 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-700/60"
+    : hasCitation
+      ? "bg-slate-100 hover:bg-blue-50 dark:bg-slate-800 dark:hover:bg-blue-950 text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700"
+      : "opacity-60 hover:opacity-100 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200";
+
   return (
     <div className="relative inline-flex items-center overflow-visible">
       {/* Subtle Source Trigger Badge */}
@@ -231,14 +251,10 @@ export function SourceProvenancePopover({
             return next;
           });
         }}
-        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold transition-all cursor-pointer ${
-          hasCitation
-            ? "bg-slate-100 hover:bg-blue-50 dark:bg-slate-800 dark:hover:bg-blue-950 text-slate-600 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700"
-            : "opacity-40 hover:opacity-100 text-slate-400 hover:text-slate-600"
-        }`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold transition-all cursor-pointer ${triggerClasses}`}
         title="Click to verify source citation & provenance"
       >
-        <ShieldCheck className="w-3 h-3 text-emerald-500" />
+        <ShieldCheck className="w-3 h-3 text-emerald-400" />
         <span className="hidden sm:inline">Source</span>
       </button>
 

@@ -51,24 +51,46 @@ export async function parseCsvFileClientSide(file: File): Promise<ParsedCsvSumma
   // 3. Pre-compute JavaScript rollups across all columns
   const rollupsSummary = computeTableRollups(headers, rows, file.name);
 
-  const previewRows = rows.slice(0, 50);
-
-  // 4. Build markdown table preserving exact headers and escaped cells
+  // 4. Build markdown table preserving exact headers and escaped cells.
+  // Dynamically bound preview rows so total payload stays safely under 42,000 characters.
+  const MAX_CSV_PAYLOAD = 42000;
   const headerLine = `| ${headers.join(" | ")} |`;
   const separatorLine = `| ${headers.map(() => "---").join(" | ")} |`;
-  const rowLines = previewRows.map((row) => {
-    const cells = headers.map((h) => {
-      const val = row[h];
-      if (val === null || val === undefined) return "";
-      return String(val).replace(/\|/g, "\\|");
+
+  let previewCount = Math.min(50, rows.length);
+  let previewRows = rows.slice(0, previewCount);
+  let rowLines: string[] = [];
+
+  while (previewCount > 5) {
+    previewRows = rows.slice(0, previewCount);
+    rowLines = previewRows.map((row) => {
+      const cells = headers.map((h) => {
+        const val = row[h];
+        if (val === null || val === undefined) return "";
+        return String(val).replace(/\|/g, "\\|");
+      });
+      return `| ${cells.join(" | ")} |`;
     });
-    return `| ${cells.join(" | ")} |`;
-  });
+
+    const candidateTable = [
+      rollupsSummary.formattedSummary,
+      "",
+      `DATA ROWS (FIRST ${previewCount} OF ${rows.length}):`,
+      headerLine,
+      separatorLine,
+      ...rowLines,
+    ].join("\n");
+
+    if (candidateTable.length <= MAX_CSV_PAYLOAD) {
+      break;
+    }
+    previewCount = Math.max(5, Math.floor(previewCount * 0.7));
+  }
 
   const markdownTable = [
     rollupsSummary.formattedSummary,
     "",
-    "DATA ROWS (FIRST 50):",
+    `DATA ROWS (FIRST ${previewCount} OF ${rows.length}):`,
     headerLine,
     separatorLine,
     ...rowLines,

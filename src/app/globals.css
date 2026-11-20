@@ -50,6 +50,14 @@ html[data-theme="cyber"] .dark\:bg-slate-950 {
   background-color: #000000 !important;
 }
 
+/* Studio left sidebar pitch-black matching canvas in Cyber OLED */
+html[data-theme="cyber"] [data-studio-sidebar],
+html[data-theme="cyber"] aside[data-studio-sidebar],
+html[data-theme="cyber"] aside {
+  background-color: #000000 !important;
+  border-color: #18181b !important;
+}
+
 html[data-theme="cyber"] .bg-white,
 html[data-theme="cyber"] .bg-white\/90,
 html[data-theme="cyber"] .dark\:bg-slate-900,

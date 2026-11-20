@@ -48,7 +48,8 @@ export function detectHeaderAndRows(rawGrid: unknown[][]): HeaderDetectionResult
     for (const cell of nonEmptyCells) {
       const parsed = parseCleanNumber(cell);
       // If it parses cleanly as a pure number, it is likely data, not a header label
-      if (parsed !== null && !isNaN(Number(cell.replace(/[$,€£¥%]/g, "").trim()))) {
+      const stripped = cell.replace(/[$,€£¥₹₩%]/g, "").replace(/,/g, "").trim();
+      if (parsed !== null && !isNaN(Number(stripped))) {
         numericCellCount++;
       } else {
         // String labels like "Quarter", "Department", "Revenue ($)", "2024 Actuals"
