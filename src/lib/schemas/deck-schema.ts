@@ -145,6 +145,7 @@ export const DeckSchema = z.object({
   templateId: z.string().default("clean-bento"),
   format: OutputFormatSchema.default("carousel"),
   brandKitId: z.string().optional(),
+  brandLogoUrl: z.string().optional(),
   watermark: z.boolean().default(true),
   slideOrder: z.array(z.string()).optional(),
 });
@@ -219,6 +220,7 @@ export const ExtractionDeckSchema = z.object({
   templateId: z.string().default("clean-bento"),
   format: OutputFormatSchema.default("carousel"),
   brandKitId: z.string().optional(),
+  brandLogoUrl: z.string().optional(),
   watermark: z.boolean().default(true),
   slideOrder: z.array(z.string()).optional(),
 });
@@ -670,6 +672,7 @@ export function normalizeExtractionDeck(
     templateId: validTemplate,
     format: validFormat,
     brandKitId: typeof raw.brandKitId === "string" ? raw.brandKitId : undefined,
+    brandLogoUrl: typeof raw.brandLogoUrl === "string" ? raw.brandLogoUrl : undefined,
     watermark: raw.watermark ?? true,
   };
 }

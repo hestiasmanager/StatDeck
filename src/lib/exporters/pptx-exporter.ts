@@ -33,6 +33,23 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
    * Matches the visual lockup across web canvases (dark-slate pill + white badge + blue bars).
    */
   const addWatermarkBadge = (slide: pptxgen.Slide) => {
+    // Custom Brand Logo (Creator/Agency)
+    if (ast.brandLogoUrl) {
+      try {
+        slide.addImage({
+          data: ast.brandLogoUrl.startsWith("data:") ? ast.brandLogoUrl : undefined,
+          path: !ast.brandLogoUrl.startsWith("data:") ? ast.brandLogoUrl : undefined,
+          x: ast.watermark ? 9.4 : 11.4,
+          y: 6.8,
+          w: 1.3,
+          h: 0.35,
+          sizing: { type: "contain", w: 1.3, h: 0.35 },
+        });
+      } catch {
+        // Safe fallback
+      }
+    }
+
     if (!ast.watermark) return;
 
     // 1. Dark-slate pill background (#0F172A) with border (#475569)

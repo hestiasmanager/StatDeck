@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import type { BrandKit } from "@/lib/schemas/brand-kit-schema";
 import { ensureWcagAaCompliance } from "@/lib/brand/color-contrast";
-import { Sparkles, Globe, X, Loader2, Check, Sliders, Type, Palette } from "lucide-react";
+import { Sparkles, Globe, X, Loader2, Check, Sliders, Type, Palette, UploadCloud, Trash2, Image as ImageIcon } from "lucide-react";
 
 interface BrandKitModalProps {
   isOpen: boolean;
@@ -63,6 +63,25 @@ export function BrandKitModal({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Please upload a logo under 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        setLogoUrl(result);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleApply = () => {
@@ -175,6 +194,57 @@ export function BrandKitModal({
               onChange={(e) => setBrandName(e.target.value)}
               className="px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-medium"
             />
+          </div>
+
+          {/* Brand Logo Upload (Creator / Agency) */}
+          <div className="flex flex-col gap-1.5 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-blue-500" />
+                <span>Brand Logo</span>
+              </label>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 font-semibold">
+                Creator / Agency
+              </span>
+            </div>
+
+            {logoUrl ? (
+              <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 p-1 flex items-center justify-center shrink-0 overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
+                  </div>
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
+                    Logo attached (renders in slide footers & PPTX)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLogoUrl(undefined)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                  title="Remove logo"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 bg-white dark:bg-slate-900 cursor-pointer transition-colors group">
+                <UploadCloud className="w-5 h-5 text-slate-400 group-hover:text-blue-500 mb-1 transition-colors" />
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Click or drag to upload custom logo
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  PNG, SVG, or WebP (transparent background recommended)
+                </span>
+                <input
+                  type="file"
+                  accept="image/png,image/svg+xml,image/webp,image/jpeg"
+                  className="hidden"
+                  onChange={handleLogoFileUpload}
+                />
+              </label>
+            )}
           </div>
 
           {/* Color Pickers: Primary & Accent */}

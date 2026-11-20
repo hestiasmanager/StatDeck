@@ -349,7 +349,7 @@ export const InfographicCanvas = React.forwardRef<HTMLDivElement, InfographicCan
             ) : (
               <div />
             )}
-            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
           </footer>
         </div>
       </div>

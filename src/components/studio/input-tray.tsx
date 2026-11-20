@@ -12,6 +12,9 @@ import {
   AlertCircle,
   FileUp,
   RotateCcw,
+  TrendingUp,
+  ShoppingBag,
+  Users,
 } from "lucide-react";
 import { parseCsvFileClientSide } from "@/lib/parsers/client-csv";
 import { parseExcelFileClientSide } from "@/lib/parsers/client-excel";
@@ -363,9 +366,10 @@ Q4-2024,225000,25%,96%,9100`;
       {/* Tab 1: Instant Sample Presets */}
       {!isLoading && activeTab === "samples" && (
         <div className="flex flex-col gap-2">
+          {/* Preset 1: SaaS Retention */}
           <button
             onClick={() => onAstLoaded(SAMPLE_PRESETS["saas-churn-metrics"], "Preset: SaaS Retention")}
-            className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-950/40 text-left transition-all group"
+            className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-950/40 text-left transition-all group cursor-pointer"
           >
             <div className="w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0 group-hover:scale-105 transition-transform mt-0.5">
               <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -380,9 +384,64 @@ Q4-2024,225000,25%,96%,9100`;
             </div>
           </button>
 
+          {/* Preset 2: Agency Client Report */}
+          <button
+            onClick={() => onAstLoaded(SAMPLE_PRESETS["agency-client-report"], "Preset: Agency Client Report")}
+            className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-950/40 text-left transition-all group cursor-pointer"
+          >
+            <div className="w-7 h-7 rounded-lg bg-orange-100 dark:bg-orange-950 flex items-center justify-center text-orange-600 dark:text-orange-400 flex-shrink-0 group-hover:scale-105 transition-transform mt-0.5">
+              <TrendingUp className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                Agency Client Report
+              </span>
+              <span className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                ROAS, ad spend, CPA, conversion lift across channels
+              </span>
+            </div>
+          </button>
+
+          {/* Preset 3: E-Commerce / D2C Q3 */}
+          <button
+            onClick={() => onAstLoaded(SAMPLE_PRESETS["ecommerce-d2c-performance"], "Preset: E-Commerce / D2C Q3")}
+            className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-950/40 text-left transition-all group cursor-pointer"
+          >
+            <div className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-950 flex items-center justify-center text-rose-600 dark:text-rose-400 flex-shrink-0 group-hover:scale-105 transition-transform mt-0.5">
+              <ShoppingBag className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                E-Commerce / D2C Q3
+              </span>
+              <span className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                AOV, repeat purchase rate, gross margin, SKU breakdown
+              </span>
+            </div>
+          </button>
+
+          {/* Preset 4: Creator / Newsletter Growth */}
+          <button
+            onClick={() => onAstLoaded(SAMPLE_PRESETS["creator-newsletter-growth"], "Preset: Creator Growth")}
+            className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-950/40 text-left transition-all group cursor-pointer"
+          >
+            <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-950 flex items-center justify-center text-purple-600 dark:text-purple-400 flex-shrink-0 group-hover:scale-105 transition-transform mt-0.5">
+              <Users className="w-3.5 h-3.5" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                Creator / Newsletter Growth
+              </span>
+              <span className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                Subscriber growth, open rate, sponsor revenue, top issues
+              </span>
+            </div>
+          </button>
+
+          {/* Preset 5: LLM Inference Economics */}
           <button
             onClick={() => onAstLoaded(SAMPLE_PRESETS["ai-infrastructure-costs"], "Preset: LLM Inference")}
-            className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-950/40 text-left transition-all group"
+            className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-950/40 text-left transition-all group cursor-pointer"
           >
             <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0 group-hover:scale-105 transition-transform mt-0.5">
               <Sparkles className="w-3.5 h-3.5" />

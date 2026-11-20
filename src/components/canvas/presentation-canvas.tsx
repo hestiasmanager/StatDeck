@@ -161,7 +161,7 @@ export function PresentationCanvas({
             <span className="text-xs font-mono opacity-60">
               {ast.meta.date ? `${ast.meta.date} • ` : ""}Source: {ast.meta.sourceCitations[0] || "StatDeck"}
             </span>
-            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
           </footer>
         </div>
       ),
@@ -257,7 +257,7 @@ export function PresentationCanvas({
                 </div>
                 <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
                   <span className="text-xs font-mono opacity-60">Executive Summary</span>
-                  <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+                  <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
                 </footer>
               </div>
             ),
@@ -332,7 +332,7 @@ export function PresentationCanvas({
           </div>
           <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
             <span className="text-xs font-mono opacity-60 truncate max-w-[400px]">{chart.title}</span>
-            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
           </footer>
         </div>
       ),
@@ -377,7 +377,7 @@ export function PresentationCanvas({
                 </div>
                 <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
                   <span className="text-xs font-mono opacity-60">Rows {startRow}–{endRow} of {block.rows.length}</span>
-                  <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+                  <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
                 </footer>
               </div>
             ),
@@ -453,7 +453,7 @@ export function PresentationCanvas({
               </div>
               <footer className="shrink-0 pt-3 mt-2 border-t flex items-center justify-between" style={{ borderColor: theme.surfaceBorder }}>
                 <span className="text-xs font-mono opacity-60">{"title" in block && block.title ? block.title : "Key Takeaways"}</span>
-                <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+                <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
               </footer>
             </div>
           ),

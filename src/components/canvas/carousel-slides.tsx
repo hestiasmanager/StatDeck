@@ -150,7 +150,7 @@ export function buildCarouselSlides(
               </span>
             )}
           </div>
-          <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+          <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
         </footer>
       </div>
     ),
@@ -260,7 +260,7 @@ export function buildCarouselSlides(
             <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
               Core Metrics
             </span>
-            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
           </footer>
         </div>
       ),
@@ -347,7 +347,7 @@ export function buildCarouselSlides(
             <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
               {chart.title || "Data Breakdown"}
             </span>
-            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+            <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
           </footer>
         </div>
       ),
@@ -396,7 +396,7 @@ export function buildCarouselSlides(
                 <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
                   Rows {startRow}–{endRow} of {block.rows.length}
                 </span>
-                <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+                <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
               </footer>
             </div>
           ),
@@ -474,7 +474,7 @@ export function buildCarouselSlides(
               <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
                 {"title" in block && block.title ? block.title : "Strategic Insights"}
               </span>
-              <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+              <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
             </footer>
           </div>
         ),
@@ -523,7 +523,7 @@ export function buildCarouselSlides(
           <span className="text-xs font-mono opacity-60" style={{ color: theme.ink }}>
             Summary
           </span>
-          <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} />
+          <WatermarkBadge visible={ast.watermark} accentColor={theme.accent} customLogoUrl={ast.brandLogoUrl} />
         </footer>
       </div>
     ),

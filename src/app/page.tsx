@@ -207,7 +207,7 @@ export default function LandingPage() {
                   <p>Q2,Enterprise,22800000,48%,2.4%</p>
                   <p>Q3,Enterprise,42800000,184%,1.8%</p>
                   <p className="mt-2 text-slate-400 italic">
-                    // &quot;Please make this look nice for the board meeting by 3pm&quot;
+                    {"// \"Please make this look nice for the board meeting by 3pm\""}
                   </p>
                 </div>
               </div>

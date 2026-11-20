@@ -20,7 +20,7 @@ export const BrandKitSchema = z.object({
   workspaceId: z.string().uuid().optional(),
   name: z.string().min(1).max(80),
   domain: z.string().optional(),
-  logoUrl: z.string().url().optional(),
+  logoUrl: z.string().optional(),
   colors: BrandColorPaletteSchema,
   fonts: BrandFontPairingSchema,
   wcagContrastRatio: z.number().optional().describe("Contrast ratio against background"),

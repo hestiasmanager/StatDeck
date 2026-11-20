@@ -160,8 +160,7 @@ export async function extractCleanArticleFromUrl(url: string): Promise<CleanArti
   });
 
   // Run Mozilla Readability
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const reader = new Readability(document as any);
+  const reader = new Readability(document as unknown as Document);
   const article = reader.parse();
 
   const title = article?.title || document.querySelector("title")?.textContent || parsedUrl.hostname;

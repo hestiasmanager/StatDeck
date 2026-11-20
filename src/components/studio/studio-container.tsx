@@ -164,6 +164,8 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
         present: {
           ...state.present,
           templateId: brandThemeId,
+          brandKitId: action.payload.id,
+          brandLogoUrl: action.payload.logoUrl,
         },
         future: [],
       };

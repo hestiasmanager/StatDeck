@@ -58,14 +58,19 @@ export function ExportModal({
   const [hasCopiedShareUrl, setHasCopiedShareUrl] = useState(false);
   const [hasCopiedEmbed, setHasCopiedEmbed] = useState(false);
   const [pngScale, setPngScale] = useState<number>(2);
+  const [captionTone, setCaptionTone] = useState<"founder" | "analyst" | "punchy">("founder");
+  const [captionText, setCaptionText] = useState("");
+  const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
+  const [hasCopiedCaption, setHasCopiedCaption] = useState(false);
 
   const offscreenContainerRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
 
   const isFree = userTier === "free";
-  const theme = getThemeTokens(ast.templateId);
-  const carouselSlides = buildCarouselSlides(ast);
+  const effectiveAst: DeckAST = isFree ? { ...ast, watermark: true } : ast;
+  const theme = getThemeTokens(effectiveAst.templateId);
+  const carouselSlides = buildCarouselSlides(effectiveAst);
 
   // Helper to slugify filenames cleanly
   const slugifyFilename = (title: string, format: string, ext: string): string => {
@@ -151,7 +156,7 @@ export function ExportModal({
     setIsExporting(true);
     setExportMessage("Generating native PowerPoint slides & native charts...");
     try {
-      await exportDeckToPptx(ast);
+      await exportDeckToPptx(effectiveAst);
       await logExport("pptx");
     } catch (err) {
       alert(err instanceof Error ? err.message : "PPTX export failed");
@@ -249,7 +254,7 @@ export function ExportModal({
   // 6. Standalone HTML / Embed
   const handleHtmlExport = () => {
     try {
-      exportStandaloneHtmlFile(ast);
+      exportStandaloneHtmlFile(effectiveAst);
     } catch (err) {
       alert(err instanceof Error ? err.message : "HTML export failed");
     }
@@ -313,6 +318,43 @@ export function ExportModal({
       alert(err instanceof Error ? err.message : "Sharing failed");
     } finally {
       setIsSharing(false);
+    }
+  };
+
+  // 8. 1-Click LinkedIn Post Writer
+  const handleGenerateCaption = async (toneToUse?: "founder" | "analyst" | "punchy") => {
+    const tone = toneToUse || captionTone;
+    setIsGeneratingCaption(true);
+    try {
+      const res = await fetch("/api/generate-caption", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deckTitle: ast.meta.title,
+          deckSubtitle: ast.meta.subtitle,
+          kpis: ast.kpis || [],
+          chartSummary: ast.charts?.[0]?.chartInsight || ast.chartInsight,
+          tone,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to generate caption");
+      setCaptionText(data.caption);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Error generating caption");
+    } finally {
+      setIsGeneratingCaption(false);
+    }
+  };
+
+  const handleCopyCaption = async () => {
+    if (!captionText) return;
+    try {
+      await navigator.clipboard.writeText(captionText);
+      setHasCopiedCaption(true);
+      setTimeout(() => setHasCopiedCaption(false), 2000);
+    } catch {
+      alert("Failed to copy to clipboard");
     }
   };
 
@@ -472,6 +514,107 @@ export function ExportModal({
                   PDF
                 </span>
               </button>
+
+              {/* 1-Click LinkedIn Post Writer */}
+              <div className="p-3.5 rounded-2xl border-2 border-blue-500/20 bg-blue-50/40 dark:bg-blue-950/20 flex flex-col gap-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shrink-0 shadow-2xs">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                        <span>1-Click LinkedIn Post Writer</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold font-mono">
+                          AI
+                        </span>
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                        Hook, 3–4 stat takeaways, and closing CTA tailored to this deck
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tone Selector Pills */}
+                <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 px-1.5 font-mono">Tone:</span>
+                  {(
+                    [
+                      { id: "founder", label: "Founder / Insights" },
+                      { id: "analyst", label: "Data Analyst" },
+                      { id: "punchy", label: "Punchy Thread" },
+                    ] as const
+                  ).map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        setCaptionTone(t.id);
+                        if (captionText) handleGenerateCaption(t.id);
+                      }}
+                      className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                        captionTone === t.id
+                          ? "bg-blue-600 text-white shadow-2xs"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Generate / Action Button & Textarea */}
+                {!captionText ? (
+                  <button
+                    onClick={() => handleGenerateCaption()}
+                    disabled={isGeneratingCaption}
+                    className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {isGeneratingCaption ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isGeneratingCaption ? "Writing LinkedIn Post..." : "Generate LinkedIn Companion Post"}</span>
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <textarea
+                      value={captionText}
+                      onChange={(e) => setCaptionText(e.target.value)}
+                      rows={5}
+                      className="w-full p-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed resize-y"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleCopyCaption}
+                        className="flex-1 py-1.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                      >
+                        {hasCopiedCaption ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-300" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                        <span>{hasCopiedCaption ? "Copied Post!" : "Copy Post to Clipboard"}</span>
+                      </button>
+                      <button
+                        onClick={() => handleGenerateCaption()}
+                        disabled={isGeneratingCaption}
+                        className="py-1.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        title="Regenerate post"
+                      >
+                        {isGeneratingCaption ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                        )}
+                        <span>Rewrite</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Individual Slides ZIP */}
               <button

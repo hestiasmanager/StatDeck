@@ -12,6 +12,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
+    "build:worker": "node scripts/build-cloudflare.cjs",
     "worker:dev": "wrangler dev"
   },
   "dependencies": {
@@ -55,6 +56,8 @@
     "autoprefixer": "^10.4.20",
     "client-only": "^0.0.1",
     "drizzle-kit": "^0.30.4",
+    "eslint": "8.57.1",
+    "eslint-config-next": "15.1.11",
     "pg-connection-string": "^2.14.1",
     "pg-pool": "^3.14.0",
     "pg-protocol": "^1.16.1",
