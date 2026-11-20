@@ -99,6 +99,8 @@ export const projects = pgTable("projects", {
     enum: ["url", "csv", "excel", "pdf", "text", "preset", "mcp"],
   }),
   inputHash: text("input_hash"),
+  dataSourceUrl: text("data_source_url"),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
   isPublic: boolean("is_public").default(false).notNull(),
   shareToken: text("share_token").unique(),
   viewCount: integer("view_count").default(0).notNull(),

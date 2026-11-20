@@ -18,6 +18,8 @@
     "@ai-sdk/openai": "^1.1.9",
     "@mozilla/readability": "^0.5.0",
     "@paddle/paddle-node-sdk": "^3.2.1",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.1",
     "@upstash/ratelimit": "^2.0.5",
     "@upstash/redis": "^1.34.4",
     "ai": "^4.1.45",
@@ -41,8 +43,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@types/node": "^22.13.4",
     "@types/jszip": "^3.4.1",
+    "@types/node": "^22.13.4",
     "@types/papaparse": "^5.3.15",
     "@types/pg": "^8.11.11",
     "@types/react": "^19.0.8",

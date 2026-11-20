@@ -16,6 +16,9 @@ export const ChartDataPointSchema = z.object({
   value: z.number().describe("Numerical value"),
   secondaryValue: z.number().optional().describe("Optional comparison/baseline value"),
   color: z.string().optional().describe("Optional custom hex override"),
+  sourceQuote: z.string().optional().describe("Verbatim excerpt or audit quote for this data point"),
+  sourcePage: z.union([z.string(), z.number()]).optional().describe("Page number or document section reference"),
+  sourceRow: z.union([z.string(), z.number()]).optional().describe("CSV or spreadsheet row number reference"),
 });
 
 export const ChartBlockSchema = z.object({
@@ -36,6 +39,9 @@ export const KpiCardSchema = z.object({
   delta: z.string().max(25).optional().describe("e.g. '+38% YoY', '-4.2% MoM'"),
   deltaType: z.enum(["positive", "negative", "neutral"]).default("neutral"),
   description: z.string().max(100).optional().describe("One sentence micro-context"),
+  sourceQuote: z.string().optional().describe("Verbatim excerpt or audit quote for this metric"),
+  sourcePage: z.union([z.string(), z.number()]).optional().describe("Page number or document section reference"),
+  sourceRow: z.union([z.string(), z.number()]).optional().describe("CSV or spreadsheet row number reference"),
 });
 
 export const ProcessStepSchema = z.object({

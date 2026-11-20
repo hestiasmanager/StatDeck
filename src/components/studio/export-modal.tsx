@@ -32,6 +32,9 @@ interface ExportModalProps {
   onClose: () => void;
   ast: DeckAST;
   userTier?: "free" | "creator" | "agency";
+  weeklyExportCount?: number;
+  onPromptAuth?: () => void;
+  onPromptUpgrade?: (tier: string) => void;
   activeCanvasRef?: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -42,6 +45,9 @@ export function ExportModal({
   onClose,
   ast,
   userTier = "free",
+  weeklyExportCount = 0,
+  onPromptAuth,
+  onPromptUpgrade,
   activeCanvasRef,
 }: ExportModalProps) {
   const [selectedCategory, setSelectedCategory] = useState<ExportCategory>("all");
@@ -99,12 +105,54 @@ export function ExportModal({
     return slideNodes;
   };
 
+  const logExport = async (fileType: "png" | "svg" | "pdf" | "pptx") => {
+    try {
+      await fetch("/api/exports/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          format: ast.format,
+          fileType,
+          hasWatermark: isFree,
+        }),
+      });
+    } catch (e) {
+      // Non-blocking
+    }
+  };
+
+  const checkAllowance = (fileType: "png" | "svg" | "pdf" | "pptx"): boolean => {
+    if (fileType === "pptx" && userTier !== "agency") {
+      if (onPromptUpgrade) {
+        onPromptUpgrade("agency");
+      } else {
+        alert("Native PowerPoint (.pptx) export is an Agency tier exclusive. Please upgrade to unlock.");
+      }
+      return false;
+    }
+
+    if (isFree && weeklyExportCount >= 3) {
+      if (onPromptUpgrade) {
+        onPromptUpgrade("creator");
+      } else if (onPromptAuth) {
+        onPromptAuth();
+      } else {
+        alert("You have reached your 3 free weekly exports limit. Please upgrade to Creator for unlimited exports.");
+      }
+      return false;
+    }
+
+    return true;
+  };
+
   // 1. Native PowerPoint Export (.pptx)
   const handlePptxExport = async () => {
+    if (!checkAllowance("pptx")) return;
     setIsExporting(true);
     setExportMessage("Generating native PowerPoint slides & native charts...");
     try {
       await exportDeckToPptx(ast);
+      await logExport("pptx");
     } catch (err) {
       alert(err instanceof Error ? err.message : "PPTX export failed");
     } finally {
@@ -115,6 +163,7 @@ export function ExportModal({
 
   // 2. High-DPI PNG Export (.png)
   const handlePngExport = async () => {
+    if (!checkAllowance("png")) return;
     setIsExporting(true);
     setExportMessage(`Rasterizing crisp ${pngScale}x High-DPI Canvas PNG...`);
     try {
@@ -124,6 +173,7 @@ export function ExportModal({
       }
       const filename = slugifyFilename(ast.meta.title, ast.format, "png");
       await exportElementToPng(activeElement, filename, pngScale);
+      await logExport("png");
     } catch (err) {
       alert(err instanceof Error ? err.message : "PNG export failed");
     } finally {
@@ -134,6 +184,7 @@ export function ExportModal({
 
   // 3. Vector SVG Export (.svg)
   const handleSvgExport = async () => {
+    if (!checkAllowance("svg")) return;
     setIsExporting(true);
     setExportMessage("Serializing clean vector SVG with embedded fonts...");
     try {
@@ -143,6 +194,7 @@ export function ExportModal({
       }
       const filename = slugifyFilename(ast.meta.title, ast.format, "svg");
       await exportElementToSvg(activeElement, filename);
+      await logExport("svg");
     } catch (err) {
       alert(err instanceof Error ? err.message : "SVG export failed");
     } finally {
@@ -153,6 +205,7 @@ export function ExportModal({
 
   // 4. LinkedIn Multi-Slide Carousel PDF (.pdf)
   const handleCarouselPdfExport = async () => {
+    if (!checkAllowance("pdf")) return;
     setIsExporting(true);
     setExportMessage("Mounting all carousel slides for multi-page PDF compilation...");
     try {
@@ -162,6 +215,7 @@ export function ExportModal({
       }
       setExportMessage(`Compiling ${slideNodes.length}-slide LinkedIn PDF carousel...`);
       await exportCarouselToPdf(slideNodes, ast.meta.title);
+      await logExport("pdf");
     } catch (err) {
       alert(err instanceof Error ? err.message : "PDF Carousel export failed");
     } finally {
@@ -172,6 +226,7 @@ export function ExportModal({
 
   // 5. Individual Slides ZIP (.zip of numbered PNGs)
   const handleZipExport = async () => {
+    if (!checkAllowance("png")) return;
     setIsExporting(true);
     setExportMessage("Capturing all slides into high-DPI ZIP archive...");
     try {
@@ -182,6 +237,7 @@ export function ExportModal({
       await exportSlidesToZip(slideNodes, ast.meta.title, (current, total) => {
         setExportMessage(`Rendering slide ${current} of ${total} to PNG...`);
       });
+      await logExport("png");
     } catch (err) {
       alert(err instanceof Error ? err.message : "ZIP Slides export failed");
     } finally {
@@ -380,9 +436,17 @@ export function ExportModal({
                     </span>
                   </div>
                 </div>
-                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 font-bold">
-                  PPTX
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {userTier !== "agency" && (
+                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 font-bold flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-purple-500" />
+                      Agency
+                    </span>
+                  )}
+                  <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 font-bold">
+                    PPTX
+                  </span>
+                </div>
               </button>
 
               {/* LinkedIn Multi-Page PDF Carousel */}

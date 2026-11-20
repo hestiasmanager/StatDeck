@@ -83,16 +83,34 @@ export default async function ToolPseoPage({ params }: PageProps) {
             {config.subtitle}
           </p>
 
-          <div className="flex flex-wrap items-center gap-4 mt-2">
-            {config.features.map((feat, idx) => (
-              <span
-                key={idx}
-                className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-sm"
+          <div className="flex flex-wrap items-center justify-between gap-4 mt-2">
+            <div className="flex flex-wrap items-center gap-3">
+              {config.features.map((feat, idx) => (
+                <span
+                  key={idx}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-sm"
+                >
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                  {feat}
+                </span>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/studio?preset=${config.samplePresetKey}`}
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all hover:scale-102"
               >
-                <Check className="w-3.5 h-3.5 text-emerald-500" />
-                {feat}
-              </span>
-            ))}
+                <span>Open in Full Studio</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <Link
+                href="/pricing"
+                className="px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400"
+              >
+                Pricing
+              </Link>
+            </div>
           </div>
         </div>
       </section>

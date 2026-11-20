@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useReducer, useEffect, useState, useRef, useCallback } from "react";
-import type { DeckAST, OutputFormat, ChartType, BlockType } from "@/lib/schemas/deck-schema";
+import type { DeckAST, OutputFormat, ChartType, BlockType, ChartBlock } from "@/lib/schemas/deck-schema";
 import type { BrandKit } from "@/lib/schemas/brand-kit-schema";
 import { applyBrandKitToTheme, getThemeTokens } from "@/lib/themes/registry";
 import { SAMPLE_PRESETS } from "@/lib/ai/presets";
@@ -14,6 +14,12 @@ import { TemplateGalleryModal } from "@/components/studio/template-gallery-modal
 import { SlideFilmstrip } from "@/components/studio/slide-filmstrip";
 import { SlideLayoutModal } from "@/components/studio/slide-layout-modal";
 import { CommandPalette } from "@/components/studio/command-palette";
+import { ChartDataDrawer } from "@/components/studio/chart-data-drawer";
+import { SlideFloatingToolbar } from "@/components/studio/slide-floating-toolbar";
+import { GoogleSheetsSyncModal } from "@/components/studio/google-sheets-sync-modal";
+import { AuthModal } from "@/components/auth/auth-modal";
+import { refreshDeckWithCsvData } from "@/lib/parsers/live-sync";
+import Link from "next/link";
 import { InfographicCanvas } from "@/components/canvas/infographic-canvas";
 import { CarouselCanvas } from "@/components/canvas/carousel-canvas";
 import { PresentationCanvas } from "@/components/canvas/presentation-canvas";
@@ -37,6 +43,11 @@ import {
   Monitor,
   SlidersHorizontal,
   Command,
+  Save,
+  FileSpreadsheet,
+  LayoutDashboard,
+  Check,
+  CheckCircle2,
 } from "lucide-react";
 import { StatDeckMark } from "@/components/ui/statdeck-mark";
 import { getOrderedSlideIds } from "@/lib/utils/slide-order";
@@ -57,10 +68,10 @@ function getSlideTarget(
   if (id === "cover") return { type: "cover" };
   if (id === "kpis") return { type: "kpi" };
 
-  const cIdx = ast.charts.findIndex((c, i) => (c.id || `chart-${i}`) === id);
+  const cIdx = (ast.charts || []).findIndex((c, i) => (c.id || `chart-${i}`) === id);
   if (cIdx !== -1) return { type: "chart", chartIndex: cIdx };
 
-  const bIdx = ast.blocks.findIndex(
+  const bIdx = (ast.blocks || []).findIndex(
     (b, i) =>
       (b.id || `block-${i + 1}`) === id ||
       id.startsWith(`block-${i + 1}-table-`)
@@ -88,6 +99,7 @@ type StudioAction =
   | { type: "DELETE_SLIDE"; payload: { slideIndex: number } }
   | { type: "ADD_SLIDE"; payload: { type: "chart" | "kpi" | "takeaways" | "table" } }
   | { type: "UPDATE_CHART_TYPE"; payload: { chartIndex: number; chartType: ChartType } }
+  | { type: "UPDATE_CHART_BLOCK"; payload: { chartIndex: number; chart: ChartBlock } }
   | { type: "UPDATE_BLOCK_TYPE"; payload: { blockIndex: number; blockType: BlockType } }
   | { type: "UNDO" }
   | { type: "REDO" };
@@ -357,6 +369,19 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
       };
     }
 
+    case "UPDATE_CHART_BLOCK": {
+      const { chartIndex, chart } = action.payload;
+      const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
+      if (newAst.charts[chartIndex]) {
+        newAst.charts[chartIndex] = chart;
+      }
+      return {
+        past: [...state.past, state.present],
+        present: newAst,
+        future: [],
+      };
+    }
+
     case "UPDATE_BLOCK_TYPE": {
       const { blockIndex, blockType } = action.payload;
       const newAst = JSON.parse(JSON.stringify(state.present)) as DeckAST;
@@ -428,6 +453,33 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
   const [isTemplateGalleryOpen, setIsTemplateGalleryOpen] = useState(false);
   const [isSlideLayoutOpen, setIsSlideLayoutOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isChartDrawerOpen, setIsChartDrawerOpen] = useState(false);
+  const [selectedChartIndex, setSelectedChartIndex] = useState<number | null>(null);
+  const [isGoogleSheetsOpen, setIsGoogleSheetsOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalReason, setAuthModalReason] = useState("");
+  const [isRewritingSlide, setIsRewritingSlide] = useState(false);
+  const [isSavedToast, setIsSavedToast] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    email: string;
+    subscriptionTier: "free" | "creator" | "agency";
+    weeklyExportCount: number;
+  } | null>(null);
+  const [dataSourceUrl, setDataSourceUrl] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+
+  // Check auth user on mount
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated && data.user) {
+          setCurrentUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const canvasViewportRef = useRef<HTMLDivElement>(null);
   const infographicRef = useRef<HTMLDivElement>(null);
@@ -537,6 +589,140 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
     dispatch({ type: "UPDATE_TEXT", payload: { path, value: newText } });
   };
 
+  const slideTarget = getSlideTarget(currentAst, currentSlideIndex);
+
+  const handleSaveDeck = async () => {
+    if (!currentUser) {
+      setAuthModalReason("Sign in to save this deck to your cloud workspace.");
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: projectId || undefined,
+          title: currentAst.meta.title || "Untitled Deck",
+          format: currentAst.format,
+          templateId: currentAst.templateId,
+          brandKitId: currentAst.brandKitId || null,
+          ast: currentAst,
+          dataSourceUrl,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.project) {
+        setProjectId(data.project.id);
+        setIsSavedToast(true);
+        setTimeout(() => setIsSavedToast(false), 3000);
+      } else {
+        alert(data.error || "Failed to save project.");
+      }
+    } catch {
+      alert("Failed to save project to workspace.");
+    }
+  };
+
+  const handleSaveBrandKit = async (kit: BrandKit) => {
+    if (!currentUser) {
+      setAuthModalReason("Sign in to save custom Brand Kits to your workspace.");
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/brand-kits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(kit),
+      });
+      const data = await res.json();
+      if (data.upgradeRequired) {
+        alert(data.error);
+        setIsExportOpen(true);
+      } else if (data.success) {
+        alert(`Brand kit "${kit.name}" saved to your workspace!`);
+      }
+    } catch {
+      alert("Network error saving brand kit.");
+    }
+  };
+
+  const handleRewriteSlide = async (action: "shorten" | "detail" | "executive") => {
+    if (!slideTarget) return;
+    setIsRewritingSlide(true);
+
+    try {
+      let contentToRewrite: Record<string, unknown> = {};
+
+      if (slideTarget.type === "cover") {
+        contentToRewrite = {
+          title: currentAst.meta.title,
+          subtitle: currentAst.meta.subtitle,
+          executiveSummary: currentAst.executiveSummary,
+          coverHighlights: currentAst.coverHighlights,
+        };
+      } else if (slideTarget.type === "kpi") {
+        contentToRewrite = {
+          kpiNarrative: currentAst.kpiNarrative,
+          kpis: currentAst.kpis,
+        };
+      } else if (slideTarget.type === "chart") {
+        const chart = currentAst.charts[slideTarget.chartIndex];
+        contentToRewrite = {
+          title: chart.title,
+          chartInsight: chart.chartInsight || currentAst.chartInsight,
+        };
+      } else if (slideTarget.type === "block") {
+        contentToRewrite = {
+          ...currentAst.blocks[slideTarget.blockIndex],
+        };
+      }
+
+      const res = await fetch("/api/rewrite-slide", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slideType: slideTarget.type,
+          action,
+          content: contentToRewrite,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.rewritten) {
+        const rw = data.rewritten;
+        if (slideTarget.type === "cover") {
+          if (rw.title) dispatch({ type: "UPDATE_TEXT", payload: { path: "meta.title", value: rw.title } });
+          if (rw.subtitle) dispatch({ type: "UPDATE_TEXT", payload: { path: "meta.subtitle", value: rw.subtitle } });
+          if (rw.executiveSummary) dispatch({ type: "UPDATE_TEXT", payload: { path: "executiveSummary", value: rw.executiveSummary } });
+        } else if (slideTarget.type === "kpi") {
+          if (rw.kpiNarrative) dispatch({ type: "UPDATE_TEXT", payload: { path: "kpiNarrative", value: rw.kpiNarrative } });
+        } else if (slideTarget.type === "chart") {
+          if (rw.title) dispatch({ type: "UPDATE_TEXT", payload: { path: `charts.${slideTarget.chartIndex}.title`, value: rw.title } });
+          if (rw.chartInsight) dispatch({ type: "UPDATE_TEXT", payload: { path: `charts.${slideTarget.chartIndex}.chartInsight`, value: rw.chartInsight } });
+        }
+      }
+    } catch (e) {
+      console.error("Rewrite error:", e);
+    } finally {
+      setIsRewritingSlide(false);
+    }
+  };
+
+  const handleSyncComplete = (csvText: string, validUrl: string) => {
+    setDataSourceUrl(validUrl);
+    try {
+      const refreshed = refreshDeckWithCsvData(currentAst, csvText);
+      dispatch({ type: "SET_AST", payload: refreshed });
+    } catch (e) {
+      console.error("Failed to apply CSV:", e);
+    }
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 select-none">
       {/* 1. Header Bar (Hidden in Fullscreen Mode) */}
@@ -624,6 +810,61 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
               <Globe className="w-3.5 h-3.5 text-blue-500" />
               <span className="hidden md:inline">Brand Kit</span>
             </button>
+
+            {/* Google Sheets Sync Button */}
+            <button
+              onClick={() => setIsGoogleSheetsOpen(true)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                dataSourceUrl
+                  ? "bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
+                  : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700"
+              }`}
+              title="Connect & Refresh Live Google Sheets / CSV URL"
+            >
+              <FileSpreadsheet className={`w-3.5 h-3.5 ${dataSourceUrl ? "text-emerald-500" : "text-slate-500"}`} />
+              <span className="hidden lg:inline">{dataSourceUrl ? "Sheets Synced" : "Sheets Sync"}</span>
+            </button>
+
+            {/* Save Deck Button */}
+            <button
+              onClick={handleSaveDeck}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+              title="Save Deck to Workspace"
+            >
+              {isSavedToast ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">Saved!</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5 text-blue-500" />
+                  <span className="hidden sm:inline">Save</span>
+                </>
+              )}
+            </button>
+
+            {/* Dashboard / User Link */}
+            {currentUser ? (
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 transition-colors"
+                title="Open Workspace Dashboard"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5 text-blue-500" />
+                <span className="hidden lg:inline">Dashboard</span>
+              </Link>
+            ) : (
+              <button
+                onClick={() => {
+                  setAuthModalReason("Sign in to save decks, access brand kits, and unlock unlimited exports.");
+                  setIsAuthModalOpen(true);
+                }}
+                className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 px-2 py-1"
+              >
+                Sign In
+              </button>
+            )}
 
             {/* Export Assets Button */}
             <button
@@ -731,6 +972,23 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
             ref={canvasViewportRef}
             className="flex-1 min-w-0 h-full overflow-auto relative p-6 flex flex-col items-center justify-start bg-slate-100/80 dark:bg-slate-950 pb-40"
           >
+            {/* Per-Slide Floating Controls & 1-Click AI Rewrite */}
+            {!isFullscreen && (
+              <SlideFloatingToolbar
+                ast={currentAst}
+                currentSlideIndex={currentSlideIndex}
+                slideTarget={slideTarget}
+                onUpdateChartType={(chartIndex, chartType) =>
+                  dispatch({ type: "UPDATE_CHART_TYPE", payload: { chartIndex, chartType } })
+                }
+                onOpenChartDrawer={(chartIndex) => {
+                  setSelectedChartIndex(chartIndex);
+                  setIsChartDrawerOpen(true);
+                }}
+                onRewriteSlide={handleRewriteSlide}
+                isRewriting={isRewritingSlide}
+              />
+            )}
             {currentAst.format === "infographic" && (
               <InfographicCanvas
                 key={`${currentAst.id || "infographic"}-${currentAst.templateId}`}
@@ -913,7 +1171,15 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
         ast={currentAst}
-        userTier="free"
+        userTier={currentUser?.subscriptionTier || "free"}
+        weeklyExportCount={currentUser?.weeklyExportCount || 0}
+        onPromptAuth={() => {
+          setAuthModalReason("Sign in to export without free tier limitations.");
+          setIsAuthModalOpen(true);
+        }}
+        onPromptUpgrade={() => {
+          window.location.href = "/pricing";
+        }}
         activeCanvasRef={infographicRef}
       />
 
@@ -921,6 +1187,31 @@ export function StudioContainer({ initialAst }: StudioContainerProps) {
         isOpen={isBrandKitOpen}
         onClose={() => setIsBrandKitOpen(false)}
         onApplyBrandKit={(kit) => dispatch({ type: "APPLY_BRAND_KIT", payload: kit })}
+        onSaveBrandKit={handleSaveBrandKit}
+      />
+
+      <ChartDataDrawer
+        isOpen={isChartDrawerOpen}
+        onClose={() => setIsChartDrawerOpen(false)}
+        chart={selectedChartIndex !== null ? currentAst.charts[selectedChartIndex] : null}
+        chartIndex={selectedChartIndex ?? 0}
+        onUpdateChart={(cIdx, updated) =>
+          dispatch({ type: "UPDATE_CHART_BLOCK", payload: { chartIndex: cIdx, chart: updated } })
+        }
+      />
+
+      <GoogleSheetsSyncModal
+        isOpen={isGoogleSheetsOpen}
+        onClose={() => setIsGoogleSheetsOpen(false)}
+        currentUrl={dataSourceUrl}
+        onSyncComplete={handleSyncComplete}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        reason={authModalReason}
+        redirectTo="/studio"
       />
 
       <TemplateGalleryModal

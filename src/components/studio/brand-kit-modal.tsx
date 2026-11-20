@@ -9,6 +9,7 @@ interface BrandKitModalProps {
   isOpen: boolean;
   onClose: () => void;
   onApplyBrandKit: (brandKit: BrandKit) => void;
+  onSaveBrandKit?: (brandKit: BrandKit) => void;
 }
 
 const POPULAR_FONT_PAIRINGS = [
@@ -20,7 +21,12 @@ const POPULAR_FONT_PAIRINGS = [
   { id: "Cabinet Grotesk", label: "Cabinet Grotesk", description: "Bold Avant-Garde Editorial" },
 ];
 
-export function BrandKitModal({ isOpen, onClose, onApplyBrandKit }: BrandKitModalProps) {
+export function BrandKitModal({
+  isOpen,
+  onClose,
+  onApplyBrandKit,
+  onSaveBrandKit,
+}: BrandKitModalProps) {
   const [domainInput, setDomainInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [brandName, setBrandName] = useState("Custom Brand");
@@ -257,15 +263,48 @@ export function BrandKitModal({ isOpen, onClose, onApplyBrandKit }: BrandKitModa
             </span>
           </div>
 
-          {/* Apply Button */}
-          <button
-            type="button"
-            onClick={handleApply}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5"
-          >
-            <Check className="w-4 h-4" />
-            Apply Brand Kit to Canvas
-          </button>
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleApply}
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Check className="w-4 h-4" />
+              Apply to Canvas
+            </button>
+            {onSaveBrandKit && (
+              <button
+                type="button"
+                onClick={() => {
+                  const customKit: BrandKit = {
+                    name: brandName,
+                    domain: domainInput.trim() || undefined,
+                    logoUrl,
+                    colors: {
+                      primary: contrastCheck.adjustedHex || primaryColor,
+                      secondary: "#0F172A",
+                      accent: accentColor,
+                      background: "#FFFFFF",
+                      surface: "#F8FAFC",
+                      text: "#0F172A",
+                    },
+                    fonts: {
+                      display: selectedFont,
+                      body: selectedFont,
+                    },
+                    wcagContrastRatio: contrastCheck.ratio,
+                    isWcagCompliant: contrastCheck.isAaCompliant,
+                    isDefault: false,
+                  };
+                  onSaveBrandKit(customKit);
+                }}
+                className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>Save Kit</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

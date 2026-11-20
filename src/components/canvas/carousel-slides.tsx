@@ -14,6 +14,7 @@ import { CalloutQuoteBlock } from "@/components/blocks/callout-quote";
 import { KeyTakeawaysBlock } from "@/components/blocks/key-takeaways";
 import { WatermarkBadge } from "@/components/studio/watermark-badge";
 import { getKpiValueSizeClass } from "@/lib/utils/kpi-formatter";
+import { SourceProvenancePopover } from "@/components/studio/source-provenance-popover";
 import { ArrowRight } from "lucide-react";
 
 export interface CarouselSlideData {
@@ -182,16 +183,28 @@ export function buildCarouselSlides(
                     borderRadius: theme.cardRadius,
                   }}
                 >
-                  <span
-                    className={`${getKpiValueSizeClass(
-                      kpi.value,
-                      "carousel"
-                    )} font-extrabold tracking-tight font-mono tabular-nums leading-tight block max-w-full break-normal`}
-                    style={{ color: theme.accent }}
-                    title={kpi.value}
-                  >
-                    {kpi.value}
-                  </span>
+                  <div className="flex items-start justify-between gap-2">
+                    <span
+                      className={`${getKpiValueSizeClass(
+                        kpi.value,
+                        "carousel"
+                      )} font-extrabold tracking-tight font-mono tabular-nums leading-tight block max-w-full break-normal`}
+                      style={{ color: theme.accent }}
+                      title={kpi.value}
+                    >
+                      {kpi.value}
+                    </span>
+                    <SourceProvenancePopover
+                      quote={kpi.sourceQuote}
+                      page={kpi.sourcePage}
+                      row={kpi.sourceRow}
+                      accentColor={theme.accent}
+                      onUpdateCitation={(quote, ref) => {
+                        onUpdateText?.(`kpis.${idx}.sourceQuote`, quote);
+                        onUpdateText?.(`kpis.${idx}.sourcePage`, ref);
+                      }}
+                    />
+                  </div>
                   <div className="mt-3">
                     <span className="text-xs font-semibold leading-snug block opacity-90" style={{ color: theme.ink }}>
                       {kpi.label}
@@ -261,13 +274,27 @@ export function buildCarouselSlides(
       title: chart.title || `Chart ${chartIdx + 1}`,
       content: (
         <div className="flex flex-col h-full justify-between overflow-hidden p-10 md:p-12">
-          <div className="flex flex-col gap-1 border-b pb-4 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
-            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
-              Visual Analytics {ast.charts.length > 1 ? `(${chartIdx + 1}/${ast.charts.length})` : ""}
-            </span>
-            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
-              {chart.title}
-            </h2>
+          <div className="flex items-center justify-between border-b pb-4 shrink-0" style={{ borderColor: theme.surfaceBorder }}>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.accent }}>
+                Visual Analytics {ast.charts.length > 1 ? `(${chartIdx + 1}/${ast.charts.length})` : ""}
+              </span>
+              <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight" style={{ color: theme.ink, fontFamily: theme.fontDisplay }}>
+                {chart.title}
+              </h2>
+            </div>
+            {chart.data?.[0] && (
+              <SourceProvenancePopover
+                quote={chart.data[0].sourceQuote}
+                page={chart.data[0].sourcePage}
+                row={chart.data[0].sourceRow}
+                accentColor={theme.accent}
+                onUpdateCitation={(quote, ref) => {
+                  onUpdateText?.(`charts.${chartIdx}.data.0.sourceQuote`, quote);
+                  onUpdateText?.(`charts.${chartIdx}.data.0.sourcePage`, ref);
+                }}
+              />
+            )}
           </div>
           <div className="flex-1 min-h-0 flex flex-col justify-center gap-3 overflow-hidden">
             <div
