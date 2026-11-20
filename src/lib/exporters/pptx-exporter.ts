@@ -28,6 +28,77 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
   const inkMutedHex = toHex(theme.inkMuted);
   const accentHex = toHex(theme.accent);
 
+  /**
+   * High-contrast "Made with StatDeck" dark-slate pill watermark badge.
+   * Matches the visual lockup across web canvases (dark-slate pill + white badge + blue bars).
+   */
+  const addWatermarkBadge = (slide: pptxgen.Slide) => {
+    if (!ast.watermark) return;
+
+    // 1. Dark-slate pill background (#0F172A) with border (#475569)
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: 10.95,
+      y: 6.8,
+      w: 1.85,
+      h: 0.35,
+      fill: { color: "0F172A" },
+      line: { color: "475569", width: 0.75 },
+      rectRadius: 0.17,
+    });
+
+    // 2. White rounded-square icon badge
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: 11.05,
+      y: 6.88,
+      w: 0.19,
+      h: 0.19,
+      fill: { color: "FFFFFF" },
+      rectRadius: 0.04,
+    });
+
+    // 3. Three ascending #2563EB bars inside white badge
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: 11.08,
+      y: 6.97,
+      w: 0.026,
+      h: 0.07,
+      fill: { color: "2563EB" },
+      rectRadius: 0.01,
+    });
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: 11.12,
+      y: 6.93,
+      w: 0.026,
+      h: 0.11,
+      fill: { color: "2563EB" },
+      rectRadius: 0.01,
+    });
+    slide.addShape(pptx.ShapeType.roundRect, {
+      x: 11.16,
+      y: 6.90,
+      w: 0.026,
+      h: 0.14,
+      fill: { color: "2563EB" },
+      rectRadius: 0.01,
+    });
+
+    // 4. "Made with " in #CBD5E1 and "StatDeck" in #FFFFFF bold
+    slide.addText(
+      [
+        { text: "Made with ", options: { color: "CBD5E1", fontSize: 9.5, fontFace: "Calibri" } },
+        { text: "StatDeck", options: { color: "FFFFFF", bold: true, fontSize: 9.5, fontFace: "Calibri" } },
+      ],
+      {
+        x: 11.28,
+        y: 6.8,
+        w: 1.45,
+        h: 0.35,
+        align: "left",
+        valign: "middle",
+      }
+    );
+  };
+
   // ----------------------------------------------------
   // Slide 1: Cover Slide
   // ----------------------------------------------------
@@ -112,17 +183,7 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
   });
 
   // Watermark for free tier
-  if (ast.watermark) {
-    slide1.addText("Made with StatDeck", {
-      x: 9.0,
-      y: 6.8,
-      w: 4.0,
-      h: 0.3,
-      fontSize: 9,
-      color: inkMutedHex,
-      align: "right",
-    });
-  }
+  addWatermarkBadge(slide1);
 
   // ----------------------------------------------------
   // Slide 2: KPIs & Executive Summary (Optional: skipped if no KPIs)
@@ -233,6 +294,8 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
         italic: true,
       });
     }
+
+    addWatermarkBadge(slide2);
   }
 
   // ----------------------------------------------------
@@ -305,6 +368,8 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
         bold: true,
       });
     }
+
+    addWatermarkBadge(chartSlide);
   });
 
   // ----------------------------------------------------
@@ -381,6 +446,8 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
             color: inkMutedHex,
           });
         });
+
+        addWatermarkBadge(stepSlide);
       }
     } else if (block.type === "comparison_table") {
       const chunkSize = 5;
@@ -454,6 +521,8 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
           autoPage: false,
           border: { type: "solid", pt: 1, color: "CBD5E1" },
         });
+
+        addWatermarkBadge(tableSlide);
       }
     } else {
       const blockSlide = pptx.addSlide();
@@ -524,6 +593,8 @@ export async function exportDeckToPptx(ast: DeckAST, filename?: string): Promise
           });
         }
       }
+
+      addWatermarkBadge(blockSlide);
     }
   });
 

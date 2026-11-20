@@ -6,6 +6,7 @@ import { getThemeTokens } from "@/lib/themes/registry";
 import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import { buildCarouselSlides } from "@/components/canvas/carousel-slides";
 export { buildCarouselSlides } from "@/components/canvas/carousel-slides";
+export { WatermarkBadge } from "@/components/studio/watermark-badge";
 
 interface CarouselCanvasProps {
   ast: DeckAST;
